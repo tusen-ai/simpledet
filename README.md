@@ -1,4 +1,4 @@
-## SimpleDet - A Simple and Versatile Framework for Instance Recognition
+## SimpleDet - A Simple and Versatile Framework for Object Detection and Instance Recognition
 ### Major Features
 ![](./doc/image/diagram.png)
 - FP16 training for memory saving and up to **2.5X** acceleration
