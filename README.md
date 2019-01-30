@@ -10,7 +10,7 @@
 
 ### Setup
 #### Install
-SimpleDet contains a lot of C++ operators not in MXNet offical repo, so one has to build MXNet from scratch. Please refer to [INSTALL.md](./doc/INSTALL.md) more details
+SimpleDet contains a lot of C++ operators not in MXNet official repo, so one has to build MXNet from scratch. Please refer to [INSTALL.md](./doc/INSTALL.md) more details
 
 #### Preparing Data
 SimpleDet requires groundtruth annotation organized as following format
