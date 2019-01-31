@@ -185,14 +185,14 @@ if __name__ == "__main__":
 
     import pycocotools.mask as mask_util
 
-    from rcnn.core.detection_input import ReadRoiRecord, \
+    from core.detection_input import ReadRoiRecord, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord, AnchorTarget2D, AnchorLoader
 
     from models.maskrcnn.input import PreprocessGtPoly, EncodeGtPoly, \
         Resize2DImageBboxMask, Flip2DImageBboxMask, Pad2DImageBboxMask
 
-    def vis_mask(img, mask, col, alpha=0.4, show_border=True, border_thick=1):
+    def vis_mask(img, mask, col, alpha=0.4):
         """Visualizes a single binary mask."""
 
         img = img.astype(np.float32)
@@ -200,11 +200,6 @@ if __name__ == "__main__":
 
         img[idx[0], idx[1], :] *= 1.0 - alpha
         img[idx[0], idx[1], :] += alpha * col
-
-        if show_border:
-            _, contours, _ = cv2.findContours(
-                mask.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-            cv2.drawContours(img, contours, -1, _WHITE, border_thick, cv2.LINE_AA)
 
         return img.astype(np.uint8)
 
@@ -274,7 +269,6 @@ if __name__ == "__main__":
                               label_name=["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"],
                               batch_size=2,
                               shuffle=False,
-                              num_thread=4,
                               kv=None)
 
 
@@ -315,7 +309,7 @@ if __name__ == "__main__":
                             mask = mask_util.decode(rle)
                             mask = np.sum(mask, axis=2)
                             mask = np.array(mask > 0, dtype=np.float32)
-                            im = vis_mask(im, mask, np.array([18, 127, 15]), alpha=0.4, show_border=False, border_thick=1)
+                            im = vis_mask(im, mask, np.array([18, 127, 15]), alpha=0.4)
                         cv2.imshow("im", im)
                         cv2.waitKey(0)
             except StopIteration:
