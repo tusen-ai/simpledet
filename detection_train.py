@@ -120,6 +120,24 @@ def train_net(config):
     else:
         arg_params, aux_params = load_checkpoint(pretrain_prefix, pretrain_epoch)
 
+    # temporal init for tridentnet
+    for k in sym.list_arguments():
+        if k in worker_data_shape:
+            continue
+        # for trident non-shared initialization
+        import re
+        branch_name = re.sub('_branch\d+', '', k)
+        if k != branch_name and branch_name in arg_params:
+            arg_params[k] = arg_params[branch_name]
+            logger.info('init {} with {}'.format(k, branch_name))
+
+    for k in sym.list_auxiliary_states():
+        import re
+        branch_name = re.sub('_branch\d+', '', k)
+        if k != branch_name and branch_name in aux_params:
+            aux_params[k] = aux_params[branch_name]
+            continue
+
     if pModel.random:
         import time
         mx.random.seed(int(time.time()))

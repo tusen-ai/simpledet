@@ -5,7 +5,7 @@ import mxnet as mx
 import mxnext as X
 
 from symbol.builder import RpnHead, Backbone
-from models.tridentnet.resnet_v2 import TridentResNetV2Builder
+from models.tridentnet.resnet_v2_for_paper import TridentResNetV2Builder
 
 
 class TridentFasterRcnn(object):
@@ -186,6 +186,22 @@ class TridentMXNetResNetV2(Backbone):
 
     def get_rcnn_feature(self):
         return self.symbol
+
+
+class TridentMXNetResNetV2C4C5(Backbone):
+    def __init__(self, pBackbone):
+        super(TridentMXNetResNetV2C4C5, self).__init__(pBackbone)
+        p = pBackbone
+        b = TridentResNetV2Builder()
+        self.c4, self.c5 = b.get_backbone("mxnet", p.depth, "c4c5", p.normalizer, p.fp16,
+                                          p.num_branch, p.branch_dilates, p.branch_ids,
+                                          p.branch_bn_shared, p.branch_conv_shared, p.branch_deform)
+
+    def get_rpn_feature(self):
+        return self.c4
+
+    def get_rcnn_feature(self):
+        return self.c5
 
 
 def process_branch_outputs(outputs, num_branch, valid_ranges_input=None, valid_ranges_on_origin=True):

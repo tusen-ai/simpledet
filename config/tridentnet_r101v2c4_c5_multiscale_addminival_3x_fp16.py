@@ -148,7 +148,7 @@ def get_config(is_train):
         class pretrain:
             prefix = "pretrain_model/resnet-%d" % General.depth
             epoch = 0
-            fixed_param = ["conv0", "stage1", "gamma", "beta"]
+            fixed_param = []
 
 
     class OptimizeParam:

@@ -198,7 +198,8 @@ class TridentResNetV2Builder(Builder):
                 unit_deform = True
             else:
                 unit_deform = False
-            if unit_deform and i == 21:
+            # cast back to fp32 as deformable conv is not optimized for fp16
+            if unit_deform and i == num_block - 2:
                 for j in range(3):
                     data[j] = X.to_fp32(data[j], name="deform_to32")
             data = cls.resnet_trident_unit(
