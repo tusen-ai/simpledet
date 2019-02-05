@@ -33,6 +33,12 @@ Here we need to map the working directory into singularity shell, note that **sy
 sudo singularity shell --no-home --nv -s /usr/bin/zsh --bind $WORKDIR /path/to/simpledet.img
 ```
 
+## Setup with Docker
+We also provide docker image with ubuntu16.04, cuda9.0, cudnn7 and py3. Pascal and Volta architectures are supported.
+```bash
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet /usr/bin/zsh
+```
+
 ## Setup from Scratch
 #### Install CUDA, cuDNN and NCCL
 
