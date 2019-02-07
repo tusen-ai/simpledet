@@ -150,6 +150,24 @@ def get_config(is_train):
             epoch = 0
             fixed_param = []
 
+        def process_weight(sym, arg_params, aux_params):
+            import re
+            import logging
+
+            logger = logging.getLogger()
+            # for trident non-shared initialization
+            for k in sym.list_arguments():
+                branch_name = re.sub('_branch\d+', '', k)
+                if k != branch_name and branch_name in arg_params:
+                    arg_params[k] = arg_params[branch_name]
+                    logger.info('init arg {} with {}'.format(k, branch_name))
+
+            for k in sym.list_auxiliary_states():
+                branch_name = re.sub('_branch\d+', '', k)
+                if k != branch_name and branch_name in aux_params:
+                    aux_params[k] = aux_params[branch_name]
+                    logger.info('init aux {} with {}'.format(k, branch_name))
+
 
     class OptimizeParam:
         class optimizer:
