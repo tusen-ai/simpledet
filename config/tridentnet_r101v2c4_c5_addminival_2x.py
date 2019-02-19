@@ -116,7 +116,7 @@ def get_config(is_train):
         if is_train:
             image_set = ("coco_train2014", "coco_valminusminival2014", "coco_minival2014")
         else:
-            image_set = ("COCO_testdev2017_gt_roidb", )
+            image_set = ("coco_test-dev2017", )
 
     backbone = Backbone(BackboneParam)
     neck = Neck(NeckParam)
