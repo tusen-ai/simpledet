@@ -210,7 +210,7 @@ def train_net(config):
         arg_params=arg_params,
         aux_params=aux_params,
         begin_epoch=begin_epoch,
-        num_epoch=end_epoch
+        num_epoch=end_epoch - begin_epoch
     )
 
     logging.info("Training has done")

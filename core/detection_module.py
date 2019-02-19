@@ -973,7 +973,7 @@ class DetModule(BaseModule):
         ################################################################################
         # training loop
         ################################################################################
-        for epoch in range(begin_epoch, num_epoch):
+        for epoch in range(begin_epoch, begin_epoch + num_epoch):
             tic = time.time()
             eval_metric.reset()
             nbatch = 0
