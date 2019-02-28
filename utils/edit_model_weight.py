@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
     This script allows you to edit the model weight from https://github.com/TuSimple/simpledet/blob/master/MODEL_ZOO.md
-    for your own training.
+    for your own training. In this script, it assumes you don't change the layer of model, but only edit the content in 
+    the layer that models of MODEL_ZOO have. For example, you just change the training classes but not add or delete a 
+    unit of resnet.
     
     Example: Edit the weight from 80 + 1 classes to 3 + 1 classes training.
         - Train by your own configuration for one epoch, the configuration should have edited for 3 + 1 classes training.
@@ -14,7 +16,7 @@
         - Run the code!
     
     Note: The new generated model weight file will cover your original downloaded weight file, if you don't want like this,
-    you can edit the last line of the code
+    you can edit the last line of the code.
     
     TODO: Before you run the code, you should train a model for one epoch and edit the code as instructions above.
 """
