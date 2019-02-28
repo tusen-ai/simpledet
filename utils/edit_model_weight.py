@@ -6,7 +6,6 @@
     Example: Edit the weight from 80 + 1 classes to 3 + 1 classes training.
         - Train by your own configuration for one epoch, the configuration should have edited for 3 + 1 classes training.
         - Edit the constant in this file.
-            - PATH_TO_SIMPLEDET         the path to simpledet
             - SIMPLEDET_WEIGHT_FOLDER   the path to the weight folder you download
             - TRAINED_WEIGHT_FOLDER     the path to the weight folder you need the shape
             - EDIT_KEY                  the key of layer which you want to edit the weight, you can show the key by 
@@ -25,7 +24,6 @@ import numpy as np
 import os
 
 # TODO: Edit the path.
-PATH_TO_SIMPLEDET = " "
 SIMPLEDET_WEIGHT_FOLDER = " "
 TRAINED_WEIGHT_FOLDER = " "
 
