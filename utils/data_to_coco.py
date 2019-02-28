@@ -5,7 +5,7 @@
     Attention: This is not the official format, it does not require licenses and other redundant info, but can generate
     coco-like dataset which can be accepted by Simpledet.
 
-    ! Attention: You should reimplement the code from line 31 to the end, this file only describe the format of dataset
+    TODO: You should reimplement the code from line 31 to the end, this file only describe the format of dataset
     and the way to save it.
 """
 
@@ -28,7 +28,7 @@ def main():
         'annotations': []   # Required
     }
 
-    # class_map maps the class, which would be added into dataset['categories']
+    # TODO: class_map maps the class, which would be added into dataset['categories']
     class_map = {
         "box": 1,
         "can": 2,
@@ -41,13 +41,13 @@ def main():
             'supercategory': 'supercategory_name'
         })
 
-    # load your own data
+    # TODO: Load your own data
     self_data_list = []
     with open(input_file, 'r') as in_file:
         for line in in_file:
             self_data_list.append(json.loads(line))
 
-    # dataset images info, normally you should implement an iter here to append the info
+    # TODO: Dataset images info, normally you should implement an iter here to append the info
     dataset['images'].append({
         'coco_url': '',
         'date_captured': '',
@@ -59,7 +59,7 @@ def main():
         'height': int()     # Required (int)    height of image
     })
 
-    # dataset annotation info, normally you should implement an iter here to append the info
+    # TODO: Dataset annotation info, normally you should implement an iter here to append the info
     dataset["annotations"].append({
         'area': int(),          # Required (int)    image area
         'bbox': [int()] * 4,    # Required (int)    one of the image bboxes
