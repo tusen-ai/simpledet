@@ -33,7 +33,10 @@ Please setup SimpleDet following [README](../../README.md)  and use the TridentN
 | TridentNet, 2x              | ResNet-101 | test-dev  |      42.8      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_addminival_2x.zip)|
 | TridentNet*, 3x             | ResNet-101 | test-dev  |      48.4      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_multiscale_addminival_3x_fp16.zip)|
 
-Note: to test TridentNet*, please import `resnet_v2_for_paper` other than `resnet_v2` in `tridentnet/builder.py` due to a slight difference in the position of a FP16 cast operator.
+Note: 
+1. These models are not trained in SimpleDet. Re-training these models in SimpleDet gives a slightly better result.
+2. To test TridentNet*, please import `resnet_v2_for_paper` other than `resnet_v2` in `tridentnet/builder.py` due to a slight difference in the position of a FP16 cast operator.
+
 
 ### Citing TridentNet
 
