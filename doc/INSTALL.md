@@ -45,9 +45,7 @@ nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simple
 #### Install cocotools
 ```bash
 # Install a patched cocotools for python3
-git clone https://github.com/RogerChern/cocoapi
-cd cocoapi/PythonAPI
-python3 setup.py install
+pip3 install 'git+https://github.com/RogerChern/cocoapi.git#subdirectory=PythonAPI'
 ```
 
 #### Install MXNet
