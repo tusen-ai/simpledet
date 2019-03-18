@@ -150,5 +150,15 @@ Please refer to [DISTRIBUTED.md](./doc/DISTRIBUTED.md)
 Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Yi Jiang, Naiyan Wang
 
 
-### License
+### License and Citation
 This project is release under the Apache 2.0 license for non-commercial usage. For commercial usage, please contact us for another license.
+
+If you find our project helpful, please consider cite our tech report.
+```
+@article{chen2019simpledet,
+  title={SimpleDet: A Simple and Versatile Distributed Framework for Object Detection and Instance Recognition},
+  author={Chen, Yuntao and and Han, Chenxia and Li, Yanghao and Huang, Zehao and Jiang, Yi and Wang, Naiyan and Zhang, Zhaoxiang},
+  journal={arXiv preprint arXiv:1903.05831},
+  year={2019}
+}
+```
