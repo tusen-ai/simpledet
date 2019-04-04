@@ -44,7 +44,7 @@ def get_config(is_train):
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
-            stride = [64, 32, 16, 8, 4]
+            stride = (4, 8, 16, 32, 64)
             image_anchor = 256
 
         class head:
@@ -91,7 +91,9 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         out_size = 7
-        stride = [32, 16, 8, 4]
+        stride = (4, 8, 16, 32)
+        roi_canonical_scale = 224
+        roi_canonical_level = 4
 
 
     class DatasetParam:
@@ -215,7 +217,7 @@ def get_config(is_train):
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord, Norm2DImage
-    
+
     from models.FPN.input import PyramidAnchorTarget2D
 
     if is_train:
