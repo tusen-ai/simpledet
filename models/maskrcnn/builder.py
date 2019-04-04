@@ -4,7 +4,7 @@ import mxnext as X
 import mxnet as mx
 
 from models.FPN.builder import FPNRpnHead, FPNRoiExtractor
-from models.FPN import assign_layer_fpn, get_topk_proposal
+from models.FPN import assign_layer_fpn, get_top_proposal
 
 from models.maskrcnn import bbox_post_processing
 

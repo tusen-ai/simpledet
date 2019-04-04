@@ -8,7 +8,7 @@ Since **FPN** uses **Feature Pyramid** as backbone,  we cannot use ```AnchorTarg
 
 #### Operators
 
-- **get_topk_proposal**, since **FPN** has mutli-scale proposals, we should concat the multi-scale proposals together and get the topK proposals for roi-pooling or roi-align
+- **get_top_proposal**, since **FPN** has mutli-scale proposals, we should concat the multi-scale proposals together and get the topK proposals for roi-pooling or roi-align
 - **assign_layer_fpn**, **FPN** assign the proposals to target levels(P2, P3, P4, P5) according to the areas, so we use this Operator to assign feature levels for proposals
 
 
