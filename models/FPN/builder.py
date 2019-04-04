@@ -4,7 +4,7 @@ import mxnet as mx
 import mxnext as X
 
 from symbol.builder import Backbone, BboxHead
-from models.FPN import assign_layer_fpn, get_topk_proposal
+from models.FPN import assign_layer_fpn, get_top_proposal
 
 
 class FPNBbox2fcHead(BboxHead):
@@ -208,8 +208,8 @@ class FPNRpnHead(object):
         proposal_concat = X.concat(proposal_list, axis=1, name="proposal_concat")
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
-        proposal = mx.symbol.Custom(rois=proposal_concat, rois_scores=proposal_scores_concat,
-                                    op_type='get_top_proposal', rpn_post_nms_top_n=post_nms_top_n)
+        proposal = mx.symbol.Custom(bbox=proposal_concat, score=proposal_scores_concat,
+                                    op_type='get_top_proposal', top_n=post_nms_top_n)
 
         self._proposal = proposal
 
@@ -234,7 +234,7 @@ class FPNRpnHead(object):
         bbox_target_mean = p.bbox_target.mean
         bbox_target_std = p.bbox_target.std
 
-        proposal = self.get_all_proposal(conv_fpn_feat, im_info)
+        (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
 
         (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
             rois=proposal,
@@ -432,13 +432,19 @@ class FPNRoiAlign(FPNRoiExtractor):
     def get_roi_feature(self, conv_fpn_feat, proposal):
         p = self.p
         rcnn_stride = p.stride
+        roi_canonical_scale = p.roi_canonical_scale
+        roi_canonical_level = p.roi_canonical_level
 
-        group = mx.symbol.Custom(rois=proposal, op_type='assign_layer_fpn')
+        group = mx.symbol.Custom(
+            rois=proposal,
+            rcnn_stride=rcnn_stride,
+            roi_canonical_scale=roi_canonical_scale,
+            roi_canonical_level=roi_canonical_level,
+            op_type='assign_layer_fpn'
+        )
         proposal_fpn = dict()
-        proposal_fpn["stride4"] = group[1]
-        proposal_fpn["stride8"] = group[2]
-        proposal_fpn["stride16"] = group[3]
-        proposal_fpn["stride32"] = group[4]
+        for i, stride in enumerate(rcnn_stride):
+            proposal_fpn["stride%s" % stride] = group[i]
 
         if p.fp16:
             for stride in rcnn_stride:
