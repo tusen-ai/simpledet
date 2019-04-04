@@ -312,12 +312,6 @@ class FPNConvTopDown(Neck):
 
         c2, c3, c4, c5 = data
 
-        if self.p.fp16:
-            c2 = X.to_fp32(c2, name="c2_to_fp32")
-            c3 = X.to_fp32(c3, name="c3_to_fp32")
-            c4 = X.to_fp32(c4, name="c4_to_fp32")
-            c5 = X.to_fp32(c5, name="c5_to_fp32")
-
         xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
 
         # P5
@@ -343,8 +337,8 @@ class FPNConvTopDown(Neck):
                        weight=X.var(name="P4_lateral_weight", init=xavier_init),
                         bias=X.var(name="P4_lateral_bias", init=X.zero_init()),
                        name="P4_lateral")
-        p5_clip = mx.sym.Crop(*[p5_up, p4_la], name="P4_clip")
-        p4 = mx.sym.ElementWiseSum(*[p5_clip, p4_la], name="P4_sum")
+        p5_clip = mx.sym.slice_like(*[p5_up, p4_la], name="P4_clip")
+        p4 = mx.sym.add_n(*[p5_clip, p4_la], name="P4_sum")
 
         p4_conv = X.conv(data=p4,
                          kernel=3,
@@ -362,8 +356,8 @@ class FPNConvTopDown(Neck):
                        weight=X.var(name="P3_lateral_weight", init=xavier_init),
                        bias=X.var(name="P3_lateral_bias", init=X.zero_init()),
                        name="P3_lateral")
-        p4_clip = mx.sym.Crop(*[p4_up, p3_la], name="P3_clip")
-        p3 = mx.sym.ElementWiseSum(*[p4_clip, p3_la], name="P3_sum")
+        p4_clip = mx.sym.slice_like(*[p4_up, p3_la], name="P3_clip")
+        p3 = mx.sym.add_n(*[p4_clip, p3_la], name="P3_sum")
 
         p3_conv = X.conv(data=p3,
                          kernel=3,
@@ -381,8 +375,8 @@ class FPNConvTopDown(Neck):
                        weight=X.var(name="P2_lateral_weight", init=xavier_init),
                        bias=X.var(name="P2_lateral_bias", init=X.zero_init()),
                        name="P2_lateral")
-        p3_clip = mx.sym.Crop(*[p3_up, p2_la], name="P2_clip")
-        p2 = mx.sym.ElementWiseSum(*[p3_clip, p2_la], name="P2_sum")
+        p3_clip = mx.sym.slice_like(*[p3_up, p2_la], name="P2_clip")
+        p2 = mx.sym.add_n(*[p3_clip, p2_la], name="P2_sum")
 
         p2_conv = X.conv(data=p2,
                          kernel=3,
@@ -394,12 +388,6 @@ class FPNConvTopDown(Neck):
 
         # P6
         p6 = X.pool(p5_conv, name="P6_subsampling", kernel=1, stride=2, pad=0, pool_type='max')
-        if self.p.fp16:
-            p6 = X.to_fp16(p6, name="p6_to_fp16")
-            p5_conv = X.to_fp16(p5_conv, name="p5_conv_to_fp16")
-            p4_conv = X.to_fp16(p4_conv, name="p4_conv_to_fp16")
-            p3_conv = X.to_fp16(p3_conv, name="p3_conv_to_fp16")
-            p2_conv = X.to_fp16(p2_conv, name="p2_conv_to_fp16")
 
         conv_fpn_feat = dict()
         conv_fpn_feat.update({"stride64": p6, "stride32": p5_conv, "stride16": p4_conv, "stride8": p3_conv, "stride4": p2_conv})
