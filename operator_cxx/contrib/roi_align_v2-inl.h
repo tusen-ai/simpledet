@@ -25,7 +25,7 @@ enum ROIAlignOpOutputs {kOut, kMaxIdx_x, kMaxIdx_y};
 
 
 struct ROIAlignParam_v2 : public dmlc::Parameter<ROIAlignParam_v2> {
-  TShape pooled_size;
+  mxnet::TShape pooled_size;
   float spatial_scale;
   DMLC_DECLARE_PARAMETER(ROIAlignParam_v2) {
     DMLC_DECLARE_FIELD(pooled_size)

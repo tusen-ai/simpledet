@@ -184,16 +184,16 @@ NNVM_REGISTER_OP(_contrib_ROIAlign_v2)
     [](const NodeAttrs& attrs) {
   return std::vector<std::string>{"output", "maxidx_x", "maxidx_y"};
 })
-.set_attr<nnvm::FInferShape>("FInferShape", [](const nnvm::NodeAttrs& attrs,
-      std::vector<TShape> *in_shape, std::vector<TShape> *out_shape){
+.set_attr<mxnet::FInferShape>("FInferShape", [](const nnvm::NodeAttrs& attrs,
+      mxnet::ShapeVector *in_shape, mxnet::ShapeVector *out_shape){
   using namespace mshadow;
   const ROIAlignParam_v2 param = nnvm::get<ROIAlignParam_v2>(attrs.parsed);
   CHECK_EQ(in_shape->size(), 2) << "Input:[data, rois]";
   // data: [batch_size, c, h, w]
-  TShape dshape = in_shape->at(roialign_v2::kData);
+  mxnet::TShape dshape = in_shape->at(roialign_v2::kData);
   CHECK_EQ(dshape.ndim(), 4) << "data should be a 4D tensor";
   // bbox: [batch_size, num_rois_per_batch, 4]
-  TShape bshape = in_shape->at(roialign_v2::kBox);
+  mxnet::TShape bshape = in_shape->at(roialign_v2::kBox);
   CHECK_EQ(bshape.ndim(), 3) << "bbox should be a 3D tensor of shape [batch, rois, 4]";
   CHECK_EQ(bshape[2], 4) << "bbox should be a 3D tensor of shape [batch, rois, 4]";
   // out: [batch_size, num_rois_per_batch, c, pooled_h, pooled_w]
