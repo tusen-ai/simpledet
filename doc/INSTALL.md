@@ -34,9 +34,11 @@ sudo singularity shell --no-home --nv -s /usr/bin/zsh --bind $WORKDIR /path/to/s
 ```
 
 ## Setup with Docker
-We also provide docker image with ubuntu16.04, cuda9.0, cudnn7 and py3. Pascal and Volta architectures are supported.
+We provide docker image with ubuntu16.04, cuda9.0, cudnn7 and py3. Pascal and Volta architectures are supported.
+We also provide a cuda10.0 image for Turing users which is tested with nvidia-driver==418.56 on a RTX 2080.
 ```bash
-nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet /usr/bin/zsh
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet zsh
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet:cuda10 zsh
 ```
 
 ## Setup from Scratch
@@ -59,11 +61,10 @@ sudo apt-get install -y libopenblas-dev
 ```bash
 # Specify simpledet directory
 export SIMPLEDET_DIR=/path/to/simpledet
-export COCOAPI_DIR = /path/to/cocoapi
+export COCOAPI_DIR=/path/to/cocoapi
 
 git clone https://github.com/apache/incubator-mxnet mxnet
 cd mxnet
-git checkout 1.3.1
 git submodule init
 git submodule update:
 echo "USE_OPENCV = 0" >> ./config.mk
