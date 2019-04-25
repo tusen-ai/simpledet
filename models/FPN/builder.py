@@ -212,7 +212,7 @@ class FPNRpnHead(object):
         proposal_concat = X.concat(proposal_list, axis=1, name="proposal_concat")
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
-        proposal = mx.symbol.Custom(
+        (proposal, proposal_score) = mx.symbol.Custom(
             op_type="get_top_proposal",
             bbox=proposal_concat,
             score=proposal_scores_concat,
@@ -243,7 +243,7 @@ class FPNRpnHead(object):
         bbox_target_mean = p.bbox_target.mean
         bbox_target_std = p.bbox_target.std
 
-        (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
+        proposal = self.get_all_proposal(conv_fpn_feat, im_info)
 
         (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
             rois=proposal,
