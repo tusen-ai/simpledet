@@ -1,60 +1,43 @@
 """
 Assign Layer operator for FPN
+author: Yi Jiang, Chenxia Han
 """
 
 import mxnet as mx
 import numpy as np
-import numpy.random as npr
-from distutils.util import strtobool
-import pdb
 
 
 class AssignLayerFPNOperator(mx.operator.CustomOp):
-    def __init__(self):
+    def __init__(self, rcnn_stride, roi_canonical_scale, roi_canonical_level):
         super(AssignLayerFPNOperator, self).__init__()
+        self.rcnn_stride = rcnn_stride
+        self.roi_canonical_scale = roi_canonical_scale
+        self.roi_canonical_level = roi_canonical_level
 
     def forward(self, is_train, req, in_data, out_data, aux):
-        all_rois = in_data[0].asnumpy()
-        batch_images = all_rois.shape[0]
+        all_rois = in_data[0]
 
-        rois = []
-        rois_s4, rois_s8, rois_s16, rois_s32 = [[] for _ in range(4)]
-        rcnn_feat_stride = [32, 16, 8, 4]
-        for i in range(batch_images):
-            rois_i = all_rois[i]
-            rois_num, _ = rois_i.shape
-            thresholds = [[np.inf, 448], [448, 224], [224, 112], [112, 0]]
-            rois_area = np.sqrt((rois_i[:, 2] - rois_i[:, 0] + 1) * (rois_i[:, 3] - rois_i[:, 1] + 1))
-            assign_levels = np.zeros(rois_num, dtype=np.uint8)
-            for thresh, stride in zip(thresholds, rcnn_feat_stride):
-                inds = np.logical_and(thresh[1] <= rois_area, rois_area < thresh[0])
-                assign_levels[inds] = stride
+        rcnn_stride = self.rcnn_stride
+        scale0 = self.roi_canonical_scale
+        lvl0 = self.roi_canonical_level
+        k_min = np.log2(min(rcnn_stride))
+        k_max = np.log2(max(rcnn_stride))
 
-            # assign rois to levels
-            for idx, s in enumerate(rcnn_feat_stride):
-                index = np.where(assign_levels == s)
-                _rois = np.zeros(shape=(rois_num, 4), dtype=np.float32)
-                _rois[index] = rois_i[index]
-                if s == 4:
-                    rois_s4.append(_rois)
-                elif s == 8:
-                    rois_s8.append(_rois)
-                elif s == 16:
-                    rois_s16.append(_rois)
-                else:
-                    rois_s32.append(_rois)
-                #rois_on_levels.update({"stride%s" % s: _rois})
-            rois.append(rois_i)
-        
-        # pdb.set_trace()
-        rois = np.array(rois, dtype=np.float32)
-        rois_s4 = np.array(rois_s4, dtype=np.float32)
-        rois_s8 = np.array(rois_s8, dtype=np.float32)
-        rois_s16 = np.array(rois_s16, dtype=np.float32)
-        rois_s32 = np.array(rois_s32, dtype=np.float32)
+        rois_area = (all_rois[:, :, 2] - all_rois[:, :, 0] + 1) \
+                    * (all_rois[:, :, 3] - all_rois[:, :, 1] + 1)
 
-        for ind, val in enumerate([rois, rois_s4, rois_s8, rois_s16, rois_s32]):
-            self.assign(out_data[ind], req[ind], val)
+        scale = mx.nd.sqrt(rois_area)
+        target_lvls = mx.nd.floor(lvl0 + mx.nd.log2(scale / scale0 + 1e-6))
+        target_lvls = mx.nd.clip(target_lvls, k_min, k_max)
+        target_stride = (2 ** target_lvls).astype('uint8')
+
+        for i, s in enumerate(rcnn_stride):
+            lvl_rois = mx.nd.zeros_like(all_rois)
+            lvl_inds = mx.nd.expand_dims(target_stride == s, axis=2).astype('float32')
+            lvl_inds = mx.nd.broadcast_like(lvl_inds, lvl_rois)
+            lvl_rois = mx.nd.where(lvl_inds, all_rois, lvl_rois)
+
+            self.assign(out_data[i], req[i], lvl_rois)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         self.assign(in_grad[0], req[0], 0)
@@ -62,26 +45,29 @@ class AssignLayerFPNOperator(mx.operator.CustomOp):
 
 @mx.operator.register('assign_layer_fpn')
 class AssignLayerFPNProp(mx.operator.CustomOpProp):
-    def __init__(self):
+    def __init__(self, rcnn_stride, roi_canonical_scale, roi_canonical_level):
         super(AssignLayerFPNProp, self).__init__(need_top_grad=False)
-
+        self.rcnn_stride = eval(rcnn_stride)
+        self.roi_canonical_scale = int(roi_canonical_scale)
+        self.roi_canonical_level = int(roi_canonical_level)
 
     def list_arguments(self):
         return ['rois']
 
     def list_outputs(self):
-        return ['rois', 'rois_s4', 'rois_s8', 'rois_s16', 'rois_s32']
+        rois_list = ['rois_s{}'.format(s) for s in self.rcnn_stride]
+        return rois_list
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
 
-        output_rois_shape = rpn_rois_shape
+        output_rois_shape = [rpn_rois_shape] * len(self.rcnn_stride)
 
-        return [rpn_rois_shape], \
-               [output_rois_shape, output_rois_shape, output_rois_shape, output_rois_shape, output_rois_shape]
+        return [rpn_rois_shape], output_rois_shape
 
     def create_operator(self, ctx, shapes, dtypes):
-        return AssignLayerFPNOperator()
+        return AssignLayerFPNOperator(self.rcnn_stride, self.roi_canonical_scale,
+                                      self.roi_canonical_level)
 
     def declare_backward_dependency(self, out_grad, in_data, out_data):
         return []

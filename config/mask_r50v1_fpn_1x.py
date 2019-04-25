@@ -1,11 +1,11 @@
-from models.FPN.builder import MSRAResNet50V1FPN as FPNBackbone
-from models.FPN.builder import FPNConvTopDown
-from models.FPN.builder import FPNRoiAlign as FPNRoiExtractor
-from models.FPN.builder import FPNBbox2fcHead as Bbox2fcHead
+from models.FPN.builder import MSRAResNet50V1FPN as Backbone
+from models.FPN.builder import FPNNeck as Neck
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
 from models.maskrcnn.builder import MaskFasterRcnn as Detector
-from models.maskrcnn.builder import MaskFPNRpnHead as FPNRpnHead
+from models.maskrcnn.builder import MaskFPNRpnHead as RpnHead
 from models.maskrcnn.builder import MaskFasterRcnn4ConvHead as MaskHead
 from models.maskrcnn.builder import BboxPostProcessor
 from models.maskrcnn.process_output import process_output
@@ -48,7 +48,7 @@ def get_config(is_train):
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
-            stride = [64, 32, 16, 8, 4]
+            stride = (4, 8, 16, 32, 64)
             image_anchor = 256
 
         class head:
@@ -102,14 +102,18 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         out_size = 7
-        stride = [32, 16, 8, 4]
+        stride = (4, 8, 16, 32)
+        roi_canonical_scale = 224
+        roi_canonical_level = 4
 
 
     class MaskRoiParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         out_size = 14
-        stride = [32, 16, 8, 4]
+        stride = (4, 8, 16, 32)
+        roi_canonical_scale = 224
+        roi_canonical_level = 4
 
 
     class DatasetParam:
@@ -157,12 +161,12 @@ def get_config(is_train):
         class coco:
             annotation = "data/coco/annotations/instances_minival2014.json"
 
-    backbone = FPNBackbone(BackboneParam)
-    neck = FPNConvTopDown(NeckParam)
-    rpn_head = FPNRpnHead(RpnParam, MaskParam)
-    roi_extractor = FPNRoiExtractor(RoiParam)
-    mask_roi_extractor = FPNRoiExtractor(MaskRoiParam)
-    bbox_head = Bbox2fcHead(BboxParam)
+    backbone = Backbone(BackboneParam)
+    neck = Neck(NeckParam)
+    rpn_head = RpnHead(RpnParam, MaskParam)
+    roi_extractor = RoiExtractor(RoiParam)
+    mask_roi_extractor = RoiExtractor(MaskRoiParam)
+    bbox_head = BboxHead(BboxParam)
     mask_head = MaskHead(BboxParam, MaskParam, MaskRoiParam)
     bbox_post_processer = BboxPostProcessor(TestParam)
     detector = Detector()

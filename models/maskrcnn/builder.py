@@ -3,8 +3,7 @@ from __future__ import print_function
 import mxnext as X
 import mxnet as mx
 
-from models.FPN.builder import FPNRpnHead, FPNRoiExtractor
-from models.FPN import assign_layer_fpn, get_topk_proposal
+from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
 

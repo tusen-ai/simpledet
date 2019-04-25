@@ -1,9 +1,9 @@
 from symbol.builder import FasterRcnn as Detector
-from models.FPN.builder import MSRAResNet101V1FPN as FPNBackbone
-from models.FPN.builder import FPNConvTopDown
-from models.FPN.builder import FPNRpnHead
-from models.FPN.builder import FPNRoiAlign as FPNRoiExtractor
-from models.FPN.builder import FPNBbox2fcHead as Bbox2fcHead
+from models.FPN.builder import MSRAResNet101V1FPN as Backbone
+from models.FPN.builder import FPNNeck as Neck
+from models.FPN.builder import FPNRpnHead as RpnHead
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
@@ -44,7 +44,7 @@ def get_config(is_train):
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
-            stride = [64, 32, 16, 8, 4]
+            stride = (4, 8, 16, 32, 64)
             image_anchor = 256
 
         class head:
@@ -91,7 +91,9 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         out_size = 7
-        stride = [32, 16, 8, 4]
+        stride = (4, 8, 16, 32)
+        roi_canonical_scale = 224
+        roi_canonical_level = 4
 
 
     class DatasetParam:
@@ -100,11 +102,11 @@ def get_config(is_train):
         else:
             image_set = ("coco_minival2014", )
 
-    backbone = FPNBackbone(BackboneParam)
-    neck = FPNConvTopDown(NeckParam)
-    rpn_head = FPNRpnHead(RpnParam)
-    roi_extractor = FPNRoiExtractor(RoiParam)
-    bbox_head = Bbox2fcHead(BboxParam)
+    backbone = Backbone(BackboneParam)
+    neck = Neck(NeckParam)
+    rpn_head = RpnHead(RpnParam)
+    roi_extractor = RoiExtractor(RoiParam)
+    bbox_head = BboxHead(BboxParam)
     detector = Detector()
     if is_train:
         train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)
@@ -215,7 +217,7 @@ def get_config(is_train):
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord, Norm2DImage
-    
+
     from models.FPN.input import PyramidAnchorTarget2D
 
     if is_train:
