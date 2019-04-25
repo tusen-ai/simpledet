@@ -46,7 +46,8 @@ class RetinaNetHead(object):
         self._bbox_delta_list       = None
 
     def _cls_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class):
-        import mxnet as mx
+        p = self.p
+
         # classification subnet
         cls_conv1 = X.conv(
             data=conv_feat,
@@ -89,6 +90,9 @@ class RetinaNetHead(object):
         )
         cls_conv4_relu = X.relu(cls_conv4)
 
+        if p.fp16:
+            cls_conv4_relu = X.to_fp32(cls_conv4_relu, name="cls_conv4_fp32")
+
         output_channel = num_base_anchor * (num_class - 1)
         output = X.conv(
             data=cls_conv4_relu,
@@ -103,7 +107,8 @@ class RetinaNetHead(object):
         return output
 
     def _bbox_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class):
-        import mxnet as mx
+        p = self.p
+
         # regression subnet
         bbox_conv1 = X.conv(
             data=conv_feat,
@@ -145,6 +150,9 @@ class RetinaNetHead(object):
             name="bbox_conv4"
         )
         bbox_conv4_relu = X.relu(bbox_conv4)
+
+        if p.fp16:
+            bbox_conv4_relu = X.to_fp32(bbox_conv4_relu, name="bbox_conv4_fp32")
 
         output_channel = num_base_anchor * 4
         output = X.conv(
@@ -237,6 +245,8 @@ class RetinaNetHead(object):
 
         cls_logit_list, bbox_delta_list = self.get_output(conv_feat)
 
+        scale_loss_shift = 128.0 if p.fp16 else 1.0
+
         # reshape logit and delta
         for i, s in enumerate(stride):
             # (N, A * C, H, W) -> (N, A, C, H * W)
@@ -278,7 +288,7 @@ class RetinaNetHead(object):
             normalization='valid',
             alpha=p.focal_loss.alpha,
             gamma=p.focal_loss.gamma,
-            grad_scale=1.0,
+            grad_scale=1.0 * scale_loss_shift,
             workspace=1024,
             name="cls_loss"
         )
@@ -297,7 +307,7 @@ class RetinaNetHead(object):
         )
         reg_loss = X.make_loss(
             data=bbox_loss,
-            grad_scale=1.0,
+            grad_scale=1.0 * scale_loss_shift,
             name="reg_loss"
         )
 
@@ -417,8 +427,8 @@ class RetinaNetNeck(Neck):
             bias=X.var(name="P4_lateral_bias", init=X.zero_init()),
             name="P4_lateral"
         )
-        p5_clip = mx.sym.Crop(*[p5_up, p4_la], name="P4_clip")
-        p4 = mx.sym.ElementWiseSum(*[p5_clip, p4_la], name="P4_sum")
+        p5_clip = mx.sym.slice_like(p5_up, p4_la, name="P4_clip")
+        p4 = mx.sym.add_n(p5_clip, p4_la, name="P4_sum")
 
         p4_conv = X.conv(
             data=p4,
@@ -446,8 +456,8 @@ class RetinaNetNeck(Neck):
             bias=X.var(name="P3_lateral_bias", init=X.zero_init()),
             name="P3_lateral"
         )
-        p4_clip = mx.sym.Crop(*[p4_up, p3_la], name="P3_clip")
-        p3 = mx.sym.ElementWiseSum(*[p4_clip, p3_la], name="P3_sum")
+        p4_clip = mx.sym.slice_like(p4_up, p3_la, name="P3_clip")
+        p3 = mx.sym.add_n(p4_clip, p3_la, name="P3_sum")
 
         p3_conv = X.conv(
             data=p3,
