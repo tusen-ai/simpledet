@@ -1,9 +1,9 @@
 from symbol.builder import FasterRcnn as Detector
-from models.FPN.builder import MSRAResNet101V1FPN as FPNBackbone
-from models.FPN.builder import FPNConvTopDown
-from models.FPN.builder import FPNRpnHead
-from models.FPN.builder import FPNRoiAlign as FPNRoiExtractor
-from models.FPN.builder import FPNBbox2fcHead as Bbox2fcHead
+from models.FPN.builder import MSRAResNet101V1FPN as Backbone
+from models.FPN.builder import FPNNeck as Neck
+from models.FPN.builder import FPNRpnHead as RpnHead
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
@@ -102,11 +102,11 @@ def get_config(is_train):
         else:
             image_set = ("coco_minival2014", )
 
-    backbone = FPNBackbone(BackboneParam)
-    neck = FPNConvTopDown(NeckParam)
-    rpn_head = FPNRpnHead(RpnParam)
-    roi_extractor = FPNRoiExtractor(RoiParam)
-    bbox_head = Bbox2fcHead(BboxParam)
+    backbone = Backbone(BackboneParam)
+    neck = Neck(NeckParam)
+    rpn_head = RpnHead(RpnParam)
+    roi_extractor = RoiExtractor(RoiParam)
+    bbox_head = BboxHead(BboxParam)
     detector = Detector()
     if is_train:
         train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)

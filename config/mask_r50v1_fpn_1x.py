@@ -1,11 +1,11 @@
-from models.FPN.builder import MSRAResNet50V1FPN as FPNBackbone
-from models.FPN.builder import FPNConvTopDown
-from models.FPN.builder import FPNRoiAlign as FPNRoiExtractor
-from models.FPN.builder import FPNBbox2fcHead as Bbox2fcHead
+from models.FPN.builder import MSRAResNet50V1FPN as Backbone
+from models.FPN.builder import FPNConvTopDown as Neck
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
 from models.maskrcnn.builder import MaskFasterRcnn as Detector
-from models.maskrcnn.builder import MaskFPNRpnHead as FPNRpnHead
+from models.maskrcnn.builder import MaskFPNRpnHead as RpnHead
 from models.maskrcnn.builder import MaskFasterRcnn4ConvHead as MaskHead
 from models.maskrcnn.builder import BboxPostProcessor
 from models.maskrcnn.process_output import process_output
@@ -161,12 +161,12 @@ def get_config(is_train):
         class coco:
             annotation = "data/coco/annotations/instances_minival2014.json"
 
-    backbone = FPNBackbone(BackboneParam)
-    neck = FPNConvTopDown(NeckParam)
-    rpn_head = FPNRpnHead(RpnParam, MaskParam)
-    roi_extractor = FPNRoiExtractor(RoiParam)
-    mask_roi_extractor = FPNRoiExtractor(MaskRoiParam)
-    bbox_head = Bbox2fcHead(BboxParam)
+    backbone = Backbone(BackboneParam)
+    neck = Neck(NeckParam)
+    rpn_head = RpnHead(RpnParam, MaskParam)
+    roi_extractor = RoiExtractor(RoiParam)
+    mask_roi_extractor = RoiExtractor(MaskRoiParam)
+    bbox_head = BboxHead(BboxParam)
     mask_head = MaskHead(BboxParam, MaskParam, MaskRoiParam)
     bbox_post_processer = BboxPostProcessor(TestParam)
     detector = Detector()

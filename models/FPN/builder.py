@@ -3,7 +3,7 @@ from __future__ import print_function
 import mxnet as mx
 import mxnext as X
 
-from symbol.builder import Backbone, BboxHead
+from symbol.builder import Backbone, BboxHead, Neck, RoiAlign
 from models.FPN import assign_layer_fpn, get_top_proposal
 
 
@@ -297,25 +297,13 @@ class MSRAResNet101V1FPN(Backbone):
         return self.symbol
 
 
-class Neck(object):
-    def __init__(self):
-        pass
-
-    def get_rpn_feature(self, rpn_feat):
-        return rpn_feat
-
-    def get_rcnn_feature(self, rcnn_feat):
-        return rcnn_feat
-
-
-class FPNConvTopDown(Neck):
+class FPNNeck(Neck):
     def __init__(self, pNeck):
-        super(FPNConvTopDown, self).__init__()
+        super(FPNNeck, self).__init__(pNeck)
         self.fpn_feat = None
-        self.p = pNeck
 
-    def fpn_conv_down(self, data):
-        if self.fpn_feat:
+    def fpn_neck(self, data):
+        if self.fpn_feat is not None:
             return self.fpn_feat
 
         c2, c3, c4, c5 = data
@@ -448,26 +436,15 @@ class FPNConvTopDown(Neck):
         return self.fpn_feat
 
     def get_rpn_feature(self, rpn_feat):
-        return self.fpn_conv_down(rpn_feat)
+        return self.fpn_neck(rpn_feat)
 
     def get_rcnn_feature(self, rcnn_feat):
-        return self.fpn_conv_down(rcnn_feat)
+        return self.fpn_neck(rcnn_feat)
 
 
-class FPNRoiExtractor(object):
-    def __init__(self, pRoi):
-        self.p = pRoi  # type: RoiParam
-
-    def get_roi_feature(self, rcnn_feat, proposal):
-        pass
-
-
-class FPNRoiAlign(FPNRoiExtractor):
+class FPNRoiAlign(RoiAlign):
     def __init__(self, pRoi):
         super(FPNRoiAlign, self).__init__(pRoi)
-
-    def get_roi_feature_test(self, conv_fpn_feat, proposals):
-        return self.get_roi_feature(conv_fpn_feat, proposals)
 
     def get_roi_feature(self, conv_fpn_feat, proposal):
         p = self.p
