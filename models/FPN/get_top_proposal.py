@@ -1,5 +1,5 @@
 """
-Collect top proposals across all layers for FPN
+Collect top proposals across all levels for FPN
 author: Yi Jiang, Chenxia Han
 """
 
@@ -16,12 +16,12 @@ class GetTopProposalOperator(mx.operator.CustomOp):
         bboxes = in_data[0]
         scores = in_data[1]
 
-        nbatch = bboxes.shape[0]
+        num_image = bboxes.shape[0]
         top_n = self.top_n
         top_bboxes = []
         top_scores = []
 
-        for i in range(nbatch):
+        for i in range(num_image):
             image_bboxes = bboxes[i]
             image_scores = scores[i]
             argsort_ind = mx.nd.argsort(image_scores[:,0], is_ascend=False)
@@ -59,10 +59,10 @@ class GetTopProposalProp(mx.operator.CustomOpProp):
     def infer_shape(self, in_shape):
         bbox_shape = in_shape[0]
         score_shape = in_shape[1]
-        nbatch = bbox_shape[0]
+        num_image = bbox_shape[0]
 
-        top_bbox_shape = (nbatch, self.top_n, 4)
-        top_score_shape = (nbatch, self.top_n, 1)
+        top_bbox_shape = (num_image, self.top_n, 4)
+        top_score_shape = (num_image, self.top_n, 1)
 
         return [bbox_shape, score_shape], \
                [top_bbox_shape, top_score_shape]

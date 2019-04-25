@@ -213,10 +213,10 @@ class FPNRpnHead(object):
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
         proposal = mx.symbol.Custom(
+            op_type='get_top_proposal',
             bbox=proposal_concat,
             score=proposal_scores_concat,
-            top_n=post_nms_top_n,
-            op_type='get_top_proposal'
+            top_n=post_nms_top_n
         )
 
         self._proposal = proposal
@@ -429,23 +429,20 @@ class FPNConvTopDown(Neck):
         )
 
         # P6
-        p6 = X.pool(
+        p6 = X.max_pool(
             p5_conv,
             name="P6_subsampling",
             kernel=1,
             stride=2,
-            pad=0,
-            pool_type='max'
         )
 
-        conv_fpn_feat = dict()
-        conv_fpn_feat.update({
-            "stride64": p6,
-            "stride32": p5_conv,
-            "stride16": p4_conv,
-            "stride8": p3_conv,
-            "stride4": p2_conv
-        })
+        conv_fpn_feat = dict(
+            stride64=p6,
+            stride32=p5_conv,
+            stride16=p4_conv,
+            stride8=p3_conv,
+            stride4=p2_conv
+        )
 
         self.fpn_feat = conv_fpn_feat
         return self.fpn_feat
@@ -479,11 +476,11 @@ class FPNRoiAlign(FPNRoiExtractor):
         roi_canonical_level = p.roi_canonical_level
 
         group = mx.symbol.Custom(
+            op_type='assign_layer_fpn',
             rois=proposal,
             rcnn_stride=rcnn_stride,
             roi_canonical_scale=roi_canonical_scale,
-            roi_canonical_level=roi_canonical_level,
-            op_type='assign_layer_fpn'
+            roi_canonical_level=roi_canonical_level
         )
         proposal_fpn = dict()
         for i, stride in enumerate(rcnn_stride):
