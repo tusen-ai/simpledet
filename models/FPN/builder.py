@@ -213,10 +213,11 @@ class FPNRpnHead(object):
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
         proposal = mx.symbol.Custom(
-            op_type='get_top_proposal',
+            op_type="get_top_proposal",
             bbox=proposal_concat,
             score=proposal_scores_concat,
-            top_n=post_nms_top_n
+            top_n=post_nms_top_n,
+            name="get_top_proposal"
         )
 
         self._proposal = proposal
@@ -453,11 +454,12 @@ class FPNRoiAlign(RoiAlign):
         roi_canonical_level = p.roi_canonical_level
 
         group = mx.symbol.Custom(
-            op_type='assign_layer_fpn',
+            op_type="assign_layer_fpn",
             rois=proposal,
             rcnn_stride=rcnn_stride,
             roi_canonical_scale=roi_canonical_scale,
-            roi_canonical_level=roi_canonical_level
+            roi_canonical_level=roi_canonical_level,
+            name="assign_layer_fpn"
         )
         proposal_fpn = dict()
         for i, stride in enumerate(rcnn_stride):
