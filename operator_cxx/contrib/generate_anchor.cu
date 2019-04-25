@@ -20,7 +20,7 @@
 /*!
  * \file generate_proposal.cu
  * \brief Proposal Operator
- * \author Yanghao Li
+ * \author Yanghao Li, Chenxia Han
 */
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
@@ -45,8 +45,6 @@
 #include "../mshadow_op.h"
 #include "./generate_anchor-inl.h"
 
-#define DIVUP(m, n) ((m) / (n) + ((m) % (n) > 0))
-
 #define FRCNN_CUDA_CHECK(condition) \
   /* Code block avoids redefinition of cudaError_t error */ \
   do { \
@@ -60,13 +58,14 @@ namespace {
 // all_anchors are (h * w * anchor, 4)
 // w defines "x" and h defines "y"
 // count should be total anchors numbers, h * w * anchors
-template<typename Dtype>
+template<typename DType>
 __global__ void AnchorGridKernel(const int count,
                                  const int num_anchors,
                                  const int height,
                                  const int width,
                                  const int feature_stride,
-                                 Dtype* all_anchors) {
+                                 double* all_anchors,
+                                 DType* out) {
   for (int index = blockIdx.x * blockDim.x + threadIdx.x;
        index < count;
        index += blockDim.x * gridDim.x) {
@@ -74,10 +73,10 @@ __global__ void AnchorGridKernel(const int count,
     int w = (index / num_anchors) % width;
     int h = index / num_anchors / width;
 
-    all_anchors[index * 4 + 0] = all_anchors[a * 4 + 0] + w * feature_stride;
-    all_anchors[index * 4 + 1] = all_anchors[a * 4 + 1] + h * feature_stride;
-    all_anchors[index * 4 + 2] = all_anchors[a * 4 + 2] + w * feature_stride;
-    all_anchors[index * 4 + 3] = all_anchors[a * 4 + 3] + h * feature_stride;
+    out[index * 4 + 0] = static_cast<DType>(all_anchors[a * 4 + 0] + w * feature_stride);
+    out[index * 4 + 1] = static_cast<DType>(all_anchors[a * 4 + 1] + h * feature_stride);
+    out[index * 4 + 2] = static_cast<DType>(all_anchors[a * 4 + 2] + w * feature_stride);
+    out[index * 4 + 3] = static_cast<DType>(all_anchors[a * 4 + 3] + h * feature_stride);
   }
 }
 
@@ -107,43 +106,49 @@ class GenAnchorGPUOp : public Operator{
     CHECK_EQ(in_data.size(), 1);
     CHECK_EQ(out_data.size(), 1);
     CHECK_EQ(req.size(), 1);
-    // CHECK_EQ(req[proposal::kOut], kWriteTo);
+    CHECK_EQ(req[gen_anchor::kOut], kWriteTo);
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
+    // batch_idx, anchor_idx, height_idx, width_idx
+    Tensor<xpu, 4> scores = in_data[gen_anchor::kClsProb].get<xpu, 4, float>(s);
+    // height * width * anchors, 4(x1, y1, x2, y2)
+    Tensor<xpu, 2> out = out_data[gen_anchor::kOut].get<xpu, 2, float>(s);
 
-    Tensor<xpu, 4> scores = in_data[gen_anchor::kClsProb].get<xpu, 4, float>(s); // batch_idx, anchor_idx, height_idx, width_idx
+    std::vector<double> scales(param_.scales.begin(), param_.scales.end());
+    std::vector<double> ratios(param_.ratios.begin(), param_.ratios.end());
 
-    Tensor<xpu, 2> out = out_data[gen_anchor::kOut].get<xpu, 2, float>(s); // height * width * anchors, 4(x1, y1, x2, y2)
-
-    int num_anchors = scores.size(1) / 2;
+    int num_anchors = scales.size() * ratios.size();
     int height = scores.size(2);
     int width = scores.size(3);
 
     // Generate first anchors based on base anchor
-    std::vector<float> base_anchor(4);
-    base_anchor[0] = 0.0;
-    base_anchor[1] = 0.0;
-    base_anchor[2] = param_.feature_stride - 1.0;
-    base_anchor[3] = param_.feature_stride - 1.0;
-    CHECK_EQ(num_anchors, param_.ratios.info.size() * param_.scales.info.size());
-    std::vector<float> anchors;
-    utils::GenerateAnchors(base_anchor,
-                           param_.ratios.info,
-                           param_.scales.info,
-                           &anchors);
+    std::vector<double> base_anchor({
+      0.0f, 0.0f, param_.feature_stride - 1.0f, param_.feature_stride - 1.0f
+    });
+    std::vector<double> anchors;
+    gen_anchor_utils::GenerateAnchors(
+      base_anchor, ratios, scales, anchors
+    );
 
-    FRCNN_CUDA_CHECK(cudaMemcpy(out.dptr_,
-                                &anchors[0],
-                                sizeof(float) * anchors.size(),
-                                cudaMemcpyHostToDevice)); // less than 64K
+    // cast to fp32 during AnchorGrid to keep consistency with python implementation
+    TensorContainer<gpu, 2, double> out_fp64(out.shape_);
+
+    FRCNN_CUDA_CHECK(
+      cudaMemcpy(
+        out_fp64.dptr_,
+        anchors.data(),
+        sizeof(decltype(anchors)::value_type) * anchors.size(),
+        cudaMemcpyHostToDevice
+      )
+    ); // less than 64K
 
     /* copy proposals to a mesh grid */
     dim3 dimGrid((out.size(0) + kMaxThreadsPerBlock - 1) / kMaxThreadsPerBlock);
     dim3 dimBlock(kMaxThreadsPerBlock);
     CheckLaunchParam(dimGrid, dimBlock, "AnchorGrid");
     AnchorGridKernel<<<dimGrid, dimBlock>>>(
-      out.size(0), num_anchors, height, width, param_.feature_stride,
-      out.dptr_);
+      out_fp64.size(0), num_anchors, height, width, param_.feature_stride,
+      out_fp64.dptr_, out.dptr_);
     FRCNN_CUDA_CHECK(cudaPeekAtLastError());
   }
 
@@ -159,7 +164,7 @@ class GenAnchorGPUOp : public Operator{
     CHECK_EQ(in_grad.size(), 1);
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
-    Tensor<xpu, 4> gscores = in_grad[gen_anchor::kClsProb].get<xpu, 4, real_t>(s);
+    Tensor<xpu, 4> gscores = in_grad[gen_anchor::kClsProb].get<xpu, 4, float>(s);
 
     // can not assume the grad would be zero
     Assign(gscores, req[gen_anchor::kClsProb], 0);

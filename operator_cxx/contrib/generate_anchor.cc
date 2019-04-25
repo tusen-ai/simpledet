@@ -20,7 +20,7 @@
 /*!
  * \file generate_anchor.cc
  * \brief
- * \author Yanghao Li
+ * \author Yanghao Li, Chenxia Han
 */
 
 #include "./generate_anchor-inl.h"
@@ -48,36 +48,35 @@ class GenAnchorOp : public Operator{
     CHECK_EQ(req[gen_anchor::kOut], kWriteTo);
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
-    Tensor<xpu, 4> scores = in_data[gen_anchor::kClsProb].get<cpu, 4, real_t>(s);
+    Tensor<xpu, 4> scores = in_data[gen_anchor::kClsProb].get<cpu, 4, float>(s);
 
-    Tensor<cpu, 2> all_anchors = out_data[gen_anchor::kOut].get<cpu, 2, real_t>(s);
+    Tensor<cpu, 2> out = out_data[gen_anchor::kOut].get<cpu, 2, float>(s);
 
-    int num_anchors = scores.size(1) / 2;
+    std::vector<double> scales(param_.scales.begin(), param_.scales.end());
+    std::vector<double> ratios(param_.ratios.begin(), param_.ratios.end());
+
+    int num_anchors = scales.size() * ratios.size();
     int height = scores.size(2);
     int width = scores.size(3);
 
     // Generate anchors
-    std::vector<float> base_anchor(4);
-    base_anchor[0] = 0.0;
-    base_anchor[1] = 0.0;
-    base_anchor[2] = param_.feature_stride - 1.0;
-    base_anchor[3] = param_.feature_stride - 1.0;
-    CHECK_EQ(num_anchors, param_.ratios.info.size() * param_.scales.info.size());
-    std::vector<float> anchors;
-    utils::GenerateAnchors(base_anchor,
-                           param_.ratios.info,
-                           param_.scales.info,
-                           &anchors);
+    std::vector<double> base_anchor({
+      0.0f, 0.0f, param_.feature_stride - 1.0f, param_.feature_stride - 1.0f
+    });
+    std::vector<double> anchors;
+    gen_anchor_utils::GenerateAnchors(
+      base_anchor, ratios, scales, anchors
+    );
 
     // Enumerate all shifted anchors
     for (index_t i = 0; i < num_anchors; ++i) {
       for (index_t j = 0; j < height; ++j) {
         for (index_t k = 0; k < width; ++k) {
           index_t index = j * (width * num_anchors) + k * (num_anchors) + i;
-          all_anchors[index][0] = anchors[i * 4 + 0] + k * param_.feature_stride;
-          all_anchors[index][1] = anchors[i * 4 + 1] + j * param_.feature_stride;
-          all_anchors[index][2] = anchors[i * 4 + 2] + k * param_.feature_stride;
-          all_anchors[index][3] = anchors[i * 4 + 3] + j * param_.feature_stride;
+          out[index][0] = static_cast<float>(anchors[i * 4 + 0] + k * param_.feature_stride);
+          out[index][1] = static_cast<float>(anchors[i * 4 + 1] + j * param_.feature_stride);
+          out[index][2] = static_cast<float>(anchors[i * 4 + 2] + k * param_.feature_stride);
+          out[index][3] = static_cast<float>(anchors[i * 4 + 3] + j * param_.feature_stride);
         }
       }
     }
@@ -95,7 +94,7 @@ class GenAnchorOp : public Operator{
     CHECK_EQ(in_grad.size(), 1);
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
-    Tensor<xpu, 4> gscores = in_grad[gen_anchor::kClsProb].get<xpu, 4, real_t>(s);
+    Tensor<xpu, 4> gscores = in_grad[gen_anchor::kClsProb].get<xpu, 4, float>(s);
 
     // can not assume the grad would be zero
     Assign(gscores, req[gen_anchor::kClsProb], 0);
