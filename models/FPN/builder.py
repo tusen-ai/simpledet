@@ -357,8 +357,8 @@ class FPNConvTopDown(Neck):
             bias=X.var(name="P4_lateral_bias", init=X.zero_init()),
             name="P4_lateral"
         )
-        p5_clip = mx.sym.slice_like(*[p5_up, p4_la], name="P4_clip")
-        p4 = mx.sym.add_n(*[p5_clip, p4_la], name="P4_sum")
+        p5_clip = mx.sym.slice_like(p5_up, p4_la, name="P4_clip")
+        p4 = mx.sym.add_n(p5_clip, p4_la, name="P4_sum")
 
         p4_conv = X.conv(
             data=p4,
@@ -386,8 +386,8 @@ class FPNConvTopDown(Neck):
             bias=X.var(name="P3_lateral_bias", init=X.zero_init()),
             name="P3_lateral"
         )
-        p4_clip = mx.sym.slice_like(*[p4_up, p3_la], name="P3_clip")
-        p3 = mx.sym.add_n(*[p4_clip, p3_la], name="P3_sum")
+        p4_clip = mx.sym.slice_like(p4_up, p3_la, name="P3_clip")
+        p3 = mx.sym.add_n(p4_clip, p3_la, name="P3_sum")
 
         p3_conv = X.conv(
             data=p3,
@@ -415,8 +415,8 @@ class FPNConvTopDown(Neck):
             bias=X.var(name="P2_lateral_bias", init=X.zero_init()),
             name="P2_lateral"
         )
-        p3_clip = mx.sym.slice_like(*[p3_up, p2_la], name="P2_clip")
-        p2 = mx.sym.add_n(*[p3_clip, p2_la], name="P2_sum")
+        p3_clip = mx.sym.slice_like(p3_up, p2_la, name="P2_clip")
+        p2 = mx.sym.add_n(p3_clip, p2_la, name="P2_sum")
 
         p2_conv = X.conv(
             data=p2,
