@@ -2,6 +2,24 @@
 - Ubuntu 16.04
 - Python >= 3.5
 
+## Setup with Docker
+We provide pre-built docker images for both cuda9.0 and cuda10.0.
+
+Maxwell, Pascal, Volta and Turing GPUs are supported.
+
+For nvidia-driver >= 410.48, cuda10 image is recommended.
+
+For nvidia-driver >= 384.81, cuda9 image is recommended.
+
+Aliyun beijing mirror is provided for users pulling from China.
+
+```bash
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet:cuda9 zsh
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet:cuda10 zsh
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR registry.cn-beijing.aliyuncs.com/rogerchen/simpledet:cuda9 zsh
+nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR registry.cn-beijing.aliyuncs.com/rogerchen/simpledet:cuda10 zsh
+```
+
 ## Setup with Singularity
 We recommend the users to adopt singualrity as the default environment manager to minimize the efforts of configuration.
 Singularity is a virtual environment manager like virtualenv, but in the system-level.
@@ -31,14 +49,6 @@ Here we need to map the working directory into singularity shell, note that **sy
 
 ```bash
 sudo singularity shell --no-home --nv -s /usr/bin/zsh --bind $WORKDIR /path/to/simpledet.img
-```
-
-## Setup with Docker
-We provide docker image with ubuntu16.04, cuda9.0, cudnn7 and py3. Pascal and Volta architectures are supported.
-We also provide a cuda10.0 image for Turing users which is tested with nvidia-driver==418.56 on a RTX 2080.
-```bash
-nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet zsh
-nvidia-docker run -it -v $HOST-SIMPLEDET-DIR:$CONTAINER-WORKDIR rogerchen/simpledet:cuda10 zsh
 ```
 
 ## Setup from Scratch
