@@ -69,25 +69,24 @@ sudo apt-get install -y libopenblas-dev
 ```
 
 ```bash
-# Specify simpledet directory
-export SIMPLEDET_DIR=/path/to/simpledet
-export COCOAPI_DIR=/path/to/cocoapi
-
-git clone https://github.com/apache/incubator-mxnet mxnet
-cd mxnet
-git submodule init
-git submodule update:
-echo "USE_OPENCV = 0" >> ./config.mk
-echo "USE_BLAS = openblas" >> ./config.mk
-echo "USE_CUDA = 1" >> ./config.mk
-echo "USE_CUDA_PATH = /usr/local/cuda" >> ./config.mk
-echo "USE_CUDNN = 1" >> ./config.mk
-echo "USE_NCCL = 1" >> ./config.mk
-echo "USE_DIST_KVSTORE = 1" >> ./config.mk
-cp -r $SIMPLEDET_DIR/operator_cxx/* src/operator/
-mkdir -p src/coco_api
-cp -r $COCOAPI_DIR/common src/coco_api/
-make -j
-cd python
-python3 setup.py install
+git clone --recursive https://github.com/apache/incubator-mxnet /tmp/mxnet && \
+git clone https://github.com/Tusimple/simpledet /tmp/simpledet && \
+git clone https://github.com/RogerChern/cocoapi /tmp/cocoapi && \
+cp -r /tmp/simpledet/operator_cxx/* /tmp/mxnet/src/operator && \
+mkdir -p /tmp/mxnet/src/coco_api && \
+cp -r /tmp/cocoapi/common /tmp/mxnet/src/coco_api && \
+cd /tmp/mxnet && \
+echo "USE_OPENCV = 0" >> ./config.mk && \
+echo "USE_MKLDNN = 0" >> ./config.mk && \
+echo "USE_BLAS = openblas" >> ./config.mk && \
+echo "USE_CUDA = 1" >> ./config.mk && \
+echo "USE_CUDA_PATH = /usr/local/cuda" >> ./config.mk && \
+echo "USE_CUDNN = 1" >> ./config.mk && \
+echo "USE_NCCL = 1" >> ./config.mk && \
+echo "USE_DIST_KVSTORE = 1" >> ./config.mk && \
+echo "CUDA_ARCH = -gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70" >> ./config.mk && \
+make -j$((`nproc`-1)) && \
+cd python && \
+python3 setup.py install && \
+rm -rf /tmp/mxnet /tmp/simpledet /tmp/cocoapi
 ```
