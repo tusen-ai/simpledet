@@ -1,5 +1,5 @@
 from models.FPN.builder import MSRAResNet50V1FPN as Backbone
-from models.FPN.builder import FPNConvTopDown as Neck
+from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
 from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory

@@ -15,7 +15,7 @@ Since **FPN** uses **Feature Pyramid** as backbone,  we cannot use ```AnchorTarg
 #### Symbol
 
 - ``` Detector```, detector is the same as FasterRcnn
-- ```FPNConvTopDown```, top-down pathway for **Feature Pyramid Network**
+- ```FPNNeck```, top-down pathway for **Feature Pyramid Network**
 - ```FPNRpnHead```, classification and regression header with sharing weights for FPN-RPN
 - ```FPNRoiAlign```, we use this module to get the proposal feature for the proposals of different levels respectively, then add the feature from different level proposals together for next rcnn head
 
