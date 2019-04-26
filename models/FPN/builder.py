@@ -46,12 +46,15 @@ class FPNRpnHead(object):
         conv_channel = p.head.conv_channel
 
         # FPN RPN share weight
-        normal001 = mx.init.Normal(sigma=0.01)
-        rpn_conv_weight = X.var('rpn_conv_weight', init=normal001)
+        rpn_conv_weight = X.var('rpn_conv_weight', init=X.gauss(0.01))
         rpn_conv_bias = X.var('rpn_conv_bias', init=X.zero_init())
-        rpn_conv_cls_weight = X.var('rpn_conv_cls_weight', init=normal001)
+        rpn_conv_gamma = X.var('rpn_conv_gamma')
+        rpn_conv_beta = X.var('rpn_conv_beta')
+        rpn_conv_mmean = X.var('rpn_conv_moving_mean')
+        rpn_conv_mvar = X.var('rpn_conv_moving_var')
+        rpn_conv_cls_weight = X.var('rpn_conv_cls_weight', init=X.gauss(0.01))
         rpn_conv_cls_bias = X.var('rpn_conv_cls_bias', init=X.zero_init())
-        rpn_conv_bbox_weight = X.var('rpn_conv_bbox_weight', init=normal001)
+        rpn_conv_bbox_weight = X.var('rpn_conv_bbox_weight', init=X.gauss(0.01))
         rpn_conv_bbox_bias = X.var('rpn_conv_bbox_bias', init=X.zero_init())
 
         cls_logit_dict = {}
@@ -212,13 +215,8 @@ class FPNRpnHead(object):
         proposal_concat = X.concat(proposal_list, axis=1, name="proposal_concat")
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
-        (proposal, proposal_score) = mx.symbol.Custom(
-            op_type="get_top_proposal",
-            bbox=proposal_concat,
-            score=proposal_scores_concat,
-            top_n=post_nms_top_n,
-            name="get_top_proposal"
-        )
+        proposal = mx.symbol.Custom(bbox=proposal_concat, score=proposal_scores_concat,
+                                    op_type='get_top_proposal', top_n=post_nms_top_n)
 
         self._proposal = proposal
 
@@ -243,7 +241,7 @@ class FPNRpnHead(object):
         bbox_target_mean = p.bbox_target.mean
         bbox_target_std = p.bbox_target.std
 
-        proposal = self.get_all_proposal(conv_fpn_feat, im_info)
+        (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
 
         (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
             rois=proposal,

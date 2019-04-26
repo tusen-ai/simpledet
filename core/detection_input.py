@@ -392,8 +392,6 @@ class AnchorTarget2D(DetectionAugmentation):
         self.__h_all_anchor = value
         self.__num_anchor = value.shape[0]
 
-
-
     def _assign_label_to_anchor(self, valid_anchor, gt_bbox, neg_thr, pos_thr, min_pos_thr):
         num_anchor = valid_anchor.shape[0]
         cls_label = np.full(shape=(num_anchor,), fill_value=-1, dtype=np.float32)
@@ -532,7 +530,7 @@ class Loader(mx.io.DataIter):
     """
 
     def __init__(self, roidb, transform, data_name, label_name, batch_size=1,
-                 shuffle=False, num_worker=None, num_collector=None, 
+                 shuffle=False, num_worker=None, num_collector=None,
                  worker_queue_depth=None, collector_queue_depth=None, kv=None):
         """
         This Iter will provide roi data to Fast R-CNN network

@@ -3,6 +3,7 @@ from __future__ import print_function
 import mxnext as X
 import mxnet as mx
 
+from symbol.builder import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
@@ -38,16 +39,12 @@ class MaskFasterRcnn(object):
 
     @staticmethod
     def get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, bbox_post_processor):
-        im_info = X.var("im_info")
-        im_id = X.var("im_id")
-        rec_id = X.var("rec_id")
+        rec_id, im_id, im_info, proposal, proposal_score = \
+            MaskFasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
-        rpn_feat = backbone.get_rpn_feature()
         rcnn_feat = backbone.get_rcnn_feature()
-        rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
-        proposal = rpn_head.get_all_proposal(rpn_feat, im_info)
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         cls_score, bbox_xyxy = bbox_head.get_prediction(roi_feat, im_info, proposal)
 
@@ -57,6 +54,10 @@ class MaskFasterRcnn(object):
         mask = mask_head.get_prediction(mask_roi_feat)
 
         return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask])
+
+    @staticmethod
+    def get_rpn_test_symbol(backbone, neck, rpn_head):
+        return FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
 
 class BboxPostProcessor(object):
@@ -80,6 +81,70 @@ class BboxPostProcessor(object):
             nms_thr = nms_thr,
             op_type='BboxPostProcessing')
         return post_cls_score, post_bbox_xyxy, post_cls
+
+
+class MaskRpnHead(RpnHead):
+    def __init__(self, pRpn, pMask):
+        super(MaskRpnHead, self).__init__(pRpn)
+        self.pMask = pMask
+
+    def get_sampled_proposal(self, conv_fpn_feat, gt_bbox, gt_poly, im_info):
+        p = self.p
+
+        batch_image = p.batch_image
+
+        proposal_wo_gt = p.subsample_proposal.proposal_wo_gt
+        image_roi = p.subsample_proposal.image_roi
+        fg_fraction = p.subsample_proposal.fg_fraction
+        fg_thr = p.subsample_proposal.fg_thr
+        bg_thr_hi = p.subsample_proposal.bg_thr_hi
+        bg_thr_lo = p.subsample_proposal.bg_thr_lo
+        post_nms_top_n = p.proposal.post_nms_top_n
+
+        num_reg_class = p.bbox_target.num_reg_class
+        class_agnostic = p.bbox_target.class_agnostic
+        bbox_target_weight = p.bbox_target.weight
+        bbox_target_mean = p.bbox_target.mean
+        bbox_target_std = p.bbox_target.std
+
+        mask_size = self.pMask.resolution
+
+        (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
+
+        (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target) = mx.sym.ProposalMaskTarget(
+            proposal,
+            gt_bbox,
+            gt_poly,
+            mask_size=mask_size,
+            num_classes=num_reg_class,
+            class_agnostic=class_agnostic,
+            batch_images=batch_image,
+            proposal_without_gt=proposal_wo_gt,
+            image_rois=image_roi,
+            fg_fraction=fg_fraction,
+            fg_thresh=fg_thr,
+            bg_thresh_hi=bg_thr_hi,
+            bg_thresh_lo=bg_thr_lo,
+            bbox_weight=bbox_target_weight,
+            bbox_mean=bbox_target_mean,
+            bbox_std=bbox_target_std,
+            output_iou=True,
+            name="subsample_proposal"
+        )
+
+        label = X.reshape(label, (-3, -2))
+        bbox_target = X.reshape(bbox_target, (-3, -2))
+        bbox_weight = X.reshape(bbox_weight, (-3, -2))
+        mask_target = X.reshape(mask_target, (-3, -2))
+
+        num_fg_rois_per_img = int(image_roi * fg_fraction)
+        mask_proposal = mx.sym.slice_axis(
+            bbox,
+            axis=1,
+            begin=0,
+            end=num_fg_rois_per_img)
+
+        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target
 
 
 class MaskFPNRpnHead(FPNRpnHead):
@@ -108,7 +173,7 @@ class MaskFPNRpnHead(FPNRpnHead):
 
         mask_size = self.pMask.resolution
 
-        proposal = self.get_all_proposal(conv_fpn_feat, im_info)
+        (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
 
         (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target) = mx.sym.ProposalMaskTarget(
             rois=proposal,
