@@ -1,7 +1,3 @@
-## System Requirements
-- Ubuntu 16.04
-- Python >= 3.5
-
 ## Setup with Docker
 We provide pre-built docker images for both cuda9.0 and cuda10.0.
 
@@ -52,6 +48,10 @@ sudo singularity shell --no-home --nv -s /usr/bin/zsh --bind $WORKDIR /path/to/s
 ```
 
 ## Setup from Scratch
+#### System Requirements
+- Ubuntu 16.04
+- Python >= 3.5
+
 #### Install CUDA, cuDNN and NCCL
 
 #### Install cocotools
