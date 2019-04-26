@@ -196,9 +196,11 @@ def get_config(is_train):
             bbox_head_2nd,
             bbox_head_3rd
         )
+        rpn_test_sym = None
         test_sym = None
     else:
         train_sym = None
+        rpn_test_sym = detector.get_rpn_test_symbol(backbone, neck, rpn_head)
         test_sym = detector.get_test_symbol(
             backbone,
             neck,
@@ -213,6 +215,7 @@ def get_config(is_train):
     class ModelParam:
         train_symbol = train_sym
         test_symbol = test_sym
+        rpn_test_symbol = rpn_test_sym
 
         from_scratch = False
         random = True

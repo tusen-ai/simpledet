@@ -109,15 +109,18 @@ def get_config(is_train):
     detector = Detector()
     if is_train:
         train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)
+        rpn_test_sym = None
         test_sym = None
     else:
         train_sym = None
+        rpn_test_sym = detector.get_rpn_test_symbol(backbone, neck, rpn_head)
         test_sym = detector.get_test_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)
 
 
     class ModelParam:
         train_symbol = train_sym
         test_symbol = test_sym
+        rpn_test_symbol = rpn_test_sym
 
         from_scratch = False
         random = True
