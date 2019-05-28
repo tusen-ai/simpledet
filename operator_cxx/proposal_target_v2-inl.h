@@ -182,10 +182,10 @@ class ProposalTargetOp_v2 : public Operator {
     for (index_t i = 0; i < num_image; ++i) {
       kept_rois.push_back(std::vector<Tensor<cpu, 1, DType>>());
       for (index_t j = 0; j < rois.size(1); ++j) {
-        // screen out invalid rois
-//        if (rois[i][j][0] == i){
-        kept_rois[i].push_back(rois[i][j]);
-       // }
+        // y2 == 0 indicates padding
+        if (rois[i][j][3] > 0){
+          kept_rois[i].push_back(rois[i][j]);
+        }
       }
       if (!param_.proposal_without_gt) {
         DType valid_min = valid_ranges[i][0] * valid_ranges[i][0];

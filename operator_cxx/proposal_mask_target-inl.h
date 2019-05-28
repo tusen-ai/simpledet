@@ -78,11 +78,12 @@ namespace mxnet {
 namespace op {
 
 namespace proposal_mask_target_enum {
-enum ProposalMaskTargetInputs {kRois, kGtBboxes, kGtPolys};
+enum ProposalMaskTargetInputs {kRois, kGtBboxes, kGtPolys, kValidRanges};
 enum ProposalMaskTargetOutputs {kRoiOutput, kLabel, kBboxTarget, kBboxWeight, kMatch_gt_iou, kMaskTarget};
 }
 
 struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam> {
+  int num_args;
   index_t num_classes;
   index_t batch_images;
   int image_rois;
@@ -95,11 +96,13 @@ struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam>
   bool class_agnostic;
   bool ohem;
   bool output_iou;
+  bool filter_scales;
   nnvm::Tuple<float> bbox_mean;
   nnvm::Tuple<float> bbox_std;
   nnvm::Tuple<float> bbox_weight;
 
   DMLC_DECLARE_PARAMETER(ProposalMaskTargetParam) {
+    DMLC_DECLARE_FIELD(num_args).set_range(3, 4).describe("Number of arguments, 3 by default and 4 for scale aware training");
     DMLC_DECLARE_FIELD(num_classes).describe("Number of classes for detection");
     DMLC_DECLARE_FIELD(batch_images).describe("Number of samples in a batch");
     DMLC_DECLARE_FIELD(image_rois).describe("Number of ROIs for one image");
@@ -112,6 +115,7 @@ struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam>
     DMLC_DECLARE_FIELD(class_agnostic).set_default(false).describe("class agnostic bbox_target");
     DMLC_DECLARE_FIELD(ohem).set_default(false).describe("Do online hard sample mining");
     DMLC_DECLARE_FIELD(output_iou).set_default(false).describe("output match_gt_iou");
+    DMLC_DECLARE_FIELD(filter_scales).set_default(false).describe("Not append ground-truth bounding boxes outside valid ranges");
     float tmp[] = {0.f, 0.f, 0.f, 0.f};
     DMLC_DECLARE_FIELD(bbox_mean).set_default(nnvm::Tuple<float>(tmp, tmp+4)).describe("Bounding box mean");
     tmp[0] = 0.1f; tmp[1] = 0.1f; tmp[2] = 0.2f; tmp[3] = 0.2f;
@@ -135,7 +139,11 @@ class ProposalMaskTargetOp : public Operator {
                        const std::vector<TBlob> &aux_args) {
     using namespace mshadow;
     using namespace mshadow::expr;
-    CHECK_EQ(in_data.size(), 3);
+    if (param_.filter_scales) {
+        CHECK_EQ(in_data.size(), 4);
+    } else {
+        CHECK_EQ(in_data.size(), 3);
+    }
     CHECK_EQ(out_data.size(), 6);
     CHECK_GT(req.size(), 5);
     CHECK_EQ(req[proposal_mask_target_enum::kRoiOutput], kWriteTo);
@@ -143,7 +151,7 @@ class ProposalMaskTargetOp : public Operator {
     CHECK_EQ(req[proposal_mask_target_enum::kBboxTarget], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kBboxWeight], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kMaskTarget], kWriteTo);
- //   printf("PROPOSAL_TARGET START\n");
+
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const index_t num_image         = param_.batch_images;
     const index_t num_roi           = in_data[proposal_mask_target_enum::kRois].Size() / (num_image * 4);
@@ -155,20 +163,22 @@ class ProposalMaskTargetOp : public Operator {
                                           get_with_shape<xpu, 3, DType>(Shape3(num_image, num_roi, 4), s);
     Tensor<xpu, 3, DType> xpu_gt_bboxes = in_data[proposal_mask_target_enum::kGtBboxes].
                                           get_with_shape<xpu, 3, DType>(Shape3(num_image, num_gtbbox, 5), s);
-
-    // Tensor<xpu, 3, DType> xpu_gt_polys = in_data[proposal_mask_target_enum::kGtPolys].
-    //                                       get_with_shape<xpu, 3, DType>(Shape3(num_image, num_gtbbox, poly_len), s);
-
     Tensor<xpu, 3, DType> xpu_gt_polys = in_data[proposal_mask_target_enum::kGtPolys].get<xpu, 3, DType>(s);
 
     TensorContainer<cpu, 3, DType> rois     (xpu_rois.shape_);
     TensorContainer<cpu, 3, DType> gt_bboxes(xpu_gt_bboxes.shape_);
     TensorContainer<cpu, 3, DType> gt_polys(xpu_gt_polys.shape_);
+    TensorContainer<cpu, 2, DType> valid_ranges(Shape2(num_image, 2));
 
     Copy(rois, xpu_rois, s);
     Copy(gt_bboxes, xpu_gt_bboxes, s);
     Copy(gt_polys, xpu_gt_polys, s);
 
+    if (param_.filter_scales) {
+        Tensor<xpu, 2, DType> xpu_valid_ranges = in_data[proposal_mask_target_enum::kValidRanges].
+                                                get_with_shape<xpu, 2, DType>(Shape2(num_image, 2), s);
+        Copy(valid_ranges, xpu_valid_ranges, s);
+    }
 
     std::vector<std::vector<Tensor<cpu, 1, DType>>> kept_rois;
     std::vector<std::vector<Tensor<cpu, 1, DType>>> kept_gtbboxes;
@@ -200,22 +210,28 @@ class ProposalMaskTargetOp : public Operator {
           kept_rois[i].push_back(rois[i][j]);
       }
       if (!param_.proposal_without_gt) {
-        // all gt bboxes are appended
         for (index_t j = 0; j < kept_gtbboxes[i].size(); ++j) {
+          if (param_.filter_scales) {
+            DType valid_min = valid_ranges[i][0] * valid_ranges[i][0];
+            DType valid_max = valid_ranges[i][1] * valid_ranges[i][1];
+            // Do not append ground-truth bounding boxes outside valid scale ranges
+            DType w = kept_gtbboxes[i][j][2] - kept_gtbboxes[i][j][0] + 1.0;
+            DType h = kept_gtbboxes[i][j][3] - kept_gtbboxes[i][j][1] + 1.0;
+            if (w * h < valid_min || w * h > valid_max) continue;
+          }
           Tensor<cpu, 1, DType> gt_tmp = gt_bboxes_tmp[start++];
-        //  gt_tmp[0] = i;
           Copy(gt_tmp, kept_gtbboxes[i][j].Slice(0, 4));
           kept_rois[i].push_back(gt_tmp);
         }
       }
     }
-  //  printf("PROPOSAL_TARGET MID\n");
+
     TensorContainer<cpu, 3, DType> cpu_output_rois(Shape3(num_image, image_rois, 4), 0.f);
     TensorContainer<cpu, 2, DType> cpu_labels(Shape2(num_image, image_rois), 0.f);
     TensorContainer<cpu, 3, DType> cpu_bbox_targets(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 3, DType> cpu_bbox_weights(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 2, DType> cpu_match_gt_ious(Shape2(num_image, image_rois), 0.f);
-    TensorContainer<cpu, 5, DType> cpu_mask_targets(Shape5(num_image,  (index_t)(image_rois * param_.fg_fraction), 
+    TensorContainer<cpu, 5, DType> cpu_mask_targets(Shape5(num_image,  (index_t)(image_rois * param_.fg_fraction),
                                                            param_.num_classes, param_.mask_size, param_.mask_size), -1.f);
 
     if (param_.ohem) {
@@ -251,7 +267,15 @@ class ProposalMaskTargetOp : public Operator {
           for (index_t j = 0; j < kept_gtpolys[i].size(); ++j) {
             Copy(kept_gtpolys_i[j], kept_gtpolys[i][j]);
           }
-          //printf("BEFORE SAMPLEROI");
+          if (kept_rois[i].size() == 0) {
+              kept_rois_i = TensorContainer<cpu, 2, DType>(Shape2(1, rois.size(2)), 0.f);
+          }
+          if (kept_gtbboxes[i].size() == 0) {
+              kept_gtbboxes_i = TensorContainer<cpu, 2, DType>(Shape2(1, gt_bboxes.size(2)), 0.f);
+          }
+          if (kept_gtpolys[i].size() == 0) {
+              kept_gtpolys_i = TensorContainer<cpu, 2, DType>(Shape2(1, gt_polys.size(2)), -1.0f);
+          }
           proposal_mask_target::SampleROIMask(kept_rois_i,
                         kept_gtbboxes_i,
                         kept_gtpolys_i,
@@ -287,8 +311,6 @@ class ProposalMaskTargetOp : public Operator {
     Tensor<xpu, 2, DType> xpu_match_gt_ious = out_data[proposal_mask_target_enum::kMatch_gt_iou].
                                              get_with_shape<xpu, 2, DType>(Shape2(num_image, image_rois), s);
     Tensor<xpu, 5, DType> xpu_mask_targets = out_data[proposal_mask_target_enum::kMaskTarget].get<xpu, 5, DType>(s);
-                                            //  get_with_shape<xpu, 5, DType>(Shape5((index_t)(num_image,  (index_t)(image_rois * param_.fg_fraction), 
-                                            //                param_.num_classes, param_.mask_size, param_.mask_size), s);
 
     Copy(xpu_output_rois, cpu_output_rois, s);
     Copy(xpu_labels, cpu_labels, s);
@@ -307,16 +329,25 @@ class ProposalMaskTargetOp : public Operator {
                         const std::vector<TBlob> &aux_args) {
     using namespace mshadow;
     using namespace mshadow::expr;
-    CHECK_EQ(in_grad.size(), 2);
-    const index_t num_image         = param_.batch_images;
-    const index_t num_gtbbox        = in_data[proposal_mask_target_enum::kGtBboxes].Size() / (num_image * 5);
+    if (param_.filter_scales) {
+        CHECK_EQ(in_data.size(), 4);
+    } else {
+        CHECK_EQ(in_grad.size(), 3);
+    }
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
     Tensor<xpu, 3, DType> rois      = in_grad[proposal_mask_target_enum::kRois].get<xpu, 3, DType>(s);
-    Tensor<xpu, 3, DType> gt_bboxes = in_grad[proposal_mask_target_enum::kGtBboxes].get_with_shape<xpu, 3, DType>(Shape3(num_image, num_gtbbox, 5), s);
+    Tensor<xpu, 3, DType> gt_bboxes = in_grad[proposal_mask_target_enum::kGtBboxes].get<xpu, 3, DType>(s);
+    Tensor<xpu, 3, DType> gt_polys  = in_grad[proposal_mask_target_enum::kGtPolys].get<xpu, 3, DType>(s);
 
     rois = 0.f;
     gt_bboxes = 0.f;
+    gt_polys = 0.f;
+
+    if (param_.filter_scales) {
+        Tensor<xpu, 2, DType> valid_ranges = in_grad[proposal_mask_target_enum::kValidRanges].get<xpu, 2, DType>(s);
+        valid_ranges = 0.f;
+    }
   }
 
  private:
@@ -350,7 +381,11 @@ class ProposalMaskTargetProp : public OperatorProperty {
   }
 
   std::vector<std::string> ListArguments() const override {
-    return {"rois", "gt_boxes", "gt_polys"};
+    if (param_.filter_scales) {
+        return {"rois", "gt_boxes", "gt_polys", "valid_ranges"};
+    } else {
+        return {"rois", "gt_boxes", "gt_polys"};
+    }
   }
 
   std::vector<std::string> ListOutputs() const override {
@@ -361,7 +396,11 @@ class ProposalMaskTargetProp : public OperatorProperty {
                   std::vector<TShape> *out_shape,
                   std::vector<TShape> *aux_shape) const override {
     using namespace mshadow;
-    CHECK_EQ(in_shape->size(), 3) << "Input:[rois, gt_boxes, gt_polys]";
+    if (param_.filter_scales) {
+        CHECK_EQ(in_shape->size(), 4) << "Input:[rois, gt_boxes, gt_polys, valid_ranges]";
+    } else {
+        CHECK_EQ(in_shape->size(), 3) << "Input:[rois, gt_boxes, gt_polys]";
+    }
     const TShape &dshape = in_shape->at(proposal_mask_target_enum::kRois);
     const int image_rois  = param_.image_rois == -1 ? dshape[1]: param_.image_rois;
 
