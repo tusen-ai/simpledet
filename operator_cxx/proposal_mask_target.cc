@@ -157,7 +157,7 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
   }
 
   /*
-  bg_indexes = np.where((overlaps < config.TRAIN.BG_THRESH_HI) & (overlaps >= config.TRAIN.BG_THRESH_LO))[0] 
+  bg_indexes = np.where((overlaps < config.TRAIN.BG_THRESH_HI) & (overlaps >= config.TRAIN.BG_THRESH_LO))[0]
   bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
   bg_rois_per_this_image = np.minimum(bg_rois_per_this_image, bg_indexes.size)
   if len(bg_indexes) > bg_rois_per_this_image:
@@ -185,12 +185,11 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
   }
 
   // pad with negative rois, original code is GARBAGE and omitted
-  if (kept_indexes.size() < rois_per_image) {
+  while (kept_indexes.size() < rois_per_image && neg_indexes.size() > 0) {
       index_t gap = rois_per_image - kept_indexes.size();
       random_shuffle(begin(neg_indexes), end(neg_indexes));
-      neg_indexes.resize(gap);
-      for (auto idx: neg_indexes) {
-          kept_indexes.push_back(idx);
+      for (index_t idx = 0;idx < gap && idx < neg_indexes.size();++idx) {
+          kept_indexes.push_back(neg_indexes[idx]);
       }
   }
   /*
@@ -341,10 +340,9 @@ DMLC_REGISTER_PARAMETER(ProposalMaskTargetParam);
 
 MXNET_REGISTER_OP_PROPERTY(ProposalMaskTarget, ProposalMaskTargetProp)
 .describe("C++ version proposal target")
-.add_argument("rois", "Symbol", "rois")
-.add_argument("gt_boxes", "Symbol", "gtboxes")
-.add_argument("gt_polys", "Symbol", "gtpolys")
-.add_arguments(ProposalMaskTargetParam::__FIELDS__());
+.add_argument("data", "Symbol[]", "rois, gtboxes, gt_polys[, valid_ranges]")
+.add_arguments(ProposalMaskTargetParam::__FIELDS__())
+.set_key_var_num_args("num_args");
 
 }  // namespace op
 }  // namespace mxnet
