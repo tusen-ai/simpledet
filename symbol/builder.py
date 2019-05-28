@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import mxnet as mx
 import mxnext as X
+from utils.patch_config import patch_config_as_nothrow
 
 
 class RPN(object):
@@ -100,7 +101,7 @@ class FasterRcnn(object):
 
 class RpnHead(object):
     def __init__(self, pRpn):
-        self.p = pRpn
+        self.p = patch_config_as_nothrow(pRpn)
 
         self._cls_logit             = None
         self._bbox_delta            = None
@@ -114,14 +115,27 @@ class RpnHead(object):
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
         conv_channel = p.head.conv_channel
 
-        conv = X.convrelu(
-            conv_feat,
-            kernel=3,
-            filter=conv_channel,
-            name="rpn_conv_3x3",
-            no_bias=False,
-            init=X.gauss(0.01)
-        )
+        if p.normalizer.__name__ == "fix_bn":
+            conv = X.convrelu(
+                conv_feat,
+                kernel=3,
+                filter=conv_channel,
+                name="rpn_conv_3x3",
+                no_bias=False,
+                init=X.gauss(0.01)
+            )
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            conv = X.convnormrelu(
+                p.normalizer,
+                conv_feat,
+                kernel=3,
+                filter=conv_channel,
+                name="rpn_conv_3x3",
+                no_bias=False,
+                init=X.gauss(0.01)
+            )
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
 
         if p.fp16:
             conv = X.to_fp32(conv, name="rpn_conv_3x3_fp32")
@@ -291,7 +305,7 @@ class RpnHead(object):
 
 class BboxHead(object):
     def __init__(self, pBbox):
-        self.p = pBbox
+        self.p = patch_config_as_nothrow(pBbox)
 
         self._head_feat = None
 
@@ -365,6 +379,7 @@ class BboxHead(object):
         p = self.p
         batch_roi = p.image_roi * p.batch_image
         batch_image = p.batch_image
+        smooth_l1_scalar = p.regress_target.smooth_l1_scalar or 1.0
 
         cls_logit, bbox_delta = self.get_output(conv_feat)
 
@@ -382,7 +397,7 @@ class BboxHead(object):
         # bounding box regression
         reg_loss = X.smooth_l1(
             bbox_delta - bbox_target,
-            scalar=1.0,
+            scalar=smooth_l1_scalar,
             name='bbox_reg_l1'
         )
         reg_loss = bbox_weight * reg_loss
@@ -412,12 +427,93 @@ class Bbox2fcHead(BboxHead):
         if self._head_feat is not None:
             return self._head_feat
 
+        p = self.p
+
         flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
         reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape")
-        fc1 = X.convrelu(reshape, filter=1024, name="bbox_fc1")
-        fc2 = X.convrelu(fc1, filter=1024, name="bbox_fc2")
+
+        if p.normalizer.__name__ == "fix_bn":
+            fc1 = X.convrelu(reshape, filter=1024, name="bbox_fc1")
+            fc2 = X.convrelu(fc1, filter=1024, name="bbox_fc2")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            fc1 = X.convnormrelu(p.normalizer, reshape, filter=1024, name="bbox_fc1")
+            fc2 = X.convnormrelu(p.normalizer, fc1, filter=1024, name="bbox_fc2")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
 
         self._head_feat = fc2
+
+        return self._head_feat
+
+
+class Bbox1conv2fcHead(BboxHead):
+    def __init__(self, pBbox):
+        super().__init__(pBbox)
+
+    def _get_bbox_head_logit(self, conv_feat):
+        if self._head_feat is not None:
+            return self._head_feat
+
+        p = self.p
+
+        if p.normalizer.__name__ == "fix_bn":
+            conv_feat = X.convrelu(conv_feat, filter=256, kernel=3, name="bbox_conv1")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            conv_feat = X.convnormrelu(p.normalizer, conv_feat, filter=256, kernel=3, name="bbox_conv1")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
+        reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape")
+
+        if p.normalizer.__name__ == "fix_bn":
+            fc1 = X.convrelu(reshape, filter=1024, name="bbox_fc1")
+            fc2 = X.convrelu(fc1, filter=1024, name="bbox_fc2")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            fc1 = X.convnormrelu(p.normalizer, reshape, filter=1024, name="bbox_fc1")
+            fc2 = X.convnormrelu(p.normalizer, fc1, filter=1024, name="bbox_fc2")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        self._head_feat = fc2
+
+        return self._head_feat
+
+
+class Bbox4conv1fcHead(BboxHead):
+    def __init__(self, pBbox):
+        super().__init__(pBbox)
+
+    def _get_bbox_head_logit(self, conv_feat):
+        if self._head_feat is not None:
+            return self._head_feat
+
+        p = self.p
+
+        if p.normalizer.__name__ == "fix_bn":
+            conv_feat = X.convrelu(conv_feat, filter=256, kernel=3, name="bbox_conv1")
+            conv_feat = X.convrelu(conv_feat, filter=256, kernel=3, name="bbox_conv2")
+            conv_feat = X.convrelu(conv_feat, filter=256, kernel=3, name="bbox_conv3")
+            conv_feat = X.convrelu(conv_feat, filter=256, kernel=3, name="bbox_conv4")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            conv_feat = X.convnormrelu(p.normalizer, conv_feat, filter=256, kernel=3, name="bbox_conv1")
+            conv_feat = X.convnormrelu(p.normalizer, conv_feat, filter=256, kernel=3, name="bbox_conv2")
+            conv_feat = X.convnormrelu(p.normalizer, conv_feat, filter=256, kernel=3, name="bbox_conv3")
+            conv_feat = X.convnormrelu(p.normalizer, conv_feat, filter=256, kernel=3, name="bbox_conv4")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
+        reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape")
+
+        if p.normalizer.__name__ == "fix_bn":
+            fc1 = X.convrelu(reshape, filter=1024, name="bbox_fc1")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            fc1 = X.convnormrelu(p.normalizer, reshape, filter=1024, name="bbox_fc1")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        self._head_feat = fc1
 
         return self._head_feat
 
@@ -513,7 +609,7 @@ class BboxC5V1Head(BboxHead):
 
 class Backbone(object):
     def __init__(self, pBackbone):
-        self.pBackbone = pBackbone
+        self.p = patch_config_as_nothrow(pBackbone)
 
     def get_rpn_feature(self):
         raise NotImplementedError
@@ -548,6 +644,34 @@ class MXNetResNeXt50(Backbone):
 
     def get_rcnn_feature(self):
         return self.symbol
+
+
+class MXNetResNeXt50C4C5(Backbone):
+    def __init__(self, pBackbone):
+        super(MXNetResNeXt50C4C5, self).__init__(pBackbone)
+        from mxnext.backbone.resnext import Builder
+        b = Builder()
+        self.c4, self.c5 = b.get_backbone("mxnet", 50, "c4c5", pBackbone.normalizer, pBackbone.num_group, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.c4
+
+    def get_rcnn_feature(self):
+        return self.c5
+
+
+class MXNetResNeXt101C4C5(Backbone):
+    def __init__(self, pBackbone):
+        super(MXNetResNeXt101C4C5, self).__init__(pBackbone)
+        from mxnext.backbone.resnext import Builder
+        b = Builder()
+        self.c4, self.c5 = b.get_backbone("mxnet", 101, "c4c5", pBackbone.normalizer, pBackbone.num_group, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.c4
+
+    def get_rcnn_feature(self):
+        return self.c5
 
 
 class MXNetResNet101V2(Backbone):
@@ -622,7 +746,7 @@ class MXNetResNet101V2C4C5(Backbone):
 
 class Neck(object):
     def __init__(self, pNeck):
-        self.p = pNeck
+        self.p = patch_config_as_nothrow(pNeck)
 
     def get_rpn_feature(self, rpn_feat):
         return rpn_feat
@@ -631,9 +755,40 @@ class Neck(object):
         return rcnn_feat
 
 
+class ReduceNeck(Neck):
+    def __init__(self, pNeck):
+        super().__init__(pNeck)
+
+    def get_rpn_feature(self, rpn_feat):
+        return rpn_feat
+
+    def get_rcnn_feature(self, rcnn_feat):
+        p = self.p
+
+        if p.normalizer.__name__ == "fix_bn":
+            rcnn_feat = X.convrelu(
+                rcnn_feat,
+                filter=p.reduce.channel,
+                kernel=3,
+                name="backbone_reduce"
+            )
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            rcnn_feat = X.convnormrelu(
+                p.normalizer,
+                rcnn_feat,
+                filter=p.reduce.channel,
+                kernel=3,
+                name="backbone_reduce"
+            )
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        return rcnn_feat
+
+
 class RoiExtractor(object):
     def __init__(self, pRoi):
-        self.p = pRoi
+        self.p = patch_config_as_nothrow(pRoi)
 
     def get_roi_feature(self, rcnn_feat, proposal):
         raise NotImplementedError

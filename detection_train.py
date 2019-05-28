@@ -14,11 +14,21 @@ from utils import callback
 from utils.memonger_v2 import search_plan_to_layer
 from utils.lr_scheduler import WarmupMultiFactorScheduler
 from utils.load_model import load_checkpoint
+from utils.patch_config import patch_config_as_nothrow
 
 
 def train_net(config):
     pGen, pKv, pRpn, pRoi, pBbox, pDataset, pModel, pOpt, pTest, \
     transform, data_name, label_name, metric_list = config.get_config(is_train=True)
+    pGen = patch_config_as_nothrow(pGen)
+    pKv = patch_config_as_nothrow(pKv)
+    pRpn = patch_config_as_nothrow(pRpn)
+    pRoi = patch_config_as_nothrow(pRoi)
+    pBbox = patch_config_as_nothrow(pBbox)
+    pDataset = patch_config_as_nothrow(pDataset)
+    pModel = patch_config_as_nothrow(pModel)
+    pOpt = patch_config_as_nothrow(pOpt)
+    pTest = patch_config_as_nothrow(pTest)
 
     ctx = [mx.gpu(int(i)) for i in pKv.gpus]
     pretrain_prefix = pModel.pretrain.prefix
@@ -35,9 +45,7 @@ def train_net(config):
     rank = kv.rank
 
     # for distributed training using shared file system
-    if rank == 0:
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+    os.makedirs(save_path, exist_ok=True)
 
     from utils.logger import config_logger
     config_logger(os.path.join(save_path, "log.txt"))
@@ -78,7 +86,11 @@ def train_net(config):
         label_name=label_name,
         batch_size=input_batch_size,
         shuffle=True,
-        kv=kv
+        kv=kv,
+        num_worker=6,
+        num_collector=2,
+        worker_queue_depth=2,
+        collector_queue_depth=2
     )
 
     # infer shape
@@ -120,10 +132,8 @@ def train_net(config):
     else:
         arg_params, aux_params = load_checkpoint(pretrain_prefix, pretrain_epoch)
 
-    try:
+    if pModel.process_weight is not None:
         pModel.process_weight(sym, arg_params, aux_params)
-    except AttributeError:
-        pass
 
     if pModel.random:
         import time
@@ -134,12 +144,13 @@ def train_net(config):
     init.set_verbosity(verbose=True)
 
     # create solver
-    fixed_param_prefix = pModel.pretrain.fixed_param
+    fixed_param = pModel.pretrain.fixed_param
+    excluded_param = pModel.pretrain.excluded_param
     data_names = [k[0] for k in train_data.provide_data]
     label_names = [k[0] for k in train_data.provide_label]
 
     mod = DetModule(sym, data_names=data_names, label_names=label_names,
-                    logger=logger, context=ctx, fixed_param_prefix=fixed_param_prefix)
+                    logger=logger, context=ctx, fixed_param=fixed_param, excluded_param=excluded_param)
 
     eval_metrics = mx.metric.CompositeEvalMetric(metric_list)
 
@@ -165,7 +176,7 @@ def train_net(config):
             logging.info(
                 'warmup lr {}, warmup step {}'.format(
                     pOpt.warmup.lr,
-                    pOpt.warmup.iter)
+                    pOpt.warmup.iter // kv.num_workers)
                 )
 
         lr_scheduler = WarmupMultiFactorScheduler(
@@ -174,7 +185,7 @@ def train_net(config):
             warmup=True,
             warmup_type=pOpt.warmup.type,
             warmup_lr=pOpt.warmup.lr,
-            warmup_step=pOpt.warmup.iter
+            warmup_step=pOpt.warmup.iter // kv.num_workers
         )
     else:
         if len(lr_iter_discount) > 0:
@@ -196,6 +207,11 @@ def train_net(config):
         optimizer_params['multi_precision'] = True
         optimizer_params['rescale_grad'] /= 128.0
 
+    profile = pGen.profile or False
+    if profile:
+        mx.profiler.set_config(profile_all=True, filename="%s.json" % pGen.name)
+        mx.profiler.set_state('run')
+
     # train
     mod.fit(
         train_data=train_data,
@@ -210,7 +226,8 @@ def train_net(config):
         arg_params=arg_params,
         aux_params=aux_params,
         begin_epoch=begin_epoch,
-        num_epoch=end_epoch
+        num_epoch=end_epoch,
+        profile=profile
     )
 
     logging.info("Training has done")
