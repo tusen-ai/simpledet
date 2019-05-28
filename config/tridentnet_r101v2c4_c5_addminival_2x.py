@@ -1,7 +1,7 @@
 from models.tridentnet.builder import TridentFasterRcnn as Detector
 from models.tridentnet.builder import TridentMXNetResNetV2 as Backbone
 from models.tridentnet.builder import TridentRpnHead as RpnHead
-from models.tridentnet.builder import process_branch_outputs
+from models.tridentnet.builder import process_branch_outputs, process_branch_rpn_outputs
 from symbol.builder import Neck
 from symbol.builder import RoiAlign as RoiExtractor
 from symbol.builder import BboxC5Head as BboxHead
@@ -128,9 +128,11 @@ def get_config(is_train):
         train_sym = detector.get_train_symbol(
             backbone, neck, rpn_head, roi_extractor, bbox_head,
             num_branch=Trident.num_branch, scaleaware=Trident.train_scaleaware)
+        rpn_test_sym = None
         test_sym = None
     else:
         train_sym = None
+        rpn_test_sym = detector.get_rpn_test_symbol(backbone, neck, rpn_head, Trident.num_branch)
         test_sym = detector.get_test_symbol(
             backbone, neck, rpn_head, roi_extractor, bbox_head, num_branch=Trident.num_branch)
 
@@ -138,6 +140,7 @@ def get_config(is_train):
     class ModelParam:
         train_symbol = train_sym
         test_symbol = test_sym
+        rpn_test_symbol = rpn_test_sym
 
         from_scratch = False
         random = True
@@ -180,6 +183,8 @@ def get_config(is_train):
                 x, Trident.num_branch, Trident.valid_ranges, Trident.valid_ranges_on_origin)
         else:
             process_output = lambda x, y: x
+
+        process_rpn_output = lambda x, y: process_branch_rpn_outputs(x, Trident.num_branch)
 
         class model:
             prefix = "experiments/{}/checkpoint".format(General.name)

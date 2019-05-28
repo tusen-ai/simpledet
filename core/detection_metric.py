@@ -8,7 +8,7 @@ class LossWithIgnore(mx.metric.EvalMetric):
         self.ignore_label = ignore_label
 
     def update(self, labels, preds):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class FgLossWithIgnore(LossWithIgnore):
@@ -17,7 +17,7 @@ class FgLossWithIgnore(LossWithIgnore):
         self.bg_label = bg_label
 
     def update(self, labels, preds):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class AccWithIgnore(LossWithIgnore):

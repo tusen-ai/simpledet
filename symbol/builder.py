@@ -1,14 +1,54 @@
 from __future__ import print_function
 
+import mxnet as mx
 import mxnext as X
 
 
-class FasterRcnn(object):
+class RPN(object):
+    _rpn_output = None
+
     def __init__(self):
         pass
 
-    @staticmethod
-    def get_train_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head):
+    @classmethod
+    def get_train_symbol(cls, backbone, neck, rpn_head):
+        rpn_cls_label = X.var("rpn_cls_label")
+        rpn_reg_target = X.var("rpn_reg_target")
+        rpn_reg_weight = X.var("rpn_reg_weight")
+
+        rpn_feat = backbone.get_rpn_feature()
+        rpn_feat = neck.get_rpn_feature(rpn_feat)
+
+        rpn_loss = rpn_head.get_loss(rpn_feat, rpn_cls_label, rpn_reg_target, rpn_reg_weight)
+
+        return X.group(rpn_loss)
+
+    @classmethod
+    def get_rpn_test_symbol(cls, backbone, neck, rpn_head):
+        if cls._rpn_output is not None:
+            return cls._rpn_output
+
+        im_info = X.var("im_info")
+        im_id = X.var("im_id")
+        rec_id = X.var("rec_id")
+
+        rpn_feat = backbone.get_rpn_feature()
+        rpn_feat = neck.get_rpn_feature(rpn_feat)
+
+        (proposal, proposal_score) = rpn_head.get_all_proposal(rpn_feat, im_info)
+
+        cls._rpn_output = [rec_id, im_id, im_info, proposal, proposal_score]
+        return cls._rpn_output
+
+
+class FasterRcnn(object):
+    _rpn_output = None
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_train_symbol(cls, backbone, neck, rpn_head, roi_extractor, bbox_head):
         gt_bbox = X.var("gt_bbox")
         im_info = X.var("im_info")
         rpn_cls_label = X.var("rpn_cls_label")
@@ -27,27 +67,40 @@ class FasterRcnn(object):
 
         return X.group(rpn_loss + bbox_loss)
 
-    @staticmethod
-    def get_test_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head):
-        im_info = X.var("im_info")
-        im_id = X.var("im_id")
-        rec_id = X.var("rec_id")
+    @classmethod
+    def get_test_symbol(cls, backbone, neck, rpn_head, roi_extractor, bbox_head):
+        rec_id, im_id, im_info, proposal, proposal_score = \
+            FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
-        rpn_feat = backbone.get_rpn_feature()
         rcnn_feat = backbone.get_rcnn_feature()
-        rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
-        proposal = rpn_head.get_all_proposal(rpn_feat, im_info)
         roi_feat = roi_extractor.get_roi_feature_test(rcnn_feat, proposal)
         cls_score, bbox_xyxy = bbox_head.get_prediction(roi_feat, im_info, proposal)
 
         return X.group([rec_id, im_id, im_info, cls_score, bbox_xyxy])
 
+    @classmethod
+    def get_rpn_test_symbol(cls, backbone, neck, rpn_head):
+        if cls._rpn_output is not None:
+            return cls._rpn_output
+
+        im_info = X.var("im_info")
+        im_id = X.var("im_id")
+        rec_id = X.var("rec_id")
+
+        rpn_feat = backbone.get_rpn_feature()
+        rpn_feat = neck.get_rpn_feature(rpn_feat)
+
+        (proposal, proposal_score) = rpn_head.get_all_proposal(rpn_feat, im_info)
+
+        cls._rpn_output = [rec_id, im_id, im_info, proposal, proposal_score]
+        return cls._rpn_output
+
 
 class RpnHead(object):
     def __init__(self, pRpn):
-        self.p = pRpn  # type: RPNParam
+        self.p = pRpn
 
         self._cls_logit             = None
         self._bbox_delta            = None
@@ -183,7 +236,8 @@ class RpnHead(object):
             rpn_post_nms_top_n=post_nms_top_n,
             threshold=nms_thr,
             rpn_min_size=min_bbox_side,
-            iou_loss=False
+            iou_loss=False,
+            output_score=True
         )
 
         self._proposal = proposal
@@ -208,7 +262,7 @@ class RpnHead(object):
         bbox_target_mean = p.bbox_target.mean
         bbox_target_std = p.bbox_target.std
 
-        proposal = self.get_all_proposal(conv_feat, im_info)
+        (proposal, proposal_score) = self.get_all_proposal(conv_feat, im_info)
 
         (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
             rois=proposal,
@@ -237,12 +291,12 @@ class RpnHead(object):
 
 class BboxHead(object):
     def __init__(self, pBbox):
-        self.p = pBbox  # type: BboxParam
+        self.p = pBbox
 
         self._head_feat = None
 
     def _get_bbox_head_logit(self, conv_feat):
-        raise NotImplemented
+        raise NotImplementedError
 
     def get_output(self, conv_feat):
         p = self.p
@@ -568,7 +622,7 @@ class MXNetResNet101V2C4C5(Backbone):
 
 class Neck(object):
     def __init__(self, pNeck):
-        self.pNeck = pNeck
+        self.p = pNeck
 
     def get_rpn_feature(self, rpn_feat):
         return rpn_feat
@@ -579,7 +633,7 @@ class Neck(object):
 
 class RoiExtractor(object):
     def __init__(self, pRoi):
-        self.p = pRoi  # type: RoiParam
+        self.p = pRoi
 
     def get_roi_feature(self, rcnn_feat, proposal):
         raise NotImplementedError

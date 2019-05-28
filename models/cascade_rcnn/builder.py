@@ -4,7 +4,7 @@ from __future__ import print_function
 import math
 import mxnext as X
 
-from symbol.builder import Neck, RoiAlign, Bbox2fcHead
+from symbol.builder import FasterRcnn, Neck, RoiAlign, Bbox2fcHead
 
 class CascadeRcnn(object):
     def __init__(self):
@@ -82,17 +82,13 @@ class CascadeRcnn(object):
     @staticmethod
     def get_test_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head, \
                         bbox_head_2nd, bbox_head_3rd):
-        im_info = X.var("im_info")
-        im_id = X.var("im_id")
-        rec_id = X.var("rec_id")
+        rec_id, im_id, im_info, proposal, proposal_score = \
+            CascadeRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
-        rpn_feat = backbone.get_rpn_feature()
         rcnn_feat = backbone.get_rcnn_feature()
-        rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
         # stage1
-        proposal = rpn_head.get_all_proposal(rpn_feat, im_info)
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal, "1st")
         _, bbox_xyxy = bbox_head.get_prediction(
             roi_feat,
@@ -136,6 +132,37 @@ class CascadeRcnn(object):
         cls_score_avg = mx.sym.add_n(cls_score_1st_3rd, cls_score_2nd_3rd, cls_score_3rd) / 3
 
         return X.group([rec_id, im_id, im_info, cls_score_avg, bbox_xyxy_3rd])
+
+    @staticmethod
+    def get_rpn_test_symbol(backbone, neck, rpn_head):
+        return FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
+
+    @staticmethod
+    def get_refined_proposal(backbone, neck, rpn_head, roi_extractor, bbox_head, bbox_head_2nd, bbox_head_3rd, stage):
+        rec_id, im_id, im_info, proposal, proposal_score = CascadeRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
+
+        rcnn_feat = backbone.get_rcnn_feature()
+        rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
+
+        # stage1
+        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal, "1st")
+        _, bbox_xyxy = bbox_head.get_prediction(roi_feat, im_info, proposal)
+
+        # stage2
+        proposal_2nd = bbox_xyxy
+        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd, "2nd")
+        _, bbox_xyxy_2nd = bbox_head_2nd.get_prediction(roi_feat_2nd, im_info, proposal_2nd)
+
+        # stage3
+        proposal_3rd = bbox_xyxy_2nd
+        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd, "3rd")
+        cls_score_3rd, bbox_xyxy_3rd = bbox_head_3rd.get_prediction(roi_feat_3rd, im_info, proposal_3rd)
+
+        # AR does not need score, just pass a dummy one
+        if stage == 2:
+            return X.group([rec_id, im_id, im_info, proposal_2nd, cls_score_3rd])
+        elif stage == 3:
+            return X.group([rec_id, im_id, im_info, proposal_3rd, cls_score_3rd])
 
 
 class CascadeNeck(Neck):
