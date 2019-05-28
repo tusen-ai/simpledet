@@ -4,6 +4,7 @@ import math
 from core.detection_module import DetModule
 from core.detection_input import Loader
 from utils.load_model import load_checkpoint
+from utils.patch_config import patch_config_as_nothrow
 
 from six.moves import reduce
 from six.moves.queue import Queue
@@ -32,6 +33,15 @@ if __name__ == "__main__":
 
     pGen, pKv, pRpn, pRoi, pBbox, pDataset, pModel, pOpt, pTest, \
     transform, data_name, label_name, metric_list = config.get_config(is_train=False)
+    pGen = patch_config_as_nothrow(pGen)
+    pKv = patch_config_as_nothrow(pKv)
+    pRpn = patch_config_as_nothrow(pRpn)
+    pRoi = patch_config_as_nothrow(pRoi)
+    pBbox = patch_config_as_nothrow(pBbox)
+    pDataset = patch_config_as_nothrow(pDataset)
+    pModel = patch_config_as_nothrow(pModel)
+    pOpt = patch_config_as_nothrow(pOpt)
+    pTest = patch_config_as_nothrow(pTest)
 
     sym = pModel.rpn_test_symbol
     sym.save(pTest.model.prefix + "_test.json")
@@ -71,7 +81,7 @@ if __name__ == "__main__":
                         collector_queue_depth=2,
                         kv=None)
 
-        print(f"total number of images: {loader.total_record}")
+        print("total number of images: {}".format(loader.total_record))
 
         data_names = [k[0] for k in loader.provide_data]
 
@@ -135,13 +145,11 @@ if __name__ == "__main__":
         print("network uses: %.1f" % (t2_s - t1_s))
 
         # let user process all_outputs
-        try:
+        if pTest.process_rpn_output is not None:
             if callable(pTest.process_rpn_output):
                 pTest.process_rpn_output = [pTest.process_rpn_output]
             for callback in pTest.process_rpn_output:
                 all_outputs = callback(all_outputs, roidb)
-        except AttributeError:
-            pass
 
         # aggregate results for ensemble and multi-scale test
         output_dict = {}
@@ -200,8 +208,8 @@ if __name__ == "__main__":
 
     coco_dt = coco.loadRes(coco_result)
     coco_eval = COCOeval(coco, coco_dt)
-    coco_eval.params.iouType = "proposal_ex"
-    coco_eval.params.maxDets = [100, 300]  # [100, 300, 1000]
+    coco_eval.params.iouType = "bbox"
+    coco_eval.params.maxDets = [1, 10, 100]  # [100, 300, 1000]
     coco_eval.params.useCats = False
     coco_eval.evaluate()
     coco_eval.accumulate()

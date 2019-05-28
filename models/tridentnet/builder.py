@@ -431,7 +431,7 @@ class TridentMaskRpnHead(TridentRpnHead):
 class TridentMXNetResNetV2(Backbone):
     def __init__(self, pBackbone):
         super(TridentMXNetResNetV2, self).__init__(pBackbone)
-        p = pBackbone
+        p = self.p
         b = TridentResNetV2Builder()
         self.symbol = b.get_backbone("mxnet", p.depth, "c4", p.normalizer, p.fp16,
                                      p.num_branch, p.branch_dilates, p.branch_ids,
@@ -447,7 +447,7 @@ class TridentMXNetResNetV2(Backbone):
 class TridentMXNetResNetV2C4C5(Backbone):
     def __init__(self, pBackbone):
         super(TridentMXNetResNetV2C4C5, self).__init__(pBackbone)
-        p = pBackbone
+        p = self.p
         b = TridentResNetV2Builder()
         self.c4, self.c5 = b.get_backbone("mxnet", p.depth, "c4c5", p.normalizer, p.fp16,
                                           p.num_branch, p.branch_dilates, p.branch_ids,

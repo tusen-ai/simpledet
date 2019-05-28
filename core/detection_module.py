@@ -77,7 +77,7 @@ class DetModule(BaseModule):
         See mxnet.KVStore.set_gradient_compression method for more details on gradient compression.
     """
     def __init__(self, symbol, data_names=None, label_names=None, logger=logging, context=ctx.cpu(),
-                 fixed_param_prefix=None):
+                 fixed_param=None, excluded_param=None):
         super(DetModule, self).__init__(logger=logger)
 
         if isinstance(context, ctx.Context):
@@ -96,11 +96,17 @@ class DetModule(BaseModule):
         state_names = []
 
         fixed_param_names = list()
-        if fixed_param_prefix is not None:
+        if fixed_param is not None:
             for name in self._symbol.list_arguments():
-                for prefix in fixed_param_prefix:
-                    if prefix in name:
+                for fixed_partial_name in fixed_param:
+                    if fixed_partial_name in name:
                         fixed_param_names.append(name)
+        if excluded_param is not None:
+            for name in fixed_param_names.copy():
+                for excluded_partial_name in excluded_param:
+                    if excluded_partial_name in name:
+                        fixed_param_names.remove(name)
+        logger.info("fixed parameters: {}".format(fixed_param_names))
 
         _check_input_names(symbol, data_names, "data", True)
         _check_input_names(symbol, label_names, "label", False)
@@ -886,7 +892,7 @@ class DetModule(BaseModule):
             eval_batch_end_callback=None, initializer=Uniform(0.01),
             arg_params=None, aux_params=None, allow_missing=False,
             force_rebind=False, force_init=False, begin_epoch=0, num_epoch=None,
-            validation_metric=None, monitor=None, sparse_row_id_fn=None):
+            validation_metric=None, monitor=None, sparse_row_id_fn=None, profile=False):
 
         """Trains the module parameters.
         Checkout `Module Tutorial <http://mxnet.io/tutorials/basic/module.html>`_ to see
@@ -1014,6 +1020,11 @@ class DetModule(BaseModule):
                     for callback in _as_list(batch_end_callback):
                         callback(batch_end_params)
                 nbatch += 1
+
+                if profile is True and nbatch == 10:
+                    self.logger.info("Profiling ends")
+                    import mxnet as mx
+                    mx.profiler.dump()
 
             # one epoch of training is finished
             for name, val in eval_name_vals:
