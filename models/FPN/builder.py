@@ -11,6 +11,16 @@ class FPNBbox2fcHead(BboxHead):
     def __init__(self, pBbox):
         super(FPNBbox2fcHead, self).__init__(pBbox)
 
+    def add_norm(self, sym):
+        p = self.p
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
             return self._head_feat
@@ -19,8 +29,10 @@ class FPNBbox2fcHead(BboxHead):
 
         flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
         fc1 = X.fc(flatten, filter=1024, name="bbox_fc1", init=xavier_init)
+        fc1 = self.add_norm(fc1)
         fc1 = X.relu(fc1)
         fc2 = X.fc(fc1, filter=1024, name="bbox_fc2", init=xavier_init)
+        fc2 = self.add_norm(fc2)
         fc2 = X.relu(fc2)
 
         self._head_feat = fc2
@@ -70,6 +82,28 @@ class FPNRpnHead(object):
                 weight=rpn_conv_weight,
                 bias=rpn_conv_bias
             )
+
+            if p.normalizer.__name__ == "fix_bn":
+                pass
+            elif p.normalizer.__name__ == "sync_bn":
+                rpn_conv = p.normalizer(
+                    rpn_conv,
+                    gamma=rpn_conv_gamma,
+                    beta=rpn_conv_beta,
+                    moving_mean=rpn_conv_mmean,
+                    moving_var=rpn_conv_mvar,
+                    name="rpn_conv_3x3_bn_%s" % stride
+                )
+            elif p.normalizer.__name__ == "gn":
+                rpn_conv = p.normalizer(
+                    rpn_conv,
+                    gamma=rpn_conv_gamma,
+                    beta=rpn_conv_beta,
+                    name="rpn_conv_3x3_gn_%s" % stride
+                )
+            else:
+                raise NotImplementedError("Unsupported normalizer {}".format(p.normalizer.__name__))
+
             rpn_relu = X.relu(rpn_conv, name='rpn_relu_%s' % stride)
             if p.fp16:
                 rpn_relu = X.to_fp32(rpn_relu, name="rpn_relu_%s_fp32" % stride)
@@ -301,6 +335,16 @@ class FPNNeck(Neck):
         super(FPNNeck, self).__init__(pNeck)
         self.fpn_feat = None
 
+    def add_norm(self, sym):
+        p = self.p
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
     def fpn_neck(self, data):
         if self.fpn_feat is not None:
             return self.fpn_feat
@@ -318,6 +362,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P5_lateral_bias", init=X.zero_init()),
             name="P5_lateral"
         )
+        p5 = self.add_norm(p5)
         p5_conv = X.conv(
             data=p5,
             kernel=3,
@@ -327,6 +372,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P5_conv_bias", init=X.zero_init()),
             name="P5_conv"
         )
+        p5_conv = self.add_norm(p5_conv)
 
         # P4
         p5_up = mx.sym.UpSampling(
@@ -344,6 +390,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P4_lateral_bias", init=X.zero_init()),
             name="P4_lateral"
         )
+        p4_la = self.add_norm(p4_la)
         p5_clip = mx.sym.slice_like(p5_up, p4_la, name="P4_clip")
         p4 = mx.sym.add_n(p5_clip, p4_la, name="P4_sum")
 
@@ -356,6 +403,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P4_conv_bias", init=X.zero_init()),
             name="P4_conv"
         )
+        p4_conv = self.add_norm(p4_conv)
 
         # P3
         p4_up = mx.sym.UpSampling(
@@ -373,6 +421,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P3_lateral_bias", init=X.zero_init()),
             name="P3_lateral"
         )
+        p3_la = self.add_norm(p3_la)
         p4_clip = mx.sym.slice_like(p4_up, p3_la, name="P3_clip")
         p3 = mx.sym.add_n(p4_clip, p3_la, name="P3_sum")
 
@@ -385,6 +434,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P3_conv_bias", init=X.zero_init()),
             name="P3_conv"
         )
+        p3_conv = self.add_norm(p3_conv)
 
         # P2
         p3_up = mx.sym.UpSampling(
@@ -402,6 +452,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P2_lateral_bias", init=X.zero_init()),
             name="P2_lateral"
         )
+        p2_la = self.add_norm(p2_la)
         p3_clip = mx.sym.slice_like(p3_up, p2_la, name="P2_clip")
         p2 = mx.sym.add_n(p3_clip, p2_la, name="P2_sum")
 
@@ -414,6 +465,7 @@ class FPNNeck(Neck):
             bias=X.var(name="P2_conv_bias", init=X.zero_init()),
             name="P2_conv"
         )
+        p2_conv = self.add_norm(p2_conv)
 
         # P6
         p6 = X.max_pool(
