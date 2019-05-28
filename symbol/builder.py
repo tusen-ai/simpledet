@@ -38,7 +38,7 @@ class RPN(object):
 
         (proposal, proposal_score) = rpn_head.get_all_proposal(rpn_feat, im_info)
 
-        cls._rpn_output = [rec_id, im_id, im_info, proposal, proposal_score]
+        cls._rpn_output = X.group([rec_id, im_id, im_info, proposal, proposal_score])
         return cls._rpn_output
 
 
@@ -95,7 +95,7 @@ class FasterRcnn(object):
 
         (proposal, proposal_score) = rpn_head.get_all_proposal(rpn_feat, im_info)
 
-        cls._rpn_output = [rec_id, im_id, im_info, proposal, proposal_score]
+        cls._rpn_output = X.group([rec_id, im_id, im_info, proposal, proposal_score])
         return cls._rpn_output
 
 
