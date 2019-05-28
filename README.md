@@ -7,6 +7,8 @@
 - Extensive feature set including **large batch BN**, deformable convolution, soft NMS, multi-scale train/test
 - Modular design for coding-free exploration of new experiment settings
 
+### Recent Updates
+- Add RPN test(2019.5.28)
 
 ### Setup
 #### Install
