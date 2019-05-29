@@ -1,8 +1,8 @@
 import mxnet as mx
 import mxnext as X
-from mxnext.complicate import normalizer_factory
-from symbol.builder import Neck
 
+from mxnext.complicate import normalizer_factory
+from symbol.builder import Backbone, Neck
 from models.retinanet.builder import RetinaNetHead
 from models.retinanet.builder import RetinaNetNeck
 
@@ -508,3 +508,17 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         P7 = norm(P7, name="P7_conv_bn")
 
         return p3_conv, p4_conv, p5_conv, P6, P7
+
+
+class MSRAResNet50V1bFPN(Backbone):
+    def __init__(self, pBackbone):
+        super(MSRAResNet50V1bFPN, self).__init__(pBackbone)
+        from mxnext.backbone.resnet_v1b import Builder
+        b = Builder()
+        self.symbol = b.get_backbone("msra", 50, "fpn", pBackbone.normalizer, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
