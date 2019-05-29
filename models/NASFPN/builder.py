@@ -3,6 +3,9 @@ import mxnext as X
 from mxnext.complicate import normalizer_factory
 from symbol.builder import Neck
 
+from models.retinanet.builder import RetinaNetHead
+from models.retinanet.builder import RetinaNetNeck
+
 
 def merge_sum(f1, f2, name):
     """
@@ -181,3 +184,327 @@ class NASFPNNeck(Neck):
     def get_rcnn_feature(self, rcnn_feat):
         return self.get_nasfpn_neck(rcnn_feat)
 
+
+class RetinaNetHeadWithBN(RetinaNetHead):
+    def __init__(self, pRpn):
+        super(RetinaNetHeadWithBN, self).__init__(pRpn)
+
+    def _cls_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class, stride):
+        p = self.p
+        norm = p.normalizer
+
+        # classification subnet
+        cls_conv1 = X.conv(
+            data=conv_feat,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.cls_conv1_weight,
+            bias=self.cls_conv1_bias,
+            no_bias=False,
+            name="cls_conv1"
+        )
+        cls_conv1 = norm(cls_conv1, name="cls_conv1_bn_s{}".format(stride))
+        cls_conv1_relu = X.relu(cls_conv1)
+        cls_conv2 = X.conv(
+            data=cls_conv1_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.cls_conv2_weight,
+            bias=self.cls_conv2_bias,
+            no_bias=False,
+            name="cls_conv2"
+        )
+        cls_conv2 = norm(cls_conv2, name="cls_conv2_bn_s{}".format(stride))
+        cls_conv2_relu = X.relu(cls_conv2)
+        cls_conv3 = X.conv(
+            data=cls_conv2_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.cls_conv3_weight,
+            bias=self.cls_conv3_bias,
+            no_bias=False,
+            name="cls_conv3"
+        )
+        cls_conv3 = norm(cls_conv3, name="cls_conv3_bn_s{}".format(stride))
+        cls_conv3_relu = X.relu(cls_conv3)
+        cls_conv4 = X.conv(
+            data=cls_conv3_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.cls_conv4_weight,
+            bias=self.cls_conv4_bias,
+            no_bias=False,
+            name="cls_conv4"
+        )
+        cls_conv4 = norm(cls_conv4, name="cls_conv4_bn_s{}".format(stride))
+        cls_conv4_relu = X.relu(cls_conv4)
+
+        if p.fp16:
+            cls_conv4_relu = X.to_fp32(cls_conv4_relu, name="cls_conv4_fp32")
+
+        output_channel = num_base_anchor * (num_class - 1)
+        output = X.conv(
+            data=cls_conv4_relu,
+            kernel=3,
+            filter=output_channel,
+            weight=self.cls_pred_weight,
+            bias=self.cls_pred_bias,
+            no_bias=False,
+            name="cls_pred"
+        )
+        return output
+
+    def _bbox_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class, stride):
+        p = self.p
+        norm = p.normalizer
+
+        # regression subnet
+        bbox_conv1 = X.conv(
+            data=conv_feat,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.bbox_conv1_weight,
+            bias=self.bbox_conv1_bias,
+            no_bias=False,
+            name="bbox_conv1"
+        )
+        bbox_conv1 = norm(bbox_conv1, name="bbox_conv1_bn_s{}".format(stride))
+        bbox_conv1_relu = X.relu(bbox_conv1)
+        bbox_conv2 = X.conv(
+            data=bbox_conv1_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.bbox_conv2_weight,
+            bias=self.bbox_conv2_bias,
+            no_bias=False,
+            name="bbox_conv2"
+        )
+        bbox_conv2 = norm(bbox_conv2, name="bbox_conv2_bn_s{}".format(stride))
+        bbox_conv2_relu = X.relu(bbox_conv2)
+        bbox_conv3 = X.conv(
+            data=bbox_conv2_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.bbox_conv3_weight,
+            bias=self.bbox_conv3_bias,
+            no_bias=False,
+            name="bbox_conv3"
+        )
+        bbox_conv3 = norm(bbox_conv3, name="bbox_conv3_bn_s{}".format(stride))
+        bbox_conv3_relu = X.relu(bbox_conv3)
+        bbox_conv4 = X.conv(
+            data=bbox_conv3_relu,
+            kernel=3,
+            filter=conv_channel,
+            weight=self.bbox_conv4_weight,
+            bias=self.bbox_conv4_bias,
+            no_bias=False,
+            name="bbox_conv4"
+        )
+        bbox_conv4 = norm(bbox_conv4, name="bbox_conv4_bn_s{}".format(stride))
+        bbox_conv4_relu = X.relu(bbox_conv4)
+
+        if p.fp16:
+            bbox_conv4_relu = X.to_fp32(bbox_conv4_relu, name="bbox_conv4_fp32")
+
+        output_channel = num_base_anchor * 4
+        output = X.conv(
+            data=bbox_conv4_relu,
+            kernel=3,
+            filter=output_channel,
+            weight=self.bbox_pred_weight,
+            bias=self.bbox_pred_bias,
+            no_bias=False,
+            name="bbox_pred"
+        )
+
+        return output
+
+    def get_output(self, conv_feat):
+        if self._cls_logit_list is not None and self._bbox_delta_list is not None:
+            return self._cls_logit_list, self._bbox_delta_list
+
+        p = self.p
+        stride = p.anchor_generate.stride
+        if not isinstance(stride, tuple):
+            stride = (stride)
+        conv_channel = p.head.conv_channel
+        num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
+        num_class = p.num_class
+
+        prior_prob = 0.01
+        pi = -math.log((1-prior_prob) / prior_prob)
+
+        # shared classification weight and bias
+        self.cls_conv1_weight = X.var("cls_conv1_weight", init=X.gauss(std=0.01))
+        self.cls_conv1_bias = X.var("cls_conv1_bias", init=X.zero_init())
+        self.cls_conv2_weight = X.var("cls_conv2_weight", init=X.gauss(std=0.01))
+        self.cls_conv2_bias = X.var("cls_conv2_bias", init=X.zero_init())
+        self.cls_conv3_weight = X.var("cls_conv3_weight", init=X.gauss(std=0.01))
+        self.cls_conv3_bias = X.var("cls_conv3_bias", init=X.zero_init())
+        self.cls_conv4_weight = X.var("cls_conv4_weight", init=X.gauss(std=0.01))
+        self.cls_conv4_bias = X.var("cls_conv4_bias", init=X.zero_init())
+        self.cls_pred_weight = X.var("cls_pred_weight", init=X.gauss(std=0.01))
+        self.cls_pred_bias = X.var("cls_pred_bias", init=X.constant(pi))
+
+        # shared regression weight and bias
+        self.bbox_conv1_weight = X.var("bbox_conv1_weight", init=X.gauss(std=0.01))
+        self.bbox_conv1_bias = X.var("bbox_conv1_bias", init=X.zero_init())
+        self.bbox_conv2_weight = X.var("bbox_conv2_weight", init=X.gauss(std=0.01))
+        self.bbox_conv2_bias = X.var("bbox_conv2_bias", init=X.zero_init())
+        self.bbox_conv3_weight = X.var("bbox_conv3_weight", init=X.gauss(std=0.01))
+        self.bbox_conv3_bias = X.var("bbox_conv3_bias", init=X.zero_init())
+        self.bbox_conv4_weight = X.var("bbox_conv4_weight", init=X.gauss(std=0.01))
+        self.bbox_conv4_bias = X.var("bbox_conv4_bias", init=X.zero_init())
+        self.bbox_pred_weight = X.var("bbox_pred_weight", init=X.gauss(std=0.01))
+        self.bbox_pred_bias = X.var("bbox_pred_bias", init=X.zero_init())
+
+        cls_logit_list = []
+        bbox_delta_list = []
+
+        for i, s in enumerate(stride):
+            cls_logit = self._cls_subnet(
+                conv_feat=conv_feat[i],
+                conv_channel=conv_channel,
+                num_base_anchor=num_base_anchor,
+                num_class=num_class,
+                stride=s
+            )
+
+            bbox_delta = self._bbox_subnet(
+                conv_feat=conv_feat[i],
+                conv_channel=conv_channel,
+                num_base_anchor=num_base_anchor,
+                num_class=num_class,
+                stride=s
+            )
+
+            cls_logit_list.append(cls_logit)
+            bbox_delta_list.append(bbox_delta)
+
+        self._cls_logit_list = cls_logit_list
+        self._bbox_delta_list = bbox_delta_list
+
+        return self._cls_logit_list, self._bbox_delta_list
+
+
+class RetinaNetNeckWithBN(RetinaNetNeck):
+    def __init__(self, pNeck):
+        super(RetinaNetNeckWithBN, self).__init__(pNeck)
+        self.p = pNeck
+
+    def get_retinanet_neck(self, data):
+        norm = self.p.normalizer
+        c2, c3, c4, c5 = data
+
+        import mxnet as mx
+        xavier_init = mx.init.Xavier(factor_type="avg", rnd_type="uniform", magnitude=3)
+        # P5
+        p5 = X.conv(
+            data=c5,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P5_lateral_weight", init=xavier_init),
+            bias=X.var(name="P5_lateral_bias", init=X.zero_init()),
+            name="P5_lateral"
+        )
+        p5_conv = X.conv(
+            data=p5,
+            kernel=3,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P5_conv_weight", init=xavier_init),
+            bias=X.var(name="P5_conv_bias", init=X.zero_init()),
+            name="P5_conv"
+        )
+
+        # P4
+        p5_up = mx.sym.UpSampling(
+            p5,
+            scale=2,
+            sample_type="nearest",
+            name="P5_upsampling",
+            num_args=1
+        )
+        p4_la = X.conv(
+            data=c4,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P4_lateral_weight", init=xavier_init),
+            bias=X.var(name="P4_lateral_bias", init=X.zero_init()),
+            name="P4_lateral"
+        )
+        p5_clip = mx.sym.slice_like(p5_up, p4_la, name="P4_clip")
+        p4 = mx.sym.add_n(p5_clip, p4_la, name="P4_sum")
+
+        p4_conv = X.conv(
+            data=p4,
+            kernel=3,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P4_conv_weight", init=xavier_init),
+            bias=X.var(name="P4_conv_bias", init=X.zero_init()),
+            name="P4_conv"
+        )
+
+        # P3
+        p4_up = mx.sym.UpSampling(
+            p4,
+            scale=2,
+            sample_type="nearest",
+            name="P4_upsampling",
+            num_args=1
+        )
+        p3_la = X.conv(
+            data=c3,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P3_lateral_weight", init=xavier_init),
+            bias=X.var(name="P3_lateral_bias", init=X.zero_init()),
+            name="P3_lateral"
+        )
+        p4_clip = mx.sym.slice_like(p4_up, p3_la, name="P3_clip")
+        p3 = mx.sym.add_n(p4_clip, p3_la, name="P3_sum")
+
+        p3_conv = X.conv(
+            data=p3,
+            kernel=3,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P3_conv_weight", init=xavier_init),
+            bias=X.var(name="P3_conv_bias", init=X.zero_init()),
+            name="P3_conv"
+        )
+
+        # P6
+        P6 = X.conv(
+            data=c5,
+            kernel=3,
+            stride=2,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P6_conv_weight", init=xavier_init),
+            bias=X.var(name="P6_conv_bias", init=X.zero_init()),
+            name="P6_conv"
+        )
+
+        # P7
+        P6_relu = X.relu(data=P6, name="P6_relu")
+        P7 = X.conv(
+            data=P6_relu,
+            kernel=3,
+            stride=2,
+            filter=256,
+            no_bias=False,
+            weight=X.var(name="P7_conv_weight", init=xavier_init),
+            bias=X.var(name="P7_conv_bias", init=X.zero_init()),
+            name="P7_conv"
+        )
+
+        p3_conv = norm(p3_conv, name="P3_conv_bn")
+        p4_conv = norm(p4_conv, name="P4_conv_bn")
+        p5_conv = norm(p5_conv, name="P5_conv_bn")
+        P6 = norm(P6, name="P6_conv_bn")
+        P7 = norm(P7, name="P7_conv_bn")
+
+        return p3_conv, p4_conv, p5_conv, P6, P7
