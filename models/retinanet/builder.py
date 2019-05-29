@@ -42,8 +42,36 @@ class RetinaNetHead(object):
     def __init__(self, pRpn):
         self.p = pRpn  # type: RPNParam
 
-        self._cls_logit_list        = None
-        self._bbox_delta_list       = None
+        # init bias for cls
+        prior_prob = 0.01
+        pi = -math.log((1-prior_prob) / prior_prob)
+
+        # shared classification weight and bias
+        self.cls_conv1_weight = X.var("cls_conv1_weight", init=X.gauss(std=0.01))
+        self.cls_conv1_bias = X.var("cls_conv1_bias", init=X.zero_init())
+        self.cls_conv2_weight = X.var("cls_conv2_weight", init=X.gauss(std=0.01))
+        self.cls_conv2_bias = X.var("cls_conv2_bias", init=X.zero_init())
+        self.cls_conv3_weight = X.var("cls_conv3_weight", init=X.gauss(std=0.01))
+        self.cls_conv3_bias = X.var("cls_conv3_bias", init=X.zero_init())
+        self.cls_conv4_weight = X.var("cls_conv4_weight", init=X.gauss(std=0.01))
+        self.cls_conv4_bias = X.var("cls_conv4_bias", init=X.zero_init())
+        self.cls_pred_weight = X.var("cls_pred_weight", init=X.gauss(std=0.01))
+        self.cls_pred_bias = X.var("cls_pred_bias", init=X.constant(pi))
+
+        # shared regression weight and bias
+        self.bbox_conv1_weight = X.var("bbox_conv1_weight", init=X.gauss(std=0.01))
+        self.bbox_conv1_bias = X.var("bbox_conv1_bias", init=X.zero_init())
+        self.bbox_conv2_weight = X.var("bbox_conv2_weight", init=X.gauss(std=0.01))
+        self.bbox_conv2_bias = X.var("bbox_conv2_bias", init=X.zero_init())
+        self.bbox_conv3_weight = X.var("bbox_conv3_weight", init=X.gauss(std=0.01))
+        self.bbox_conv3_bias = X.var("bbox_conv3_bias", init=X.zero_init())
+        self.bbox_conv4_weight = X.var("bbox_conv4_weight", init=X.gauss(std=0.01))
+        self.bbox_conv4_bias = X.var("bbox_conv4_bias", init=X.zero_init())
+        self.bbox_pred_weight = X.var("bbox_pred_weight", init=X.gauss(std=0.01))
+        self.bbox_pred_bias = X.var("bbox_pred_bias", init=X.zero_init())
+
+        self._cls_logit_dict        = None
+        self._bbox_delta_dict       = None
 
     def _cls_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class):
         p = self.p
@@ -168,8 +196,8 @@ class RetinaNetHead(object):
         return output
 
     def get_output(self, conv_feat):
-        if self._cls_logit_list is not None and self._bbox_delta_list is not None:
-            return self._cls_logit_list, self._bbox_delta_list
+        if self._cls_logit_dict is not None and self._bbox_delta_dict is not None:
+            return self._cls_logit_dict, self._bbox_delta_dict
 
         p = self.p
         stride = p.anchor_generate.stride
@@ -179,58 +207,31 @@ class RetinaNetHead(object):
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
         num_class = p.num_class
 
-        prior_prob = 0.01
-        pi = -math.log((1-prior_prob) / prior_prob)
+        cls_logit_dict = dict()
+        bbox_delta_dict = dict()
 
-        # shared classification weight and bias
-        self.cls_conv1_weight = X.var("cls_conv1_weight", init=X.gauss(std=0.01))
-        self.cls_conv1_bias = X.var("cls_conv1_bias", init=X.zero_init())
-        self.cls_conv2_weight = X.var("cls_conv2_weight", init=X.gauss(std=0.01))
-        self.cls_conv2_bias = X.var("cls_conv2_bias", init=X.zero_init())
-        self.cls_conv3_weight = X.var("cls_conv3_weight", init=X.gauss(std=0.01))
-        self.cls_conv3_bias = X.var("cls_conv3_bias", init=X.zero_init())
-        self.cls_conv4_weight = X.var("cls_conv4_weight", init=X.gauss(std=0.01))
-        self.cls_conv4_bias = X.var("cls_conv4_bias", init=X.zero_init())
-        self.cls_pred_weight = X.var("cls_pred_weight", init=X.gauss(std=0.01))
-        self.cls_pred_bias = X.var("cls_pred_bias", init=X.constant(pi))
-
-        # shared regression weight and bias
-        self.bbox_conv1_weight = X.var("bbox_conv1_weight", init=X.gauss(std=0.01))
-        self.bbox_conv1_bias = X.var("bbox_conv1_bias", init=X.zero_init())
-        self.bbox_conv2_weight = X.var("bbox_conv2_weight", init=X.gauss(std=0.01))
-        self.bbox_conv2_bias = X.var("bbox_conv2_bias", init=X.zero_init())
-        self.bbox_conv3_weight = X.var("bbox_conv3_weight", init=X.gauss(std=0.01))
-        self.bbox_conv3_bias = X.var("bbox_conv3_bias", init=X.zero_init())
-        self.bbox_conv4_weight = X.var("bbox_conv4_weight", init=X.gauss(std=0.01))
-        self.bbox_conv4_bias = X.var("bbox_conv4_bias", init=X.zero_init())
-        self.bbox_pred_weight = X.var("bbox_pred_weight", init=X.gauss(std=0.01))
-        self.bbox_pred_bias = X.var("bbox_pred_bias", init=X.zero_init())
-
-        cls_logit_list = []
-        bbox_delta_list = []
-
-        for i, s in enumerate(stride):
+        for s in stride:
             cls_logit = self._cls_subnet(
-                conv_feat=conv_feat[i],
+                conv_feat=conv_feat["stride%s" % s],
                 conv_channel=conv_channel,
                 num_base_anchor=num_base_anchor,
                 num_class=num_class
             )
 
             bbox_delta = self._bbox_subnet(
-                conv_feat=conv_feat[i],
+                conv_feat=conv_feat["stride%s" % s],
                 conv_channel=conv_channel,
                 num_base_anchor=num_base_anchor,
                 num_class=num_class
             )
 
-            cls_logit_list.append(cls_logit)
-            bbox_delta_list.append(bbox_delta)
+            cls_logit_dict["stride%s" % s] = cls_logit
+            bbox_delta_dict["stride%s" % s] = bbox_delta
 
-        self._cls_logit_list = cls_logit_list
-        self._bbox_delta_list = bbox_delta_list
+        self._cls_logit_dict = cls_logit_dict
+        self._bbox_delta_dict = bbox_delta_dict
 
-        return self._cls_logit_list, self._bbox_delta_list
+        return self._cls_logit_dict, self._bbox_delta_dict
 
     def get_anchor_target(self, conv_feat):
         raise NotImplementedError
@@ -243,15 +244,17 @@ class RetinaNetHead(object):
         num_class = p.num_class
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
 
-        cls_logit_list, bbox_delta_list = self.get_output(conv_feat)
+        cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
+        cls_logit_reshape_list = []
+        bbox_delta_reshape_list = []
 
         scale_loss_shift = 128.0 if p.fp16 else 1.0
 
         # reshape logit and delta
-        for i, s in enumerate(stride):
+        for s in stride:
             # (N, A * C, H, W) -> (N, A, C, H * W)
             cls_logit = X.reshape(
-                data=cls_logit_list[i],
+                data=cls_logit_dict["stride%s" % s],
                 shape=(0, num_base_anchor, num_class-1, -1),
                 name="cls_stride%s_reshape" % s
             )
@@ -270,16 +273,16 @@ class RetinaNetHead(object):
 
             # (N, A * 4, H, W) -> (N, A * 4, H * W)
             bbox_delta = X.reshape(
-                data=bbox_delta_list[i],
+                data=bbox_delta_dict["stride%s" % s],
                 shape=(0, 0, -1),
                 name="bbox_stride%s_reshape" % s
             )
 
-            cls_logit_list[i] = cls_logit
-            bbox_delta_list[i] = bbox_delta
+            cls_logit_reshape_list.append(cls_logit)
+            bbox_delta_reshape_list.append(bbox_delta)
 
-        cls_logit_concat = X.concat(cls_logit_list, axis=1, name="bbox_logit_concat")
-        bbox_delta_concat = X.concat(bbox_delta_list, axis=2, name="bbox_delta_concat")
+        cls_logit_concat = X.concat(cls_logit_reshape_list, axis=1, name="bbox_logit_concat")
+        bbox_delta_concat = X.concat(bbox_delta_reshape_list, axis=2, name="bbox_delta_concat")
 
         # classification loss
         cls_loss = X.focal_loss(
@@ -323,19 +326,19 @@ class RetinaNetHead(object):
         pre_nms_top_n = p.proposal.pre_nms_top_n
         min_det_score = p.proposal.min_det_score
 
-        cls_logit_list, bbox_delta_list = self.get_output(conv_feat)
+        cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
 
-        cls_logit_dict = {}
-        bbox_delta_dict = {}
+        cls_score_dict = dict()
+        bbox_delta_dict = dict()
 
-        for i, s in enumerate(stride):
-            cls_logit = X.sigmoid(data=cls_logit_list[i])
-            bbox_delta = bbox_delta_list[i]
+        for s in stride:
+            cls_score = X.sigmoid(data=cls_logit_dict["stride%s" % s])
+            bbox_delta = bbox_delta_dict["stride%s" % s]
 
-            cls_logit_dict.update({'cls_logit_stride%s' % s: cls_logit})
-            bbox_delta_dict.update({'bbox_delta_stride%s' % s: bbox_delta})
+            cls_score_dict["cls_score_stride%s" % s] = cls_score
+            bbox_delta_dict["bbox_delta_stride%s" % s] = bbox_delta
 
-        args_dict = {**cls_logit_dict, **bbox_delta_dict}
+        args_dict = {**cls_score_dict, **bbox_delta_dict}
 
         import mxnet as mx
         import models.retinanet.decode_retina
@@ -386,8 +389,12 @@ class RetinaNetNeck(Neck):
     def __init__(self, pNeck):
         super(RetinaNetNeck, self).__init__(pNeck)
 
-    @staticmethod
-    def get_retinanet_neck(data):
+        self.neck = None
+
+    def get_retinanet_neck(self, data):
+        if self.neck is not None:
+            return self.neck
+
         c2, c3, c4, c5 = data
 
         import mxnet as mx
@@ -494,7 +501,15 @@ class RetinaNetNeck(Neck):
             name="P7_conv"
         )
 
-        return p3_conv, p4_conv, p5_conv, P6, P7
+        self.neck = dict(
+            stride8=p3_conv,
+            stirde16=p4_conv,
+            stride32=p5_conv,
+            stride64=P6,
+            stride128=P7
+        )
+
+        return self.neck
 
     def get_rpn_feature(self, rpn_feat):
         return self.get_retinanet_neck(rpn_feat)

@@ -159,7 +159,7 @@ class DecodeRetinaProp(mx.operator.CustomOpProp):
     def list_arguments(self):
         args_list = []
         for s in self._stride:
-            args_list.append('cls_logit_stride%s'%s)
+            args_list.append('cls_score_stride%s'%s)
         for s in self._stride:
             args_list.append('bbox_delta_stride%s'%s)
         args_list.append('im_info')
