@@ -329,11 +329,10 @@ class RetinaNetHead(object):
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
 
         cls_score_dict = dict()
-        bbox_delta_dict = dict()
 
         for s in stride:
             cls_score = X.sigmoid(data=cls_logit_dict["stride%s" % s])
-            bbox_delta = bbox_delta_dict["stride%s" % s]
+            bbox_delta = bbox_delta_dict.pop("stride%s" % s)
 
             cls_score_dict["cls_score_stride%s" % s] = cls_score
             bbox_delta_dict["bbox_delta_stride%s" % s] = bbox_delta
@@ -503,7 +502,7 @@ class RetinaNetNeck(Neck):
 
         self.neck = dict(
             stride8=p3_conv,
-            stirde16=p4_conv,
+            stride16=p4_conv,
             stride32=p5_conv,
             stride64=P6,
             stride128=P7
