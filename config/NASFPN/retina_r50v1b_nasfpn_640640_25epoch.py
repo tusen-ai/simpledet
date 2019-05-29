@@ -35,7 +35,6 @@ def get_config(is_train):
         dim_reduced = 256
         num_stage = 7
         S0_kernel = 1
-        S0_retinanet = False
 
     class RpnParam:
         num_class   = 1 + 80
