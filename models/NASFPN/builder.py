@@ -51,10 +51,7 @@ def reluconvbn(data, num_filter, init, norm, name, prefix):
 class NASFPNNeck(Neck):
     def __init__(self, pNeck):
         super(NASFPNNeck, self).__init__(pNeck)
-        self.norm = self.pNeck.normalizer
-        self.dim_reduced = self.pNeck.dim_reduced
-        self.num_stage = self.pNeck.num_stage
-        self.S0_kernel = self.pNeck.S0_kernel
+        self.p = pNeck
     
     @staticmethod
     def get_P0_features(c_features, p_names, dim_reduced, init, norm, kernel=1):
@@ -153,10 +150,10 @@ class NASFPNNeck(Neck):
                     'S{}_P7'.format(stage): P7}
 
     def get_nasfpn_neck(self, data):
-        dim_reduced = self.dim_reduced
-        norm = self.norm
-        num_stage = self.num_stage
-        S0_kernel = self.S0_kernel
+        dim_reduced = self.p.dim_reduced
+        norm = self.p.normalizer
+        num_stage = self.p.num_stage
+        S0_kernel = self.p.S0_kernel
 
         import mxnet as mx
         xavier_init = mx.init.Xavier(factor_type="avg", rnd_type="uniform", magnitude=3)
