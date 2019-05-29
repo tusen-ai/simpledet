@@ -1,5 +1,5 @@
 from models.retinanet.builder import RetinaNet as Detector
-from models.retinanet.builder import MSRAResNet50V1bFPN as Backbone
+from models.NASFPN.builder import MSRAResNet50V1bFPN as Backbone
 from models.NASFPN.builder import NASFPNNeck as Neck
 from models.NASFPN.builder import RetinaNetHeadWithBN as RpnHead
 from mxnext.complicate import normalizer_factory
