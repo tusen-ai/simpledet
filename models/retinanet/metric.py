@@ -1,6 +1,7 @@
 import numpy as np
 import mxnet as mx
 
+
 class FGAccMetric(mx.metric.EvalMetric):
     def __init__(self, name, output_names, label_names):
         super(FGAccMetric, self).__init__(name, output_names, label_names)
