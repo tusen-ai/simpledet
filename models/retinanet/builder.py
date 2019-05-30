@@ -337,10 +337,8 @@ class RetinaNetHead(object):
             cls_score_dict["cls_score_stride%s" % s] = cls_score
             bbox_delta_dict["bbox_delta_stride%s" % s] = bbox_delta
 
-        args_dict = {**cls_score_dict, **bbox_delta_dict}
-
         import mxnet as mx
-        import models.retinanet.decode_retina
+        import models.retinanet.decode_retina  # noqa: F401
         bbox_xyxy, cls_score = mx.sym.Custom(
             op_type="decode_retina",
             im_info=im_info,
@@ -350,7 +348,8 @@ class RetinaNetHead(object):
             per_level_top_n=pre_nms_top_n,
             thresh=min_det_score,
             name="rois",
-            **args_dict
+            **cls_score_dict,
+            **bbox_delta_dict
         )
 
         return cls_score, bbox_xyxy
@@ -476,7 +475,7 @@ class RetinaNetNeck(Neck):
         )
 
         # P6
-        P6 = X.conv(
+        p6 = X.conv(
             data=c5,
             kernel=3,
             stride=2,
@@ -488,9 +487,9 @@ class RetinaNetNeck(Neck):
         )
 
         # P7
-        P6_relu = X.relu(data=P6, name="P6_relu")
-        P7 = X.conv(
-            data=P6_relu,
+        p6_relu = X.relu(data=p6, name="P6_relu")
+        p7 = X.conv(
+            data=p6_relu,
             kernel=3,
             stride=2,
             filter=256,
@@ -504,8 +503,8 @@ class RetinaNetNeck(Neck):
             stride8=p3_conv,
             stride16=p4_conv,
             stride32=p5_conv,
-            stride64=P6,
-            stride128=P7
+            stride64=p6,
+            stride128=p7
         )
 
         return self.neck
