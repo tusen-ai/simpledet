@@ -39,7 +39,7 @@ def get_config(is_train):
 
     class RpnParam:
         fp16 = General.fp16
-        normalizer = NormalizeParam.normalizer
+        normalizer = normalizer_factory(type="fixbn")  # old model does not use BN in RPN head
         batch_image = General.batch_image
 
         class anchor_generate:
