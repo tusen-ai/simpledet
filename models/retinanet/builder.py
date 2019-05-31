@@ -332,43 +332,67 @@ class RetinaNetHead(RpnHead):
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
 
-        cls_score_list = []
-        bbox_xyxy_list = []
-
         import mxnet as mx
-        for i, s in enumerate(stride):
-            cls_prob = X.sigmoid(data=cls_logit_dict["stride%s" % s])
-            bbox_delta = bbox_delta_dict["stride%s" % s]
-            anchors = mx.sym.contrib.GenAnchor(
-                cls_prob=cls_prob,
-                feature_stride=s,
-                scales=tuple(scales),
-                ratios=tuple(ratios),
-                name='anchors_stride%s' % s
-            )
+        if "GenProposalRetina" in mx.sym.contrib.__all__:
+            cls_score_list = []
+            bbox_xyxy_list = []
 
-            thresh_level = 0 if s == max(stride) else min_det_score
-            bbox_xyxy, cls_score = mx.sym.contrib.GenProposalRetina(
-                cls_prob=cls_prob,
-                bbox_pred=bbox_delta,
+            for s in stride:
+                cls_prob = X.sigmoid(data=cls_logit_dict["stride%s" % s])
+                bbox_delta = bbox_delta_dict["stride%s" % s]
+                anchors = mx.sym.contrib.GenAnchor(
+                    cls_prob=cls_prob,
+                    feature_stride=s,
+                    scales=tuple(scales),
+                    ratios=tuple(ratios),
+                    name='anchors_stride%s' % s
+                )
+
+                thresh_level = 0 if s == max(stride) else min_det_score
+                bbox_xyxy, cls_score = mx.sym.contrib.GenProposalRetina(
+                    cls_prob=cls_prob,
+                    bbox_pred=bbox_delta,
+                    im_info=im_info,
+                    anchors=anchors,
+                    feature_stride=s,
+                    anchor_mean=anchor_target_mean,
+                    anchor_std=anchor_target_std,
+                    num_anchors=num_anchors,
+                    rpn_pre_nms_top_n=pre_nms_top_n,
+                    rpn_min_size=min_bbox_side,
+                    thresh=thresh_level,
+                    workspace=512,
+                    name="proposal_pre_nms_stride%s" % s
+                )
+
+                cls_score_list.append(cls_score)
+                bbox_xyxy_list.append(bbox_xyxy)
+
+            cls_score = X.concat(cls_score_list, axis=1, name="cls_score_concat")
+            bbox_xyxy = X.concat(bbox_xyxy_list, axis=1, name="bbox_xyxy_concat")
+        else:
+            cls_score_dict = dict()
+
+            for s in stride:
+                cls_score = X.sigmoid(data=cls_logit_dict["stride%s" % s])
+                bbox_delta = bbox_delta_dict.pop("stride%s" % s)
+
+                cls_score_dict["cls_score_stride%s" % s] = cls_score
+                bbox_delta_dict["bbox_delta_stride%s" % s] = bbox_delta
+
+            import models.retinanet.decode_retina  # noqa: F401
+            bbox_xyxy, cls_score = mx.sym.Custom(
+                op_type="decode_retina",
                 im_info=im_info,
-                anchors=anchors,
-                feature_stride=s,
-                anchor_mean=anchor_target_mean,
-                anchor_std=anchor_target_std,
-                num_anchors=num_anchors,
-                rpn_pre_nms_top_n=pre_nms_top_n,
-                rpn_min_size=min_bbox_side,
-                thresh=thresh_level,
-                workspace=512,
-                name="proposal_pre_nms_stride%s" % s
+                stride=stride,
+                scales=scales,
+                ratios=ratios,
+                per_level_top_n=pre_nms_top_n,
+                thresh=min_det_score,
+                **cls_score_dict,
+                **bbox_delta_dict,
+                name="rois"
             )
-
-            cls_score_list.append(cls_score)
-            bbox_xyxy_list.append(bbox_xyxy)
-
-        cls_score = X.concat(cls_score_list, axis=1, name="cls_score_concat")
-        bbox_xyxy = X.concat(bbox_xyxy_list, axis=1, name="bbox_xyxy_concat")
 
         return cls_score, bbox_xyxy
 
