@@ -7,6 +7,7 @@ from symbol.builder import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
+from utils.patch_config import patch_config_as_nothrow
 
 
 class MaskFasterRcnn(object):
@@ -62,8 +63,7 @@ class MaskFasterRcnn(object):
 
 class BboxPostProcessor(object):
     def __init__(self, pTest):
-        super(BboxPostProcessor, self).__init__()
-        self.p = pTest
+        self.p = patch_config_as_nothrow(pTest)
 
     def get_post_processing(self, cls_score, bbox_xyxy):
         p = self.p
@@ -86,7 +86,7 @@ class BboxPostProcessor(object):
 class MaskRpnHead(RpnHead):
     def __init__(self, pRpn, pMask):
         super(MaskRpnHead, self).__init__(pRpn)
-        self.pMask = pMask
+        self.pMask = patch_config_as_no_throw(pMask)
 
     def get_sampled_proposal(self, conv_fpn_feat, gt_bbox, gt_poly, im_info):
         p = self.p
@@ -150,7 +150,7 @@ class MaskRpnHead(RpnHead):
 class MaskFPNRpnHead(FPNRpnHead):
     def __init__(self, pRpn, pMask):
         super(MaskFPNRpnHead, self).__init__(pRpn)
-        self.pMask = pMask
+        self.pMask = patch_config_as_no_throw(pMask)
 
     def get_sampled_proposal(self, conv_fpn_feat, gt_bbox, gt_poly, im_info):
         p = self.p
@@ -213,9 +213,9 @@ class MaskFPNRpnHead(FPNRpnHead):
 
 class MaskFasterRcnnHead(object):
     def __init__(self, pBbox, pMask, pMaskRoi):
-        self.pBbox = pBbox
-        self.pMask = pMask
-        self.pMaskRoi = pMaskRoi
+        self.pBbox = patch_config_as_no_throw(pBbox)
+        self.pMask = patch_config_as_no_throw(pMask)
+        self.pMaskRoi = patch_config_as_no_throw(pMaskRoi)
 
         self._head_feat = None
 

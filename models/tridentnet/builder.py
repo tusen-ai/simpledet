@@ -201,7 +201,6 @@ class TridentMaskRcnn(object):
 class TridentRpnHead(RpnHead):
     def __init__(self, pRpn):
         super(TridentRpnHead, self).__init__(pRpn)
-        self.p = pRpn
 
     def get_all_proposal_with_filter(self, conv_feat, im_info, valid_ranges):
         if self._proposal is not None:
@@ -306,7 +305,7 @@ class TridentRpnHead(RpnHead):
 class TridentMaskRpnHead(TridentRpnHead):
     def __init__(self, pRpn, pMask):
         super(TridentMaskRpnHead, self).__init__(pRpn)
-        self.pMask = pMask
+        self.pMask = patch_config_as_nothrow(pMask)
 
     def get_sampled_proposal_with_filter(self, conv_fpn_feat, gt_bbox, gt_poly, im_info, valid_ranges):
         p = self.p
