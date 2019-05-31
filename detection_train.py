@@ -12,7 +12,7 @@ from six.moves import cPickle as pkl
 from core.detection_module import DetModule
 from utils import callback
 from utils.memonger_v2 import search_plan_to_layer
-from utils.lr_scheduler import WarmupMultiFactorScheduler
+from utils.lr_scheduler import WarmupMultiFactorScheduler, LRSequential, AdvancedLRScheduler
 from utils.load_model import load_checkpoint
 from utils.patch_config import patch_config_as_nothrow
 
@@ -160,6 +160,8 @@ def train_net(config):
     sym.save(model_prefix + ".json")
 
     # decide learning rate
+    if "lr_mode" not in pOpt.optimizer.__dict__.keys():
+        pOpt.optimizer.lr_mode = 'step'
     base_lr = pOpt.optimizer.lr * kv.num_workers
     lr_factor = 0.1
 
@@ -171,6 +173,8 @@ def train_net(config):
     if rank == 0:
         logging.info('total iter {}'.format(iter_per_epoch * (end_epoch - begin_epoch)))
         logging.info('lr {}, lr_iters {}'.format(current_lr, lr_iter_discount))
+        logging.info('lr mode: {}'.format(pOpt.optimizer.lr_mode))
+
     if pOpt.warmup is not None and pOpt.schedule.begin_epoch == 0:
         if rank == 0:
             logging.info(
@@ -178,18 +182,41 @@ def train_net(config):
                     pOpt.warmup.lr,
                     pOpt.warmup.iter // kv.num_workers)
                 )
-
-        lr_scheduler = WarmupMultiFactorScheduler(
-            step=lr_iter_discount,
-            factor=lr_factor,
-            warmup=True,
-            warmup_type=pOpt.warmup.type,
-            warmup_lr=pOpt.warmup.lr,
-            warmup_step=pOpt.warmup.iter // kv.num_workers
-        )
+        if pOpt.optimizer.lr_mode == 'step':
+            lr_scheduler = WarmupMultiFactorScheduler(
+                step=lr_iter_discount,
+                factor=lr_factor,
+                warmup=True,
+                warmup_type=pOpt.warmup.type,
+                warmup_lr=pOpt.warmup.lr,
+                warmup_step=pOpt.warmup.iter // kv.num_workers
+            )
+        elif pOpt.optimizer.lr_mode == 'cosine':
+            warmup_lr_scheduler = AdvancedLRScheduler(
+                mode='linear', 
+                base_lr=pOpt.warmup.lr,
+                target_lr=base_lr, 
+                niters=pOpt.warmup.iter // kv.num_workers
+            )
+            cosine_lr_scheduler = AdvancedLRScheduler(
+                mode='cosine', 
+                base_lr=base_lr, 
+                target_lr=0,
+                niters=(iter_per_epoch * (end_epoch - begin_epoch) - pOpt.warmup.iter) // kv.num_workers
+            )
+            lr_scheduler = LRSequential([warmup_lr_scheduler, cosine_lr_scheduler])
+        else:
+            raise NotImplementedError
     else:
-        if len(lr_iter_discount) > 0:
+        if pOpt.optimizer.lr_mode == 'step':
             lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(lr_iter_discount, lr_factor)
+        elif pOpt.optimizer.lr_mode == 'cosine':
+            lr_scheduler = AdvancedLRScheduler(
+                mode='cosine', 
+                base_lr=base_lr, 
+                target_lr=0,
+                niters=iter_per_epoch * (end_epoch - begin_epoch) // kv.num_workers
+            )
         else:
             lr_scheduler = None
 
