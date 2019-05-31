@@ -160,8 +160,7 @@ def train_net(config):
     sym.save(model_prefix + ".json")
 
     # decide learning rate
-    if "lr_mode" not in pOpt.optimizer.__dict__.keys():
-        pOpt.optimizer.lr_mode = 'step'
+    lr_mode = pOpt.optimizer.lr_mode or 'step'
     base_lr = pOpt.optimizer.lr * kv.num_workers
     lr_factor = 0.1
 
@@ -173,7 +172,7 @@ def train_net(config):
     if rank == 0:
         logging.info('total iter {}'.format(iter_per_epoch * (end_epoch - begin_epoch)))
         logging.info('lr {}, lr_iters {}'.format(current_lr, lr_iter_discount))
-        logging.info('lr mode: {}'.format(pOpt.optimizer.lr_mode))
+        logging.info('lr mode: {}'.format(lr_mode))
 
     if pOpt.warmup is not None and pOpt.schedule.begin_epoch == 0:
         if rank == 0:
@@ -182,7 +181,7 @@ def train_net(config):
                     pOpt.warmup.lr,
                     pOpt.warmup.iter // kv.num_workers)
                 )
-        if pOpt.optimizer.lr_mode == 'step':
+        if lr_mode == 'step':
             lr_scheduler = WarmupMultiFactorScheduler(
                 step=lr_iter_discount,
                 factor=lr_factor,
@@ -191,7 +190,7 @@ def train_net(config):
                 warmup_lr=pOpt.warmup.lr,
                 warmup_step=pOpt.warmup.iter // kv.num_workers
             )
-        elif pOpt.optimizer.lr_mode == 'cosine':
+        elif lr_mode == 'cosine':
             warmup_lr_scheduler = AdvancedLRScheduler(
                 mode='linear', 
                 base_lr=pOpt.warmup.lr,
@@ -208,9 +207,9 @@ def train_net(config):
         else:
             raise NotImplementedError
     else:
-        if pOpt.optimizer.lr_mode == 'step':
+        if lr_mode == 'step':
             lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(lr_iter_discount, lr_factor)
-        elif pOpt.optimizer.lr_mode == 'cosine':
+        elif lr_mode == 'cosine':
             lr_scheduler = AdvancedLRScheduler(
                 mode='cosine', 
                 base_lr=base_lr, 
