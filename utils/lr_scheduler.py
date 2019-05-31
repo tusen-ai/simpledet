@@ -1,4 +1,5 @@
 import logging
+from math import cos, pi
 from mxnet.lr_scheduler import LRScheduler
 
 class WarmupMultiFactorScheduler(LRScheduler):
