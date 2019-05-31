@@ -9,7 +9,7 @@ import numpy as np
 
 class GetTopProposalOperator(mx.operator.CustomOp):
     def __init__(self, top_n):
-        super(GetTopProposalOperator, self).__init__()
+        super().__init__()
         self.top_n = top_n
 
     def forward(self, is_train, req, in_data, out_data, aux):
@@ -47,7 +47,7 @@ class GetTopProposalOperator(mx.operator.CustomOp):
 @mx.operator.register('get_top_proposal')
 class GetTopProposalProp(mx.operator.CustomOpProp):
     def __init__(self, top_n):
-        super(GetTopProposalProp, self).__init__(need_top_grad=False)
+        super().__init__(need_top_grad=False)
         self.top_n = int(top_n)
 
     def list_arguments(self):

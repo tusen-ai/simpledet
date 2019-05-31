@@ -9,7 +9,7 @@ import numpy as np
 
 class AssignLayerFPNOperator(mx.operator.CustomOp):
     def __init__(self, rcnn_stride, roi_canonical_scale, roi_canonical_level):
-        super(AssignLayerFPNOperator, self).__init__()
+        super().__init__()
         self.rcnn_stride = rcnn_stride
         self.roi_canonical_scale = roi_canonical_scale
         self.roi_canonical_level = roi_canonical_level
@@ -46,7 +46,7 @@ class AssignLayerFPNOperator(mx.operator.CustomOp):
 @mx.operator.register('assign_layer_fpn')
 class AssignLayerFPNProp(mx.operator.CustomOpProp):
     def __init__(self, rcnn_stride, roi_canonical_scale, roi_canonical_level):
-        super(AssignLayerFPNProp, self).__init__(need_top_grad=False)
+        super().__init__(need_top_grad=False)
         self.rcnn_stride = eval(rcnn_stride)
         self.roi_canonical_scale = int(roi_canonical_scale)
         self.roi_canonical_level = int(roi_canonical_level)

@@ -29,7 +29,7 @@ class ReadRoiRecord(DetectionAugmentation):
     """
 
     def __init__(self, gt_select):
-        super(ReadRoiRecord, self).__init__()
+        super().__init__()
         self.gt_select = gt_select
 
     def apply(self, input_record):
@@ -52,7 +52,7 @@ class Norm2DImage(DetectionAugmentation):
     """
 
     def __init__(self, pNorm):
-        super(Norm2DImage, self).__init__()
+        super().__init__()
         self.p = pNorm  # type: NormParam
 
     def apply(self, input_record):
@@ -76,7 +76,7 @@ class Resize2DImageBbox(DetectionAugmentation):
     """
 
     def __init__(self, pResize):
-        super(Resize2DImageBbox, self).__init__()
+        super().__init__()
         self.p = pResize  # type: ResizeParam
 
     def apply(self, input_record):
@@ -116,7 +116,7 @@ class Resize2DImageBboxByRoidb(DetectionAugmentation):
     """
 
     def __init__(self):
-        super(Resize2DImageBboxByRoidb, self).__init__()
+        super().__init__()
         class ResizeParam:
             long = None
             short = None
@@ -139,7 +139,7 @@ class RandResize2DImageBbox(DetectionAugmentation):
     """
 
     def __init__(self, pRandResize):
-        super(RandResize2DImageBbox, self).__init__()
+        super().__init__()
         self.p = pRandResize
         class ResizeParam:
             long = None
@@ -164,7 +164,7 @@ class Flip2DImageBbox(DetectionAugmentation):
     """
 
     def __init__(self):
-        super(Flip2DImageBbox, self).__init__()
+        super().__init__()
 
     def apply(self, input_record):
         if input_record["flipped"]:
@@ -181,7 +181,7 @@ class Flip2DImageBbox(DetectionAugmentation):
 
 class RandCrop2DImageBbox(DetectionAugmentation):
     def __init__(self, pCrop):
-        super(RandCrop2DImageBbox, self).__init__()
+        super().__init__()
         self.p = pCrop
         assert pCrop.mode in ["center", "random"], "The {} crop mode is not supported".format(pCrop.mode)
 
@@ -265,7 +265,7 @@ class Pad2DImageBbox(DetectionAugmentation):
     """
 
     def __init__(self, pPad):
-        super(Pad2DImageBbox, self).__init__()
+        super().__init__()
         self.p = pPad  # type: PadParam
 
     def apply(self, input_record):
@@ -289,7 +289,7 @@ class Pad2DImageBbox(DetectionAugmentation):
 
 class ConvertImageFromHwcToChw(DetectionAugmentation):
     def __init__(self):
-        super(ConvertImageFromHwcToChw, self).__init__()
+        super().__init__()
 
     def apply(self, input_record):
         input_record["image"] = input_record["image"].transpose((2, 0, 1))
@@ -305,7 +305,7 @@ class AnchorTarget2D(DetectionAugmentation):
     """
 
     def __init__(self, pAnchor):
-        super(AnchorTarget2D, self).__init__()
+        super().__init__()
         self.p = pAnchor  # type: AnchorTarget2DParam
 
         self.__base_anchor = None
@@ -512,7 +512,7 @@ class AnchorTarget2D(DetectionAugmentation):
 
 class RenameRecord(DetectionAugmentation):
     def __init__(self, mapping):
-        super(RenameRecord, self).__init__()
+        super().__init__()
         self.mapping = mapping
 
     def apply(self, input_record):
@@ -539,7 +539,7 @@ class Loader(mx.io.DataIter):
         :param shuffle: bool
         :return: Loader
         """
-        super(Loader, self).__init__(batch_size=batch_size)
+        super().__init__(batch_size=batch_size)
 
         if kv:
             (self.rank, self.num_worker) = (kv.rank, kv.num_workers)
@@ -674,7 +674,7 @@ class Loader(mx.io.DataIter):
 
 class SequentialLoader(mx.io.DataIter):
     def __init__(self, iters):
-        super(SequentialLoader, self).__init__()
+        super().__init__()
         self.iters = iters
         self.exhausted = [False] * len(iters)
 
@@ -714,7 +714,7 @@ class AnchorLoader(mx.io.DataIter):
     def __init__(self, roidb, transform, data_name, label_name, batch_size=1,
                  shuffle=False, num_worker=12, num_collector=4, worker_queue_depth=4,
                  collector_queue_depth=4, kv=None):
-        super(AnchorLoader, self).__init__(batch_size=batch_size)
+        super().__init__(batch_size=batch_size)
 
         v_roidb, h_roidb = self.roidb_aspect_group(roidb)
 

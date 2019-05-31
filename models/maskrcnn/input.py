@@ -20,7 +20,7 @@ class Resize2DImageBboxMask(DetectionAugmentation):
     """
 
     def __init__(self, pResize):
-        super(Resize2DImageBboxMask, self).__init__()
+        super().__init__()
         self.p = pResize  # type: ResizeParam
 
     def apply(self, input_record):
@@ -66,7 +66,7 @@ class Flip2DImageBboxMask(DetectionAugmentation):
     """
 
     def __init__(self):
-        super(Flip2DImageBboxMask, self).__init__()
+        super().__init__()
 
     def apply(self, input_record):
         def _flip_poly(poly, width):
@@ -102,7 +102,7 @@ class Pad2DImageBboxMask(DetectionAugmentation):
     """
 
     def __init__(self, pPad):
-        super(Pad2DImageBboxMask, self).__init__()
+        super().__init__()
         self.p = pPad  # type: PadParam
 
     def apply(self, input_record):
@@ -137,7 +137,7 @@ class PreprocessGtPoly(DetectionAugmentation):
     """
 
     def __init__(self):
-        super(PreprocessGtPoly, self).__init__()
+        super().__init__()
 
     def apply(self, input_record):
         ins_poly = input_record["gt_poly"]
@@ -157,7 +157,7 @@ class EncodeGtPoly(DetectionAugmentation):
     """
 
     def __init__(self, pPad):
-        super(EncodeGtPoly, self).__init__()
+        super().__init__()
         self.p = pPad
 
     def apply(self, input_record):

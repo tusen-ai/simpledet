@@ -6,13 +6,14 @@ import mxnext as X
 
 from symbol.builder import RpnHead, Backbone, RoiExtractor
 from models.tridentnet.resnet_v2_for_paper import TridentResNetV2Builder
+from utils.patch_config import patch_config_as_nothrow
 
 
 class TridentRPN(object):
     _rpn_output = None
 
     def __init__(self):
-        super(TridentRPN, self).__init__()
+        super().__init__()
 
     @classmethod
     def get_train_symbol(cls, backbone, neck, rpn_head):
@@ -53,7 +54,7 @@ class TridentFasterRcnn(object):
     _rpn_output = None
 
     def __init__(self):
-        super(TridentFasterRcnn, self).__init__()
+        super().__init__()
 
     @classmethod
     def get_train_symbol(cls, backbone, neck, rpn_head, roi_extractor, bbox_head, num_branch, scaleaware):
@@ -127,7 +128,7 @@ class TridentFasterRcnn(object):
 
 class TridentMaskRcnn(object):
     def __init__(self):
-        super(TridentMaskRcnn, self).__init__()
+        super().__init__()
 
     @staticmethod
     def get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, num_branch, scaleaware):
@@ -200,7 +201,7 @@ class TridentMaskRcnn(object):
 
 class TridentRpnHead(RpnHead):
     def __init__(self, pRpn):
-        super(TridentRpnHead, self).__init__(pRpn)
+        super().__init__(pRpn)
 
     def get_all_proposal_with_filter(self, conv_feat, im_info, valid_ranges):
         if self._proposal is not None:
@@ -304,7 +305,7 @@ class TridentRpnHead(RpnHead):
 
 class TridentMaskRpnHead(TridentRpnHead):
     def __init__(self, pRpn, pMask):
-        super(TridentMaskRpnHead, self).__init__(pRpn)
+        super().__init__(pRpn)
         self.pMask = patch_config_as_nothrow(pMask)
 
     def get_sampled_proposal_with_filter(self, conv_fpn_feat, gt_bbox, gt_poly, im_info, valid_ranges):
@@ -429,7 +430,7 @@ class TridentMaskRpnHead(TridentRpnHead):
 
 class TridentMXNetResNetV2(Backbone):
     def __init__(self, pBackbone):
-        super(TridentMXNetResNetV2, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         p = self.p
         b = TridentResNetV2Builder()
         self.symbol = b.get_backbone("mxnet", p.depth, "c4", p.normalizer, p.fp16,
@@ -445,7 +446,7 @@ class TridentMXNetResNetV2(Backbone):
 
 class TridentMXNetResNetV2C4C5(Backbone):
     def __init__(self, pBackbone):
-        super(TridentMXNetResNetV2C4C5, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         p = self.p
         b = TridentResNetV2Builder()
         self.c4, self.c5 = b.get_backbone("mxnet", p.depth, "c4c5", p.normalizer, p.fp16,

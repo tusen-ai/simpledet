@@ -16,7 +16,7 @@ class Norm2DImage(DetectionAugmentation):
     """
 
     def __init__(self, pNorm):
-        super(Norm2DImage, self).__init__()
+        super().__init__()
         self.p = pNorm  # type: NormParam
 
     def apply(self, input_record):
@@ -114,7 +114,7 @@ class PyramidAnchorTarget2D(PyramidAnchorTarget2DBase):
     """
 
     def __init__(self, pAnchor):
-        super(PyramidAnchorTarget2D, self).__init__(pAnchor)
+        super().__init__(pAnchor)
 
         self.pyramid_levels = len(self.p.generate.stride)
         self.p_list = [copy.deepcopy(self.p) for _ in range(self.pyramid_levels)]

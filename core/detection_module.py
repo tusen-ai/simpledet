@@ -78,7 +78,7 @@ class DetModule(BaseModule):
     """
     def __init__(self, symbol, data_names=None, label_names=None, logger=logging, context=ctx.cpu(),
                  fixed_param=None, excluded_param=None):
-        super(DetModule, self).__init__(logger=logger)
+        super().__init__(logger=logger)
 
         if isinstance(context, ctx.Context):
             context = [context]
