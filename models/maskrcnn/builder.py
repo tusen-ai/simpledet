@@ -7,6 +7,7 @@ from symbol.builder import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
+from utils.patch_config import patch_config_as_nothrow
 
 
 class MaskFasterRcnn(object):
@@ -62,8 +63,7 @@ class MaskFasterRcnn(object):
 
 class BboxPostProcessor(object):
     def __init__(self, pTest):
-        super(BboxPostProcessor, self).__init__()
-        self.p = pTest
+        self.p = patch_config_as_nothrow(pTest)
 
     def get_post_processing(self, cls_score, bbox_xyxy):
         p = self.p

@@ -201,7 +201,6 @@ class TridentMaskRcnn(object):
 class TridentRpnHead(RpnHead):
     def __init__(self, pRpn):
         super(TridentRpnHead, self).__init__(pRpn)
-        self.p = pRpn
 
     def get_all_proposal_with_filter(self, conv_feat, im_info, valid_ranges):
         if self._proposal is not None:

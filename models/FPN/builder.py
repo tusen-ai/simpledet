@@ -3,7 +3,7 @@ from __future__ import print_function
 import mxnet as mx
 import mxnext as X
 
-from symbol.builder import Backbone, BboxHead, Neck, RoiAlign
+from symbol.builder import Backbone, RpnHead, BboxHead, Neck, RoiAlign
 from models.FPN import assign_layer_fpn, get_top_proposal
 
 
@@ -40,9 +40,9 @@ class FPNBbox2fcHead(BboxHead):
         return self._head_feat
 
 
-class FPNRpnHead(object):
+class FPNRpnHead(RpnHead):
     def __init__(self, pRpn):
-        self.p = pRpn  # type: RPNParam
+        super(RpnHead, self).__init__(pRpn)
 
         self.cls_logit_dict         = None
         self.bbox_delta_dict        = None

@@ -4,7 +4,7 @@ from __future__ import print_function
 import math
 import mxnext as X
 
-from symbol.builder import Backbone, Neck
+from symbol.builder import RpnHead, Backbone, Neck
 
 
 class RetinaNet(object):
@@ -38,9 +38,9 @@ class RetinaNet(object):
         return X.group([rec_id, im_id, im_info, cls_score, bbox_xyxy])
 
 
-class RetinaNetHead(object):
+class RetinaNetHead(RpnHead):
     def __init__(self, pRpn):
-        self.p = pRpn  # type: RPNParam
+        super(RetinaNetHead, self).__init__(pRpn)
 
         # init bias for cls
         prior_prob = 0.01
