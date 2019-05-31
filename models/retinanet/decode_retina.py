@@ -33,7 +33,7 @@ class AnchorTarget2DParam:
 
 class DecodeRetinaOperator(mx.operator.CustomOp):
     def __init__(self, stride, scales, ratios, per_level_top_n, thresh):
-        super(DecodeRetinaOperator, self).__init__()
+        super().__init__()
         self._stride = np.array(stride)
         self._pyramid_levels = len(self._stride)
         self._level_keys = ['stride%s'%s for s in self._stride]
@@ -148,7 +148,7 @@ class DecodeRetinaOperator(mx.operator.CustomOp):
 @mx.operator.register("decode_retina")
 class DecodeRetinaProp(mx.operator.CustomOpProp):
     def __init__(self, stride, scales, ratios, per_level_top_n, thresh):
-        super(DecodeRetinaProp, self).__init__(need_top_grad=False)
+        super().__init__(need_top_grad=False)
         self._stride = eval(stride)
         self._scales = eval(scales)
         self._ratios = eval(ratios)

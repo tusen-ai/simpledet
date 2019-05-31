@@ -34,7 +34,7 @@ def multiclass_nms(nms, cls_score, bbox_xyxy, min_det_score, max_det_per_image):
 
 class BboxPostProcessingOperator(mx.operator.CustomOp):
     def __init__(self, max_det_per_image, min_det_score, nms_type, nms_thr):
-        super(BboxPostProcessingOperator, self).__init__()
+        super().__init__()
         self.max_det_per_image = max_det_per_image
         self.min_det_score = min_det_score
         self.nms_type = nms_type
@@ -79,7 +79,7 @@ class BboxPostProcessingOperator(mx.operator.CustomOp):
 @mx.operator.register("BboxPostProcessing")
 class BboxPostProcessingProp(mx.operator.CustomOpProp):
     def __init__(self, max_det_per_image, min_det_score, nms_type, nms_thr):
-        super(BboxPostProcessingProp, self).__init__(need_top_grad=False)
+        super().__init__(need_top_grad=False)
         self.max_det_per_image = int(max_det_per_image)
         self.min_det_score = float(min_det_score)
         self.nms_type = str(nms_type)

@@ -7,7 +7,7 @@ from operator_py.cython.bbox import bbox_overlaps_cython
 
 class ScaleAwareRange(DetectionAugmentation):
     def __init__(self, pScaleRange):
-        super(ScaleAwareRange, self).__init__()
+        super().__init__()
         self.p = pScaleRange
 
     def apply(self, input_record):
@@ -35,7 +35,7 @@ class TridentAnchorTarget2D(AnchorTarget2D):
     """
 
     def __init__(self, pAnchor):
-        super(TridentAnchorTarget2D, self).__init__(pAnchor)
+        super().__init__(pAnchor)
 
     def _filter_anchor_by_scale_range(self, cls_label, valid_anchor, gt_bbox, valid_range, invalid_anchor_threshd):
         if len(gt_bbox) == 0:

@@ -9,7 +9,7 @@ bn_count = [10000]
 
 class TridentResNetV2Builder(Builder):
     def __init__(self):
-        super(TridentResNetV2Builder, self).__init__()
+        super().__init__()
 
     @staticmethod
     def bn_shared(data, name, normalizer, branch_ids=None, share_weight=True):

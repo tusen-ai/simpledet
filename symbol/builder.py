@@ -421,7 +421,7 @@ class BboxHead(object):
 
 class Bbox2fcHead(BboxHead):
     def __init__(self, pBbox):
-        super(Bbox2fcHead, self).__init__(pBbox)
+        super().__init__(pBbox)
 
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
@@ -520,7 +520,7 @@ class Bbox4conv1fcHead(BboxHead):
 
 class BboxC5Head(BboxHead):
     def __init__(self, pBbox):
-        super(BboxC5Head, self).__init__(pBbox)
+        super().__init__(pBbox)
 
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
@@ -551,7 +551,7 @@ class BboxC5Head(BboxHead):
 
 class BboxResNeXtC5Head(BboxHead):
     def __init__(self, pBbox):
-        super(BboxResNeXtC5Head, self).__init__(pBbox)
+        super().__init__(pBbox)
 
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
@@ -580,7 +580,7 @@ class BboxResNeXtC5Head(BboxHead):
 
 class BboxC5V1Head(BboxHead):
     def __init__(self, pBbox):
-        super(BboxC5V1Head, self).__init__(pBbox)
+        super().__init__(pBbox)
 
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
@@ -620,7 +620,7 @@ class Backbone(object):
 
 class MXNetResNet50V2(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNet50V2, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v2 import Builder
         b = Builder()
         self.symbol = b.get_backbone("mxnet", 50, "c4", pBackbone.normalizer, pBackbone.fp16)
@@ -634,7 +634,7 @@ class MXNetResNet50V2(Backbone):
 
 class MXNetResNeXt50(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNeXt50, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnext import Builder
         b = Builder()
         self.symbol = b.get_backbone("mxnet", 50, "c4", pBackbone.normalizer, pBackbone.num_group, pBackbone.fp16)
@@ -662,7 +662,7 @@ class MXNetResNeXt50C4C5(Backbone):
 
 class MXNetResNeXt101C4C5(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNeXt101C4C5, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnext import Builder
         b = Builder()
         self.c4, self.c5 = b.get_backbone("mxnet", 101, "c4c5", pBackbone.normalizer, pBackbone.num_group, pBackbone.fp16)
@@ -676,7 +676,7 @@ class MXNetResNeXt101C4C5(Backbone):
 
 class MXNetResNet101V2(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNet101V2, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v2 import Builder
         b = Builder()
         self.symbol = b.get_backbone("mxnet", 101, "c4", pBackbone.normalizer, pBackbone.fp16)
@@ -690,7 +690,7 @@ class MXNetResNet101V2(Backbone):
 
 class ResNet50V1(Backbone):
     def __init__(self, pBackbone):
-        super(ResNet50V1, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 50, "c4", pBackbone.normalizer, pBackbone.fp16)
@@ -704,7 +704,7 @@ class ResNet50V1(Backbone):
 
 class ResNet101V1(Backbone):
     def __init__(self, pBackbone):
-        super(ResNet101V1, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 101, "c4", pBackbone.normalizer, pBackbone.fp16)
@@ -718,7 +718,7 @@ class ResNet101V1(Backbone):
 
 class MXNetResNet50V2C4C5(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNet50V2C4C5, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v2 import Builder
         b = Builder()
         self.c4, self.c5 = b.get_backbone("mxnet", 50, "c4c5", pBackbone.normalizer, pBackbone.fp16)
@@ -732,7 +732,7 @@ class MXNetResNet50V2C4C5(Backbone):
 
 class MXNetResNet101V2C4C5(Backbone):
     def __init__(self, pBackbone):
-        super(MXNetResNet101V2C4C5, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v2 import Builder
         b = Builder()
         self.c4, self.c5 = b.get_backbone("mxnet", 101, "c4c5", pBackbone.normalizer, pBackbone.fp16)
@@ -799,7 +799,7 @@ class RoiExtractor(object):
 
 class RoiAlign(RoiExtractor):
     def __init__(self, pRoi):
-        super(RoiAlign, self).__init__(pRoi)
+        super().__init__(pRoi)
 
     def get_roi_feature(self, rcnn_feat, proposal):
         p = self.p

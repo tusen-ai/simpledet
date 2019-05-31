@@ -40,7 +40,7 @@ class RetinaNet(object):
 
 class RetinaNetHead(RpnHead):
     def __init__(self, pRpn):
-        super(RetinaNetHead, self).__init__(pRpn)
+        super().__init__(pRpn)
 
         # init bias for cls
         prior_prob = 0.01
@@ -357,7 +357,7 @@ class RetinaNetHead(RpnHead):
 
 class MSRAResNet50V1FPN(Backbone):
     def __init__(self, pBackbone):
-        super(MSRAResNet50V1FPN, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 50, "fpn", pBackbone.normalizer, pBackbone.fp16)
@@ -371,7 +371,7 @@ class MSRAResNet50V1FPN(Backbone):
 
 class MSRAResNet101V1FPN(Backbone):
     def __init__(self, pBackbone):
-        super(MSRAResNet101V1FPN, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 101, "fpn", pBackbone.normalizer, pBackbone.fp16)
@@ -385,7 +385,7 @@ class MSRAResNet101V1FPN(Backbone):
 
 class RetinaNetNeck(Neck):
     def __init__(self, pNeck):
-        super(RetinaNetNeck, self).__init__(pNeck)
+        super().__init__(pNeck)
 
         self.neck = None
 
