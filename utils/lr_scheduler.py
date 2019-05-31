@@ -56,7 +56,7 @@ class LRSequential(LRScheduler):
         list of LRScheduler objects
     """
     def __init__(self, schedulers):
-        super(LRSequential, self).__init__()
+        super().__init__()
         assert(len(schedulers) > 0)
 
         self.update_sep = []
@@ -124,7 +124,7 @@ class AdvancedLRScheduler(LRScheduler):
                  niters=0, nepochs=0, iters_per_epoch=0, offset=0,
                  power=2, step_iter=None, step_epoch=None, step_factor=0.1,
                  baselr=None, targetlr=None):
-        super(LRScheduler, self).__init__()
+        super().__init__()
         assert(mode in ['constant', 'step', 'linear', 'poly', 'cosine'])
 
         self.mode = mode
