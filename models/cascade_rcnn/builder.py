@@ -167,10 +167,10 @@ class CascadeRcnn(object):
 
 class CascadeNeck(Neck):
     def __init__(self, pNeck):
-        self.pNeck = pNeck
+        super(CascadeNeck, self).__init__(pNeck)
 
     def get_rcnn_feature(self, rcnn_feat):
-        p = self.pNeck
+        p = self.p
         conv_channel = p.conv_channel
 
         conv_neck = X.convrelu(
