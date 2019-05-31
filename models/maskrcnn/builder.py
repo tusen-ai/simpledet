@@ -85,8 +85,8 @@ class BboxPostProcessor(object):
 
 class MaskRpnHead(RpnHead):
     def __init__(self, pRpn, pMask):
-        super(MaskRpnHead, self).__init__(pRpn)
-        self.pMask = patch_config_as_no_throw(pMask)
+        super().__init__(pRpn)
+        self.pMask = patch_config_as_nothrow(pMask)
 
     def get_sampled_proposal(self, conv_fpn_feat, gt_bbox, gt_poly, im_info):
         p = self.p
@@ -149,8 +149,8 @@ class MaskRpnHead(RpnHead):
 
 class MaskFPNRpnHead(FPNRpnHead):
     def __init__(self, pRpn, pMask):
-        super(MaskFPNRpnHead, self).__init__(pRpn)
-        self.pMask = patch_config_as_no_throw(pMask)
+        super().__init__(pRpn)
+        self.pMask = patch_config_as_nothrow(pMask)
 
     def get_sampled_proposal(self, conv_fpn_feat, gt_bbox, gt_poly, im_info):
         p = self.p
@@ -213,9 +213,9 @@ class MaskFPNRpnHead(FPNRpnHead):
 
 class MaskFasterRcnnHead(object):
     def __init__(self, pBbox, pMask, pMaskRoi):
-        self.pBbox = patch_config_as_no_throw(pBbox)
-        self.pMask = patch_config_as_no_throw(pMask)
-        self.pMaskRoi = patch_config_as_no_throw(pMaskRoi)
+        self.pBbox = patch_config_as_nothrow(pBbox)
+        self.pMask = patch_config_as_nothrow(pMask)
+        self.pMaskRoi = patch_config_as_nothrow(pMaskRoi)
 
         self._head_feat = None
 
@@ -284,7 +284,7 @@ class MaskFasterRcnnHead(object):
 
 class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):
     def __init__(self, pBbox, pMask, pMaskRoi):
-        super(MaskFasterRcnn4ConvHead, self).__init__(pBbox, pMask, pMaskRoi)
+        super().__init__(pBbox, pMask, pMaskRoi)
 
     def _get_mask_head_logit(self, conv_feat):
         if self._head_feat is not None:

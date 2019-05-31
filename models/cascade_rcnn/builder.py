@@ -167,7 +167,7 @@ class CascadeRcnn(object):
 
 class CascadeNeck(Neck):
     def __init__(self, pNeck):
-        super(CascadeNeck, self).__init__(pNeck)
+        super().__init__(pNeck)
 
     def get_rcnn_feature(self, rcnn_feat):
         p = self.p
@@ -189,7 +189,7 @@ difference:
 """
 class CascadeRoiAlign(RoiAlign):
     def __init__(self, pRoi):
-        super(CascadeRoiAlign, self).__init__(pRoi)
+        super().__init__(pRoi)
 
     def get_roi_feature(self, rcnn_feat, proposal, stage):
         p = self.p
@@ -220,7 +220,7 @@ difference:
 """
 class CascadeBbox2fcHead(Bbox2fcHead):
     def __init__(self, pBbox):
-        super(CascadeBbox2fcHead, self).__init__(pBbox)
+        super().__init__(pBbox)
 
         self.stage                  = pBbox.stage
         self._cls_logit             = None

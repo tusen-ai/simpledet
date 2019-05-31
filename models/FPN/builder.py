@@ -9,7 +9,7 @@ from models.FPN import assign_layer_fpn, get_top_proposal
 
 class FPNBbox2fcHead(BboxHead):
     def __init__(self, pBbox):
-        super(FPNBbox2fcHead, self).__init__(pBbox)
+        super().__init__(pBbox)
 
     def add_norm(self, sym):
         p = self.p
@@ -42,7 +42,7 @@ class FPNBbox2fcHead(BboxHead):
 
 class FPNRpnHead(RpnHead):
     def __init__(self, pRpn):
-        super(RpnHead, self).__init__(pRpn)
+        super().__init__(pRpn)
 
         self.cls_logit_dict         = None
         self.bbox_delta_dict        = None
@@ -304,7 +304,7 @@ class FPNRpnHead(RpnHead):
 
 class MSRAResNet50V1FPN(Backbone):
     def __init__(self, pBackbone):
-        super(MSRAResNet50V1FPN, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 50, "fpn", pBackbone.normalizer, pBackbone.fp16)
@@ -318,7 +318,7 @@ class MSRAResNet50V1FPN(Backbone):
 
 class MSRAResNet101V1FPN(Backbone):
     def __init__(self, pBackbone):
-        super(MSRAResNet101V1FPN, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1 import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", 101, "fpn", pBackbone.normalizer, pBackbone.fp16)
@@ -332,7 +332,7 @@ class MSRAResNet101V1FPN(Backbone):
 
 class FPNNeck(Neck):
     def __init__(self, pNeck):
-        super(FPNNeck, self).__init__(pNeck)
+        super().__init__(pNeck)
         self.fpn_feat = None
 
     def add_norm(self, sym):
@@ -495,7 +495,7 @@ class FPNNeck(Neck):
 
 class FPNRoiAlign(RoiAlign):
     def __init__(self, pRoi):
-        super(FPNRoiAlign, self).__init__(pRoi)
+        super().__init__(pRoi)
 
     def get_roi_feature(self, conv_fpn_feat, proposal):
         p = self.p

@@ -4,7 +4,7 @@ import numpy as np
 
 class LossWithIgnore(mx.metric.EvalMetric):
     def __init__(self, name, output_names, label_names, ignore_label=-1):
-        super(LossWithIgnore, self).__init__(name, output_names, label_names)
+        super().__init__(name, output_names, label_names)
         self.ignore_label = ignore_label
 
     def update(self, labels, preds):
@@ -13,7 +13,7 @@ class LossWithIgnore(mx.metric.EvalMetric):
 
 class FgLossWithIgnore(LossWithIgnore):
     def __init__(self, name, output_names, label_names, bg_label=0, ignore_label=-1):
-        super(FgLossWithIgnore, self).__init__(name, output_names, label_names, ignore_label)
+        super().__init__(name, output_names, label_names, ignore_label)
         self.bg_label = bg_label
 
     def update(self, labels, preds):
@@ -22,7 +22,7 @@ class FgLossWithIgnore(LossWithIgnore):
 
 class AccWithIgnore(LossWithIgnore):
     def __init__(self, name, output_names, label_names, ignore_label=-1):
-        super(AccWithIgnore, self).__init__(name, output_names, label_names, ignore_label)
+        super().__init__(name, output_names, label_names, ignore_label)
 
     def update(self, labels, preds):
         if len(preds) == 1 and len(labels) == 1:
@@ -51,7 +51,7 @@ class AccWithIgnore(LossWithIgnore):
 
 class FgAccWithIgnore(FgLossWithIgnore):
     def __init__(self, name, output_names, label_names, bg_label=0, ignore_label=-1):
-        super(FgAccWithIgnore, self).__init__(name, output_names, label_names, bg_label, ignore_label)
+        super().__init__(name, output_names, label_names, bg_label, ignore_label)
 
     def update(self, labels, preds):
         pred = preds[0]
@@ -70,7 +70,7 @@ class FgAccWithIgnore(FgLossWithIgnore):
 
 class CeWithIgnore(LossWithIgnore):
     def __init__(self, name, output_names, label_names, ignore_label=-1):
-        super(CeWithIgnore, self).__init__(name, output_names, label_names, ignore_label)
+        super().__init__(name, output_names, label_names, ignore_label)
 
     def update(self, labels, preds):
         pred = preds[0]
@@ -93,7 +93,7 @@ class CeWithIgnore(LossWithIgnore):
 
 class FgCeWithIgnore(FgLossWithIgnore):
     def __init__(self, name, output_names, label_names, bg_label=0, ignore_label=-1):
-        super(FgCeWithIgnore, self).__init__(name, output_names, label_names, bg_label, ignore_label)
+        super().__init__(name, output_names, label_names, bg_label, ignore_label)
 
     def update(self, labels, preds):
         pred = preds[0]
@@ -116,7 +116,7 @@ class FgCeWithIgnore(FgLossWithIgnore):
 
 class L1(FgLossWithIgnore):
     def __init__(self, name, output_names, label_names, bg_label=0, ignore_label=-1):
-        super(L1, self).__init__(name, output_names, label_names, bg_label, ignore_label)
+        super().__init__(name, output_names, label_names, bg_label, ignore_label)
 
     def update(self, labels, preds):
         if len(preds) == 1 and len(labels) == 1:
@@ -141,7 +141,7 @@ class L1(FgLossWithIgnore):
 
 class SigmoidCrossEntropy(mx.metric.EvalMetric):
     def __init__(self, name, output_names, label_names):
-        super(SigmoidCrossEntropy, self).__init__(name, output_names, label_names)
+        super().__init__(name, output_names, label_names)
 
     def update(self, labels, preds):
         x = preds[0].reshape(-1)  # logit

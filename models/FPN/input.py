@@ -62,7 +62,7 @@ class PyramidAnchorTarget2D(PyramidAnchorTarget2DBase):
     """
 
     def __init__(self, pAnchor):
-        super(PyramidAnchorTarget2D, self).__init__(pAnchor)
+        super().__init__(pAnchor)
 
         self.pyramid_levels = len(self.p.generate.stride)
         self.p_list = [copy.deepcopy(self.p) for _ in range(self.pyramid_levels)]

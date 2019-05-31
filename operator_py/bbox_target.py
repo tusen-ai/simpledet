@@ -96,7 +96,7 @@ def _expand_bbox_targets(bbox_target_data, num_bbox_reg_classes):
 class BboxTargetOperator(mx.operator.CustomOp):
     def __init__(self, num_classes, add_gt_to_proposal, image_rois, fg_fraction,
                  fg_thresh, bg_thresh_hi, bg_thresh_lo, bbox_target_std):
-        super(BboxTargetOperator, self).__init__()
+        super().__init__()
         self._num_classes = num_classes
         self._add_gt_to_proposal = add_gt_to_proposal
         self._image_rois = image_rois
@@ -173,7 +173,7 @@ class BboxTargetOperator(mx.operator.CustomOp):
 class BboxTargetProp(mx.operator.CustomOpProp):
     def __init__(self, num_class, add_gt_to_proposal, image_rois, fg_fraction, fg_thresh,
                  bg_thresh_hi, bg_thresh_lo, bbox_target_std):
-        super(BboxTargetProp, self).__init__(need_top_grad=False)
+        super().__init__(need_top_grad=False)
         self._num_class = int(num_class)
         self._add_gt_to_proposal = literal_eval(add_gt_to_proposal)
         self._image_rois = int(image_rois)
