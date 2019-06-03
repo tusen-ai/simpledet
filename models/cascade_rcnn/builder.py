@@ -33,7 +33,7 @@ class CascadeRcnn(object):
                 gt_bbox,
                 im_info
             )
-        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal, "1st")
+        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         bbox_loss = bbox_head.get_loss(
             roi_feat,
             bbox_cls,
@@ -51,7 +51,7 @@ class CascadeRcnn(object):
                 gt_bbox,
                 im_info
             )
-        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd, "2nd")
+        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd)
         bbox_loss_2nd = bbox_head_2nd.get_loss(
             roi_feat_2nd,
             bbox_cls_2nd,
@@ -69,7 +69,7 @@ class CascadeRcnn(object):
                 gt_bbox,
                 im_info
             )
-        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd, "3rd")
+        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd)
         bbox_loss_3rd = bbox_head_3rd.get_loss(
             roi_feat_3rd,
             bbox_cls_3rd,
