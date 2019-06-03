@@ -315,7 +315,7 @@ class CascadeBbox2fcHead(Bbox2fcHead):
     def get_loss(self, conv_feat, cls_label, bbox_target, bbox_weight):
         p = self.p
         stage = self.stage
-        loss_weight = p.regress_target.loss_weight
+        loss_weight = p.loss_weight
         batch_roi = p.image_roi * p.batch_image
         batch_image = p.batch_image
 
