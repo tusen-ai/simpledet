@@ -319,17 +319,20 @@ class BboxHead(object):
 
         head_feat = self._get_bbox_head_logit(conv_feat)
 
+        if not isinstance(head_feat, dict):
+            head_feat = dict(classification=head_feat, regression=head_feat)
+
         if p.fp16:
             head_feat = X.to_fp32(head_feat, name="bbox_head_to_fp32")
 
         cls_logit = X.fc(
-            head_feat,
+            head_feat["classification"],
             filter=num_class,
             name='bbox_cls_logit',
             init=X.gauss(0.01)
         )
         bbox_delta = X.fc(
-            head_feat,
+            head_feat["regression"],
             filter=4 * num_reg_class,
             name='bbox_reg_delta',
             init=X.gauss(0.001)
@@ -603,6 +606,57 @@ class BboxC5V1Head(BboxHead):
         pool1 = X.pool(unit, global_pool=True, name='pool1')
 
         self._head_feat = pool1
+
+        return self._head_feat
+
+
+class Bbox2fcC5V1Head(BboxHead):
+    def __init__(self, pBbox):
+        super().__init__(pBbox)
+
+    def _reg_head(self, conv_feat):
+        from mxnext.backbone.resnet_v1 import Builder
+        unit = Builder.resnet_stage(
+            conv_feat,
+            name="stage4",
+            num_block=3,
+            filter=2048,
+            stride=1,
+            dilate=1,
+            norm_type=self.p.normalizer,
+            norm_mom=0.9,
+            ndev=8
+        )
+        unit = X.to_fp32(unit, name='c5_to_fp32')
+        pool1 = X.pool(unit, global_pool=True, name='pool1')
+
+        return pool1
+    
+    def _cls_head(self, conv_feat):
+        p = self.p
+
+        flatten = X.flatten(conv_feat, name="bbox_cls_feat_flatten")
+        reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_cls_feat_reshape")
+
+        if p.normalizer.__name__ == "fix_bn":
+            fc1 = X.convrelu(reshape, filter=1024, name="bbox_cls_fc1")
+            fc2 = X.convrelu(fc1, filter=1024, name="bbox_cls_fc2")
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            fc1 = X.convnormrelu(p.normalizer, reshape, filter=1024, name="bbox_cls_fc1")
+            fc2 = X.convnormrelu(p.normalizer, fc1, filter=1024, name="bbox_cls_fc2")
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        return fc2
+
+    def _get_bbox_head_logit(self, conv_feat):
+        if self._head_feat is not None:
+            return self._head_feat
+
+        cls_feat = _cls_head(conv_feat)
+        reg_feat = _reg_head(conv_feat)
+
+        self._head_feat = dict(classification=cls_feat, regression=reg_feat)
 
         return self._head_feat
 
