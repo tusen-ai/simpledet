@@ -716,12 +716,26 @@ class ResNet101V1(Backbone):
         return self.symbol
 
 
-class ResNetV1b(Backbone):
+class ResNetV1bC4(Backbone):
     def __init__(self, pBackbone):
-        super(ResNetV1b, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1b import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", self.p.depth, "c4", pBackbone.normalizer, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
+
+
+class ResNetV1dC4(Backbone):
+    def __init__(self, pBackbone):
+        super().__init__(pBackbone)
+        from mxnext.backbone.resnet_v1d import Builder
+        b = Builder()
+        self.symbol = b.get_backbone(self.p.depth, "c4", pBackbone.normalizer, pBackbone.fp16)
 
     def get_rpn_feature(self):
         return self.symbol

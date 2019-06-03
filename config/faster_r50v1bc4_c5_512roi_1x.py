@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from symbol.builder import ResNetV1b as Backbone
+from symbol.builder import ResNetV1bC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor

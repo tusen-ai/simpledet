@@ -30,7 +30,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
+        depth = 152
 
 
     class NeckParam:
@@ -125,8 +125,8 @@ def get_config(is_train):
 
         from_scratch = False
         random = True
-        memonger = False
-        memonger_until = "stage3_unit21_plus"
+        memonger = True
+        memonger_until = "stage3_unit1_plus"
 
         class pretrain:
             prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
@@ -144,9 +144,9 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"

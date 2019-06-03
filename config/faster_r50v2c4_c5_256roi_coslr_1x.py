@@ -1,9 +1,9 @@
 from symbol.builder import FasterRcnn as Detector
-from symbol.builder import ResNetV1bC4 as Backbone
+from symbol.builder import MXNetResNet50V2 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
-from symbol.builder import BboxC5V1Head as BboxHead
+from symbol.builder import BboxC5Head as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
@@ -30,7 +30,6 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
 
 
     class NeckParam:
@@ -61,8 +60,8 @@ def get_config(is_train):
             min_bbox_side = 0
 
         class subsample_proposal:
-            proposal_wo_gt = False
-            image_roi = 512
+            proposal_wo_gt = True
+            image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.5
             bg_thr_hi = 0.5
@@ -80,7 +79,7 @@ def get_config(is_train):
         fp16        = General.fp16
         normalizer  = NormalizeParam.normalizer
         num_class   = 1 + 80
-        image_roi   = 512
+        image_roi   = 256
         batch_image = General.batch_image
 
         class regress_target:
@@ -129,7 +128,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
+            prefix = "pretrain_model/resnet-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -138,6 +137,7 @@ def get_config(is_train):
         class optimizer:
             type = "sgd"
             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
+            lr_mode = "cosine"
             momentum = 0.9
             wd = 0.0001
             clip_gradient = 35
@@ -151,7 +151,7 @@ def get_config(is_train):
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 750 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)
+            iter = 3000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)
 
 
     class TestParam:
@@ -173,11 +173,6 @@ def get_config(is_train):
             annotation = "data/coco/annotations/instances_minival2014.json"
 
     # data processing
-    class NormParam:
-        mean = tuple(i * 255 for i in (0.485, 0.456, 0.406)) # RGB order
-        std = tuple(i * 255 for i in (0.229, 0.224, 0.225))
-
-
     class ResizeParam:
         short = 800
         long = 1200 if is_train else 2000
@@ -185,7 +180,7 @@ def get_config(is_train):
 
     class PadParam:
         short = 800
-        long = 1200
+        long = 1200 if is_train else 2000
         max_num_gt = 100
 
 
@@ -214,12 +209,11 @@ def get_config(is_train):
 
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord, AnchorTarget2D, Norm2DImage
+        RenameRecord, AnchorTarget2D
 
     if is_train:
         transform = [
             ReadRoiRecord(None),
-            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
@@ -232,7 +226,6 @@ def get_config(is_train):
     else:
         transform = [
             ReadRoiRecord(None),
-            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)

@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from symbol.builder import ResNetV1bC4 as Backbone
+from symbol.builder import ResNetV1dC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
@@ -30,7 +30,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
+        depth = 50
 
 
     class NeckParam:
@@ -62,7 +62,7 @@ def get_config(is_train):
 
         class subsample_proposal:
             proposal_wo_gt = False
-            image_roi = 512
+            image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.5
             bg_thr_hi = 0.5
@@ -80,7 +80,7 @@ def get_config(is_train):
         fp16        = General.fp16
         normalizer  = NormalizeParam.normalizer
         num_class   = 1 + 80
-        image_roi   = 512
+        image_roi   = 256
         batch_image = General.batch_image
 
         class regress_target:
@@ -129,7 +129,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
+            prefix = "pretrain_model/resnet%s_v1d" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 

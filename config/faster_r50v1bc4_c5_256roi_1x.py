@@ -30,7 +30,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
+        depth = 50
 
 
     class NeckParam:
@@ -62,7 +62,7 @@ def get_config(is_train):
 
         class subsample_proposal:
             proposal_wo_gt = False
-            image_roi = 512
+            image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.5
             bg_thr_hi = 0.5
@@ -80,7 +80,7 @@ def get_config(is_train):
         fp16        = General.fp16
         normalizer  = NormalizeParam.normalizer
         num_class   = 1 + 80
-        image_roi   = 512
+        image_roi   = 256
         batch_image = General.batch_image
 
         class regress_target:

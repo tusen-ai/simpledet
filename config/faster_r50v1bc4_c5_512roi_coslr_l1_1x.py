@@ -30,7 +30,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
+        depth = 50
 
 
     class NeckParam:
@@ -87,6 +87,7 @@ def get_config(is_train):
             class_agnostic = True
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
+            smooth_l1_scalar = 100
 
 
     class RoiParam:
@@ -138,6 +139,7 @@ def get_config(is_train):
         class optimizer:
             type = "sgd"
             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
+            lr_mode = 'cosine'
             momentum = 0.9
             wd = 0.0001
             clip_gradient = 35
