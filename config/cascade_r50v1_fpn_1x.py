@@ -92,7 +92,7 @@ def get_config(is_train):
 
         class subsample_proposal:
             proposal_wo_gt = False
-            image_roi = -1 # do not subsample rois
+            image_roi = 512
             fg_fraction = 0.25
             fg_thr = 0.6
             bg_thr_hi = 0.6
@@ -122,7 +122,7 @@ def get_config(is_train):
 
         class subsample_proposal:
             proposal_wo_gt = False
-            image_roi = -1 # do not subsample rois
+            image_roi = 512
             fg_fraction = 0.25
             fg_thr = 0.7
             bg_thr_hi = 0.7
