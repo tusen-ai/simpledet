@@ -396,7 +396,7 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         batch_image = p.batch_image
 
         proposal_wo_gt = p.subsample_proposal.proposal_wo_gt
-        image_roi = -1 # do not subsample rois
+        image_roi = p.subsample_proposal.image_roi
         fg_fraction = p.subsample_proposal.fg_fraction
         fg_thr = p.subsample_proposal.fg_thr
         bg_thr_hi = p.subsample_proposal.bg_thr_hi
