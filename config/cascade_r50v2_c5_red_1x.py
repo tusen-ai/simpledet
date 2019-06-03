@@ -83,12 +83,12 @@ def get_config(is_train):
         image_roi   = 256
         batch_image = General.batch_image
         stage       = "1st"
+        loss_weight = 1.0
 
         class regress_target:
             class_agnostic = True
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
-            loss_weight = 1.0
 
         class subsample_proposal:
             proposal_wo_gt = True
@@ -113,12 +113,12 @@ def get_config(is_train):
         image_roi   = 256
         batch_image = General.batch_image
         stage       = "2nd"
+        loss_weight = 0.5
 
         class regress_target:
             class_agnostic = True
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.05, 0.05, 0.1, 0.1)
-            loss_weight = 0.5
 
         class subsample_proposal:
             proposal_wo_gt = True
@@ -142,12 +142,12 @@ def get_config(is_train):
         image_roi   = 256
         batch_image = General.batch_image
         stage       = "3rd"
+        loss_weight = 0.25
 
         class regress_target:
             class_agnostic = True
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.033, 0.033, 0.067, 0.067)
-            loss_weight = 0.25
 
         class subsample_proposal:
             proposal_wo_gt = None
