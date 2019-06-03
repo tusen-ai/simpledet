@@ -653,8 +653,8 @@ class Bbox2fcC5V1Head(BboxHead):
         if self._head_feat is not None:
             return self._head_feat
 
-        cls_feat = _cls_head(conv_feat)
-        reg_feat = _reg_head(conv_feat)
+        cls_feat = self._cls_head(conv_feat)
+        reg_feat = self._reg_head(conv_feat)
 
         self._head_feat = dict(classification=cls_feat, regression=reg_feat)
 
