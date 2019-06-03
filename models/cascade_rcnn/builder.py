@@ -184,7 +184,6 @@ class CascadeNeck(Neck):
 
 
 """
-difference:
 1. rename symbol via stage
 2. (decode_bbox -> proposal_target) rather than (proposal -> proposal_target)
 """
@@ -198,19 +197,19 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         self._proposal              = None
 
         # for stage '1st_3rd', using weight from 1st stage
-        weight_stage = self.stage.split('_')[0]
-        self.fc1_weight = X.var("bbox_fc1_" + weight_stage + "_weight")
-        self.fc2_weight = X.var("bbox_fc2_" + weight_stage + "_weight")
+        stage = self.stage.split('_')[0]
+        self.fc1_weight = X.var("bbox_fc1_%s_weight" % stage)
+        self.fc2_weight = X.var("bbox_fc2_%s_weight" % stage)
         self.cls_logit_weight = X.var(
-            "bbox_cls_logit_" + weight_stage + "_weight",
+            "bbox_cls_logit_%s_weight" % stage,
             init=X.gauss(0.01)
         )
-        self.cls_logit_bias = X.var("bbox_cls_logit_" + weight_stage + "_bias")
+        self.cls_logit_bias = X.var("bbox_cls_logit_%s_bias" % stage)
         self.bbox_delta_weight = X.var(
-            "bbox_reg_delta_" + weight_stage + "_weight",
+            "bbox_reg_delta_%s_weight" % stage,
             init=X.gauss(0.001)
         )
-        self.bbox_delta_bias = X.var("bbox_reg_delta_" + weight_stage + "_bias")
+        self.bbox_delta_bias = X.var("bbox_reg_delta_%s_bias" % stage)
 
 
     def _get_bbox_head_logit(self, conv_feat):
