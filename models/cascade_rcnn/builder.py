@@ -89,7 +89,7 @@ class CascadeRcnn(object):
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
         # stage1
-        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal, "1st")
+        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         _, bbox_xyxy = bbox_head.get_prediction(
             roi_feat,
             im_info,
@@ -98,7 +98,7 @@ class CascadeRcnn(object):
 
         # stage2
         proposal_2nd = bbox_xyxy
-        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd, "2nd")
+        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd)
         _, bbox_xyxy_2nd = bbox_head_2nd.get_prediction(
             roi_feat_2nd,
             im_info,
@@ -107,7 +107,7 @@ class CascadeRcnn(object):
 
         # stage3
         proposal_3rd = bbox_xyxy_2nd
-        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd, "3rd")
+        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd)
         cls_score_3rd, bbox_xyxy_3rd = bbox_head_3rd.get_prediction(
             roi_feat_3rd,
             im_info,
@@ -145,17 +145,17 @@ class CascadeRcnn(object):
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
         # stage1
-        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal, "1st")
+        roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         _, bbox_xyxy = bbox_head.get_prediction(roi_feat, im_info, proposal)
 
         # stage2
         proposal_2nd = bbox_xyxy
-        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd, "2nd")
+        roi_feat_2nd = roi_extractor.get_roi_feature(rcnn_feat, proposal_2nd)
         _, bbox_xyxy_2nd = bbox_head_2nd.get_prediction(roi_feat_2nd, im_info, proposal_2nd)
 
         # stage3
         proposal_3rd = bbox_xyxy_2nd
-        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd, "3rd")
+        roi_feat_3rd = roi_extractor.get_roi_feature(rcnn_feat, proposal_3rd)
         cls_score_3rd, bbox_xyxy_3rd = bbox_head_3rd.get_prediction(roi_feat_3rd, im_info, proposal_3rd)
 
         # AR does not need score, just pass a dummy one
@@ -181,36 +181,6 @@ class CascadeNeck(Neck):
             name="conv_neck"
         )
         return conv_neck
-
-
-"""
-difference:
-1. rename symbol via stage
-"""
-class CascadeRoiAlign(RoiAlign):
-    def __init__(self, pRoi):
-        super().__init__(pRoi)
-
-    def get_roi_feature(self, rcnn_feat, proposal, stage):
-        p = self.p
-
-        if p.fp16:
-            rcnn_feat = X.to_fp32(rcnn_feat, "rcnn_feat_to_fp32_" + stage)
-
-        roi_feat = X.roi_align(
-            rcnn_feat,
-            rois=proposal,
-            out_size=p.out_size,
-            stride=p.stride,
-            name="roi_align_" + stage
-        )
-
-        if p.fp16:
-            roi_feat = X.to_fp16(roi_feat, "roi_feat_to_fp16_" + stage)
-
-        roi_feat = X.reshape(roi_feat, (-3, -2))
-
-        return roi_feat
 
 
 """

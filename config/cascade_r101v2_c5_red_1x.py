@@ -2,7 +2,7 @@ from models.cascade_rcnn.builder import CascadeRcnn as Detector
 from symbol.builder import MXNetResNet101V2C4C5 as Backbone
 from models.cascade_rcnn.builder import CascadeNeck as Neck
 from symbol.builder import RpnHead
-from models.cascade_rcnn.builder import CascadeRoiAlign as RoiExtractor
+from symbol.builder import RoiAlign as RoiExtractor
 from models.cascade_rcnn.builder import CascadeBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
