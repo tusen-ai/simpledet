@@ -92,6 +92,7 @@ class FPNBboxDualHead(BboxHead):
         conv_feat = _inc_block(conv_feat)
         for i in range(num_block):
             conv_feat = _res_block(conv_feat, name="bbox_reg_res_block%s" % (i + 1))
+        conv_feat = X.global_avg_pool(conv_feat, name="bbox_reg_global_avgpool")
         
         return conv_feat
 
