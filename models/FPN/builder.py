@@ -75,11 +75,11 @@ class FPNBboxDualHead(BboxHead):
             res_feat = self.add_norm(res_feat)
             res_feat = X.relu(res_feat)
 
-            res_feat = X.conv(feat, kernel=3, filter=1024, init=X.gauss(0.01), name=name + "_conv2")
+            res_feat = X.conv(res_feat, kernel=3, filter=1024, init=X.gauss(0.01), name=name + "_conv2")
             res_feat = self.add_norm(res_feat)
             res_feat = X.relu(res_feat)
 
-            res_feat = X.conv(feat, kernel=3, filter=1024, init=X.gauss(0.01), name=name + "_conv3")
+            res_feat = X.conv(res_feat, filter=1024, init=X.gauss(0.01), name=name + "_conv3")
             res_feat = self.add_norm(res_feat)
 
             res_feat = X.add(feat, res_feat, name=name + "_plus")
@@ -89,7 +89,7 @@ class FPNBboxDualHead(BboxHead):
 
         num_block = self.p.num_block or 4
 
-        conv_feat = _inc_block(conv_feat)        
+        conv_feat = _inc_block(conv_feat)
         for i in range(num_block):
             conv_feat = _res_block(conv_feat, name="bbox_reg_res_block%s" % (i + 1))
         
@@ -112,7 +112,10 @@ class FPNBboxDualHead(BboxHead):
         if self._head_feat is not None:
             return self._head_feat
 
-        self._head_feat = dict(classification=_cls_head(conv_feat), regression=_reg_head(conv_feat))
+        self._head_feat = dict(
+            classification=self._cls_head(conv_feat), 
+            regression=self._reg_head(conv_feat)
+        )
 
         return self._head_feat
 
