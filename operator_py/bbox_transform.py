@@ -2,6 +2,8 @@ import numpy as np
 from .cython.bbox import bbox_overlaps_cython
 
 
+BBOX_XFORM_CLIP = np.log(1000. / 16.)
+
 def bbox_overlaps(boxes, query_boxes):
     return bbox_overlaps_cython(boxes, query_boxes)
 
@@ -97,6 +99,8 @@ def nonlinear_pred(boxes, box_deltas):
     dy = box_deltas[:, 1::4]
     dw = box_deltas[:, 2::4]
     dh = box_deltas[:, 3::4]
+    dw = np.minimum(dw, BBOX_XFORM_CLIP)
+    dh = np.minimum(dh, BBOX_XFORM_CLIP)
 
     pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]
     pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]

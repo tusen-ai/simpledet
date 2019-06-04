@@ -17,6 +17,10 @@ We provide the ImageNet pretrained models used by SimpleDet. Unless otherwise no
 - [resnet-v1-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-101-0000.params): converted copy of MARA's original ResNet-101 model.
 - [resnet-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-50-0000.params): ResNet-v2-50 model provided by MXNet Model Gallery.
 - [resnet-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-101-0000.params): ResNet-v2-101 model provided by MXNet Model Gallery.
+- [resnet50_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet50_v1b-0000.params):
+converted from gluoncv.
+- [resnet101_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet101_v1b-0000.params):
+converted from gluoncv.
 
 ## Box, and Mask Detection Baselines
 All AP results are reported on minival2014 of the [COCO dataset](http://cocodataset.org).

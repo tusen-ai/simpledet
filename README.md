@@ -8,8 +8,8 @@
 - Modular design for coding-free exploration of new experiment settings
 
 ### Recent Updates
-- Add RPN test(2019.5.28)
-
+- Add RPN test (2019.5.28)
+- Add [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) (2019.6.04)
 ### Setup
 #### Install
 SimpleDet contains a lot of C++ operators not in MXNet offical repo, so one has to build MXNet from scratch. Please refer to [INSTALL.md](./doc/INSTALL.md) more details
