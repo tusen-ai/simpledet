@@ -50,8 +50,7 @@ def reluconvbn(data, num_filter, init, norm, name, prefix):
 
 class NASFPNNeck(Neck):
     def __init__(self, pNeck):
-        super(NASFPNNeck, self).__init__(pNeck)
-        self.p = pNeck
+        super().__init__(pNeck)
     
     @staticmethod
     def get_P0_features(c_features, p_names, dim_reduced, init, norm, kernel=1):
@@ -185,7 +184,7 @@ class NASFPNNeck(Neck):
 
 class RetinaNetHeadWithBN(RetinaNetHead):
     def __init__(self, pRpn):
-        super(RetinaNetHeadWithBN, self).__init__(pRpn)
+        super().__init__(pRpn)
 
     def _cls_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class, stride):
         p = self.p
@@ -388,8 +387,7 @@ class RetinaNetHeadWithBN(RetinaNetHead):
 
 class RetinaNetNeckWithBN(RetinaNetNeck):
     def __init__(self, pNeck):
-        super(RetinaNetNeckWithBN, self).__init__(pNeck)
-        self.p = pNeck
+        super().__init__(pNeck)
 
     def get_retinanet_neck(self, data):
         norm = self.p.normalizer
