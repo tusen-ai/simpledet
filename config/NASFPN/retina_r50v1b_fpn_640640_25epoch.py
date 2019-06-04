@@ -58,21 +58,6 @@ def get_config(is_train):
             min_bbox_side = None
             min_det_score = 0.05 # filter score in network
 
-        class subsample_proposal:
-            proposal_wo_gt = None
-            image_roi = None
-            fg_fraction = None
-            fg_thr = None
-            bg_thr_hi = None
-            bg_thr_lo = None
-
-        class bbox_target:
-            num_reg_class = None
-            class_agnostic = None
-            weight = None
-            mean = None
-            std = None
-
         class focal_loss:
             alpha = 0.25
             gamma = 2.0
@@ -84,11 +69,6 @@ def get_config(is_train):
         num_class   = None
         image_roi   = None
         batch_image = None
-
-        class regress_target:
-            class_agnostic = None
-            mean = None
-            std = None
 
 
     class RoiParam:
@@ -126,7 +106,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1b-50"
+            prefix = "pretrain_model/resnet50_v1b"
             epoch = 0
             fixed_param = ["conv0"]
 
@@ -171,8 +151,8 @@ def get_config(is_train):
 
     # data processing
     class NormParam:
-        mean = (123.675, 116.28 , 103.53) # RGB order
-        std = (58.395, 57.12 , 57.375)
+        mean = (123.688, 116.779, 103.939) # RGB order
+        std = (58.393, 57.12, 57.375)
 
 
     class ResizeParam:
