@@ -168,7 +168,10 @@ class FPNBboxDualHeadSmall(BboxHead):
         if self._head_feat is not None:
             return self._head_feat
 
-        self._head_feat = dict(classification=_cls_head(conv_feat), regression=_reg_head(conv_feat))
+        self._head_feat = dict(
+            classification=self._cls_head(conv_feat), 
+            regression=self._reg_head(conv_feat)
+        )
 
         return self._head_feat
 
