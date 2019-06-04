@@ -3,7 +3,7 @@ from symbol.builder import ResNetV1bFPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
-from models.FPN.builder import FPNBboxDualSmallHead as BboxHead
+from models.FPN.builder import FPNBboxDualHeadSmall as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
