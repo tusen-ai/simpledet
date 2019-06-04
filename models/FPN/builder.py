@@ -121,6 +121,58 @@ class FPNBboxDualHead(BboxHead):
         return self._head_feat
 
 
+class FPNBboxDualHeadSmall(BboxHead):
+    def __init__(self, pBbox):
+        super().__init__(pBbox)
+
+    def add_norm(self, sym):
+        p = self.p
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
+    def _reg_head(self, conv_feat):
+        num_block = self.p.num_block or 4
+
+        for i in range(num_block):
+            conv_feat = X.conv(
+                conv_feat, 
+                kernel=3, 
+                filter=256, 
+                init=X.gauss(0.01), 
+                name="bbox_reg_block%s" % (i + 1)
+            )
+            conv_feat = self.add_norm(conv_feat)
+            conv_feat = X.relu(conv_feat)
+        
+        return conv_feat
+
+    def _cls_head(self, conv_feat):
+        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
+
+        flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
+        fc1 = X.fc(flatten, filter=1024, name="bbox_cls_fc1", init=xavier_init)
+        fc1 = self.add_norm(fc1)
+        fc1 = X.relu(fc1)
+        fc2 = X.fc(fc1, filter=1024, name="bbox_cls_fc2", init=xavier_init)
+        fc2 = self.add_norm(fc2)
+        fc2 = X.relu(fc2)
+
+        return fc2
+
+    def _get_bbox_head_logit(self, conv_feat):
+        if self._head_feat is not None:
+            return self._head_feat
+
+        self._head_feat = dict(classification=_cls_head(conv_feat), regression=_reg_head(conv_feat))
+
+        return self._head_feat
+
+
 class FPNRpnHead(RpnHead):
     def __init__(self, pRpn):
         super().__init__(pRpn)
