@@ -40,7 +40,7 @@ def reluconvbn(data, num_filter, init, norm, name, prefix):
     :param name: name
     :return: relu-3x3conv-bn
     """
-    data = mx.sym.Activation(data, name=name+'_relu', act_type='relu')
+    data = mx.sym.Activation(data, name=name + '_relu', act_type='relu')
     weight = mx.sym.var(name=prefix + name + "_weight", init=init)
     bias = mx.sym.var(name=prefix + name + "_bias")
     data = mx.sym.Convolution(data, name=prefix + name, weight=weight, bias=bias, num_filter=num_filter, kernel=(3, 3), pad=(1, 1), stride=(1, 1))
