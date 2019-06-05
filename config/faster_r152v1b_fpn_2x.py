@@ -164,7 +164,7 @@ def get_config(is_train):
 
         class model:
             prefix = "experiments/{}/checkpoint".format(General.name)
-            epoch = OptimizerParam.schedule.end_epoch
+            epoch = OptimizeParam.schedule.end_epoch
 
         class nms:
             type = "nms"
