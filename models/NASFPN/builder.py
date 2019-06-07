@@ -51,6 +51,7 @@ def reluconvbn(data, num_filter, init, norm, name, prefix):
 class NASFPNNeck(Neck):
     def __init__(self, pNeck):
         super().__init__(pNeck)
+        self.neck = None
     
     @staticmethod
     def get_P0_features(c_features, p_names, dim_reduced, init, norm, kernel=1):
@@ -178,7 +179,7 @@ class NASFPNNeck(Neck):
             stride16=p_features['S{}_P4'.format(num_stage)],
             stride32=p_features['S{}_P5'.format(num_stage)],
             stride64=p_features['S{}_P6'.format(num_stage)],
-            stage128=p_features['S{}_P7'.format(num_stage)]
+            stride128=p_features['S{}_P7'.format(num_stage)]
         )
         
         return self.neck
