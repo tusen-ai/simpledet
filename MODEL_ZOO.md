@@ -26,6 +26,7 @@ converted from gluoncv.
 All config files can be found in config/resnet_v1b.
 Pretrains are converted from GluonCV. 
 All AP results are reported on minival2014 of the [COCO dataset](http://cocodataset.org).
+
 |Model|Backbone|Head|Train Schedule|AP|AP50|AP75|APs|APm|APl|
 |-----|--------|----|--------------|--|----|----|---|---|---|
 |Faster|R50v1b-C4|C5-512ROI|1X|35.7|56.7|37.9|18.6|40.4|48.1|
