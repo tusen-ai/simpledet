@@ -22,6 +22,25 @@ converted from gluoncv.
 - [resnet101_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet101_v1b-0000.params):
 converted from gluoncv.
 
+## ResNetV1b Baselines
+All config files can be found in config/resnet_v1b.
+Pretrains are converted from GluonCV. 
+All AP results are reported on minival2014 of the [COCO dataset](http://cocodataset.org).
+|Model|Backbone|Head|Train Schedule|AP|AP50|AP75|APs|APm|APl|
+|-----|--------|----|--------------|--|----|----|---|---|---|
+|Faster|R50v1b-C4|C5-512ROI|1X|35.7|56.7|37.9|18.6|40.4|48.1|
+|Faster|R50v1b-C4|C5-512ROI|2X|36.9|57.9|39.3|19.9|41.4|50.2|
+|Faster|R101v1b-C4|C5-512ROI|1X|40.0|61.3|43.1|21.5|44.8|54.3|
+|Faster|R101v1b-C4|C5-512ROI|2X|40.5|61.2|43.8|22.5|44.8|55.4|
+|Faster|R152v1b-C4|C5-512ROI|1X|41.3|62.6|44.6|23.4|46.2|55.6|
+|Faster|R152v1b-C4|C5-512ROI|2X|41.8|62.4|45.2|23.2|46.0|56.9|
+|Faster|R50v1b-FPN|2MLP|1X|37.2|59.4|40.4|22.3|41.3|47.6|
+|Faster|R50v1b-FPN|2MLP|2X|38.0|59.7|41.5|22.2|41.6|48.8|
+|Faster|R101v1b-FPN|2MLP|1X|39.9|62.1|43.5|23.1|44.4|51.1|
+|Faster|R101v1b-FPN|2MLP|2X|40.4|62.1|44.0|23.2|44.4|52.7|
+|Faster|R152v1b-FPN|2MLP|1X|41.5|63.5|45.7|24.7|46.0|53.3|
+|Faster|R152v1b-FPN|2MLP|2X|42.0|63.6|45.9|24.8|45.9|55.0|
+
 ## Box, and Mask Detection Baselines
 All AP results are reported on minival2014 of the [COCO dataset](http://cocodataset.org).
 
