@@ -20,16 +20,17 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Test Detection')
     # general
     parser.add_argument('--config', help='config file path', type=str)
+    parser.add_argument('--epoch', help='override test epoch specified by config', type=int, default=None)
     args = parser.parse_args()
 
     config = importlib.import_module(args.config.replace('.py', '').replace('/', '.'))
-    return config
+    return config, args
 
 
 if __name__ == "__main__":
     os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
 
-    config = parse_args()
+    config, args = parse_args()
 
     pGen, pKv, pRpn, pRoi, pBbox, pDataset, pModel, pOpt, pTest, \
     transform, data_name, label_name, metric_list = config.get_config(is_train=False)
@@ -95,7 +96,7 @@ if __name__ == "__main__":
 
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
-                arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
+                arg_params, aux_params = load_checkpoint(pTest.model.prefix, args.epoch or pTest.model.epoch)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
                 mod.bind(data_shapes=loader.provide_data, for_training=False)
                 mod.set_params(arg_params, aux_params, allow_extra=False)
