@@ -200,6 +200,8 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         stage = self.stage.split('_')[0]
         self.fc1_weight = X.var("bbox_fc1_%s_weight" % stage)
         self.fc2_weight = X.var("bbox_fc2_%s_weight" % stage)
+        self.fc1_bias = X.var("bbox_fc1_%s_bias" % stage)
+        self.fc2_bias = X.var("bbox_fc2_%s_bias" % stage)
         self.cls_logit_weight = X.var(
             "bbox_cls_logit_%s_weight" % stage,
             init=X.gauss(0.01)
@@ -224,6 +226,8 @@ class CascadeBbox2fcHead(Bbox2fcHead):
             reshape,
             filter=1024,
             weight=self.fc1_weight,
+            bias=self.fc1_bias,
+            no_bias=False,
             name="bbox_fc1_" + stage
         )
         fc1_relu = X.relu(fc1, name="bbox_fc1_relu_" + stage)
@@ -231,6 +235,8 @@ class CascadeBbox2fcHead(Bbox2fcHead):
             fc1_relu,
             filter=1024,
             weight=self.fc2_weight,
+            bias=self.fc2_bias,
+            no_bias=False,
             name="bbox_fc2_" + stage
         )
         fc2_relu = X.relu(fc2, name="bbox_fc2_" + stage)
