@@ -506,12 +506,12 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         return p3_conv, p4_conv, p5_conv, P6, P7
 
 
-class MSRAResNet50V1bFPN(Backbone):
+class ResNetV1bFPN(Backbone):
     def __init__(self, pBackbone):
-        super(MSRAResNet50V1bFPN, self).__init__(pBackbone)
+        super().__init__(pBackbone)
         from mxnext.backbone.resnet_v1b import Builder
         b = Builder()
-        self.symbol = b.get_backbone("msra", 50, "fpn", pBackbone.normalizer, pBackbone.fp16)
+        self.symbol = b.get_backbone("msra", pBackbone.depth, "fpn", pBackbone.normalizer, pBackbone.fp16)
 
     def get_rpn_feature(self):
         return self.symbol
