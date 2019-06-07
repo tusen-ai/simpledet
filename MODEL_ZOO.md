@@ -21,6 +21,8 @@ We provide the ImageNet pretrained models used by SimpleDet. Unless otherwise no
 converted from gluoncv.
 - [resnet101_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet101_v1b-0000.params):
 converted from gluoncv.
+- [resnet152_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet152_v1b-0000.params):
+converted from gluoncv.
 
 ## ResNetV1b Baselines
 All config files can be found in config/resnet_v1b.
