@@ -61,7 +61,7 @@ def get_config(is_train):
             min_bbox_side = 0
 
         class subsample_proposal:
-            proposal_wo_gt = True
+            proposal_wo_gt = False
             image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.5
@@ -91,7 +91,7 @@ def get_config(is_train):
             std = (0.1, 0.1, 0.2, 0.2)
 
         class subsample_proposal:
-            proposal_wo_gt = True
+            proposal_wo_gt = False
             image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.6
@@ -121,7 +121,7 @@ def get_config(is_train):
             std = (0.05, 0.05, 0.1, 0.1)
 
         class subsample_proposal:
-            proposal_wo_gt = True
+            proposal_wo_gt = False
             image_roi = 256
             fg_fraction = 0.25
             fg_thr = 0.7
