@@ -10,6 +10,8 @@
 ### Recent Updates
 - Add RPN test (2019.5.28)
 - Add [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) (2019.6.04)
+- Add new ResNetV1b baselines from GluonCV (2019.6.7)
+
 ### Setup
 #### Install
 SimpleDet contains a lot of C++ operators not in MXNet offical repo, so one has to build MXNet from scratch. Please refer to [INSTALL.md](./doc/INSTALL.md) more details

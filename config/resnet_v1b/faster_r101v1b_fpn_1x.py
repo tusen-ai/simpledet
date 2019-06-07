@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from models.FPN.builder import MSRAResNet101V1FPN as Backbone
+from symbol.builder import ResNetV1bFPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -29,6 +29,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
+        depth = 101
 
 
     class NeckParam:
@@ -129,7 +130,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-101"
+            prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -175,8 +176,8 @@ def get_config(is_train):
 
     # data processing
     class NormParam:
-        mean = (122.7717, 115.9465, 102.9801) # RGB order
-        std = (1.0, 1.0, 1.0)
+        mean = tuple(i * 255 for i in (0.485, 0.456, 0.406)) # RGB order
+        std = tuple(i * 255 for i in (0.229, 0.224, 0.225))
 
     # data processing
     class ResizeParam:

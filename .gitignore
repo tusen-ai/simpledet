@@ -86,5 +86,7 @@ model/
 visimg
 mxnet/
 mxnext/
-data/
+data
+experiments
+pretrain_model
 !data/cache/coco_micro_test.roidb

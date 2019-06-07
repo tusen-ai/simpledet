@@ -319,17 +319,20 @@ class BboxHead(object):
 
         head_feat = self._get_bbox_head_logit(conv_feat)
 
+        if not isinstance(head_feat, dict):
+            head_feat = dict(classification=head_feat, regression=head_feat)
+
         if p.fp16:
             head_feat = X.to_fp32(head_feat, name="bbox_head_to_fp32")
 
         cls_logit = X.fc(
-            head_feat,
+            head_feat["classification"],
             filter=num_class,
             name='bbox_cls_logit',
             init=X.gauss(0.01)
         )
         bbox_delta = X.fc(
-            head_feat,
+            head_feat["regression"],
             filter=4 * num_reg_class,
             name='bbox_reg_delta',
             init=X.gauss(0.001)
@@ -722,6 +725,20 @@ class ResNetV1bC4(Backbone):
         from mxnext.backbone.resnet_v1b import Builder
         b = Builder()
         self.symbol = b.get_backbone("msra", self.p.depth, "c4", pBackbone.normalizer, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
+
+
+class ResNetV1bFPN(Backbone):
+    def __init__(self, pBackbone):
+        super().__init__(pBackbone)
+        from mxnext.backbone.resnet_v1b import Builder
+        b = Builder()
+        self.symbol = b.get_backbone("msra", self.p.depth, "fpn", pBackbone.normalizer, pBackbone.fp16)
 
     def get_rpn_feature(self):
         return self.symbol
