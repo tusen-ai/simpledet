@@ -149,6 +149,9 @@ class NASFPNNeck(Neck):
                     'S{}_P7'.format(stage): P7}
 
     def get_nasfpn_neck(self, data):
+        if self.neck is not None:
+            return self.neck
+
         dim_reduced = self.p.dim_reduced
         norm = self.p.normalizer
         num_stage = self.p.num_stage
@@ -169,11 +172,16 @@ class NASFPNNeck(Neck):
         # stack stage
         for i in range(num_stage):
             p_features = self.get_fused_P_feature(p_features, i + 1, dim_reduced, xavier_init, norm)
-        return p_features['S{}_P3'.format(num_stage)], \
-               p_features['S{}_P4'.format(num_stage)], \
-               p_features['S{}_P5'.format(num_stage)], \
-               p_features['S{}_P6'.format(num_stage)], \
-               p_features['S{}_P7'.format(num_stage)]
+
+        self.neck = dict(
+            stride8=p_features['S{}_P3'.format(num_stage)],
+            stride16=p_features['S{}_P4'.format(num_stage)],
+            stride32=p_features['S{}_P5'.format(num_stage)],
+            stride64=p_features['S{}_P6'.format(num_stage)],
+            stage128=p_features['S{}_P7'.format(num_stage)]
+        )
+        
+        return self.neck
 
     def get_rpn_feature(self, rpn_feat):
         return self.get_nasfpn_neck(rpn_feat)
@@ -318,8 +326,8 @@ class RetinaNetHeadWithBN(RetinaNetHead):
         return output
 
     def get_output(self, conv_feat):
-        if self._cls_logit_list is not None and self._bbox_delta_list is not None:
-            return self._cls_logit_list, self._bbox_delta_list
+        if self._cls_logit_dict is not None and self._bbox_delta_dict is not None:
+            return self._cls_logit_dict, self._bbox_delta_dict
 
         p = self.p
         stride = p.anchor_generate.stride
@@ -329,39 +337,12 @@ class RetinaNetHeadWithBN(RetinaNetHead):
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
         num_class = p.num_class
 
-        prior_prob = 0.01
-        pi = -math.log((1-prior_prob) / prior_prob)
+        cls_logit_dict = dict()
+        bbox_delta_dict = dict()
 
-        # shared classification weight and bias
-        self.cls_conv1_weight = X.var("cls_conv1_weight", init=X.gauss(std=0.01))
-        self.cls_conv1_bias = X.var("cls_conv1_bias", init=X.zero_init())
-        self.cls_conv2_weight = X.var("cls_conv2_weight", init=X.gauss(std=0.01))
-        self.cls_conv2_bias = X.var("cls_conv2_bias", init=X.zero_init())
-        self.cls_conv3_weight = X.var("cls_conv3_weight", init=X.gauss(std=0.01))
-        self.cls_conv3_bias = X.var("cls_conv3_bias", init=X.zero_init())
-        self.cls_conv4_weight = X.var("cls_conv4_weight", init=X.gauss(std=0.01))
-        self.cls_conv4_bias = X.var("cls_conv4_bias", init=X.zero_init())
-        self.cls_pred_weight = X.var("cls_pred_weight", init=X.gauss(std=0.01))
-        self.cls_pred_bias = X.var("cls_pred_bias", init=X.constant(pi))
-
-        # shared regression weight and bias
-        self.bbox_conv1_weight = X.var("bbox_conv1_weight", init=X.gauss(std=0.01))
-        self.bbox_conv1_bias = X.var("bbox_conv1_bias", init=X.zero_init())
-        self.bbox_conv2_weight = X.var("bbox_conv2_weight", init=X.gauss(std=0.01))
-        self.bbox_conv2_bias = X.var("bbox_conv2_bias", init=X.zero_init())
-        self.bbox_conv3_weight = X.var("bbox_conv3_weight", init=X.gauss(std=0.01))
-        self.bbox_conv3_bias = X.var("bbox_conv3_bias", init=X.zero_init())
-        self.bbox_conv4_weight = X.var("bbox_conv4_weight", init=X.gauss(std=0.01))
-        self.bbox_conv4_bias = X.var("bbox_conv4_bias", init=X.zero_init())
-        self.bbox_pred_weight = X.var("bbox_pred_weight", init=X.gauss(std=0.01))
-        self.bbox_pred_bias = X.var("bbox_pred_bias", init=X.zero_init())
-
-        cls_logit_list = []
-        bbox_delta_list = []
-
-        for i, s in enumerate(stride):
+        for s in stride:
             cls_logit = self._cls_subnet(
-                conv_feat=conv_feat[i],
+                conv_feat=conv_feat["stride%s" % s],
                 conv_channel=conv_channel,
                 num_base_anchor=num_base_anchor,
                 num_class=num_class,
@@ -369,20 +350,20 @@ class RetinaNetHeadWithBN(RetinaNetHead):
             )
 
             bbox_delta = self._bbox_subnet(
-                conv_feat=conv_feat[i],
+                conv_feat=conv_feat["stride%s" % s],
                 conv_channel=conv_channel,
                 num_base_anchor=num_base_anchor,
                 num_class=num_class,
                 stride=s
             )
 
-            cls_logit_list.append(cls_logit)
-            bbox_delta_list.append(bbox_delta)
+            cls_logit_dict["stride%s" % s] = cls_logit
+            bbox_delta_dict["stride%s" % s] = bbox_delta
 
-        self._cls_logit_list = cls_logit_list
-        self._bbox_delta_list = bbox_delta_list
+        self._cls_logit_dict = cls_logit_dict
+        self._bbox_delta_dict = bbox_delta_dict
 
-        return self._cls_logit_list, self._bbox_delta_list
+        return self._cls_logit_dict, self._bbox_delta_dict
 
 
 class RetinaNetNeckWithBN(RetinaNetNeck):
@@ -390,6 +371,9 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         super().__init__(pNeck)
 
     def get_retinanet_neck(self, data):
+        if self.neck is not None:
+            return self.neck
+
         norm = self.p.normalizer
         c2, c3, c4, c5 = data
 
@@ -473,7 +457,7 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         )
 
         # P6
-        P6 = X.conv(
+        p6 = X.conv(
             data=c5,
             kernel=3,
             stride=2,
@@ -485,9 +469,9 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         )
 
         # P7
-        P6_relu = X.relu(data=P6, name="P6_relu")
-        P7 = X.conv(
-            data=P6_relu,
+        p6_relu = X.relu(data=p6, name="P6_relu")
+        p7 = X.conv(
+            data=p6_relu,
             kernel=3,
             stride=2,
             filter=256,
@@ -500,10 +484,18 @@ class RetinaNetNeckWithBN(RetinaNetNeck):
         p3_conv = norm(p3_conv, name="P3_conv_bn")
         p4_conv = norm(p4_conv, name="P4_conv_bn")
         p5_conv = norm(p5_conv, name="P5_conv_bn")
-        P6 = norm(P6, name="P6_conv_bn")
-        P7 = norm(P7, name="P7_conv_bn")
+        p6 = norm(p6, name="P6_conv_bn")
+        p7 = norm(p7, name="P7_conv_bn")
 
-        return p3_conv, p4_conv, p5_conv, P6, P7
+        self.neck = dict(
+            stride8=p3_conv,
+            stride16=p4_conv,
+            stride32=p5_conv,
+            stride64=p6,
+            stride128=p7
+        )
+
+        return self.neck
 
 
 class ResNetV1bFPN(Backbone):
