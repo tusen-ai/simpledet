@@ -115,10 +115,6 @@ class FPNRpnHead(RpnHead):
         # FPN RPN share weight
         rpn_conv_weight = X.var('rpn_conv_weight', init=X.gauss(0.01))
         rpn_conv_bias = X.var('rpn_conv_bias', init=X.zero_init())
-        rpn_conv_gamma = X.var('rpn_conv_gamma')
-        rpn_conv_beta = X.var('rpn_conv_beta')
-        rpn_conv_mmean = X.var('rpn_conv_moving_mean')
-        rpn_conv_mvar = X.var('rpn_conv_moving_var')
         rpn_conv_cls_weight = X.var('rpn_conv_cls_weight', init=X.gauss(0.01))
         rpn_conv_cls_bias = X.var('rpn_conv_cls_bias', init=X.zero_init())
         rpn_conv_bbox_weight = X.var('rpn_conv_bbox_weight', init=X.gauss(0.01))
@@ -140,22 +136,8 @@ class FPNRpnHead(RpnHead):
 
             if p.normalizer.__name__ == "fix_bn":
                 pass
-            elif p.normalizer.__name__ == "sync_bn":
-                rpn_conv = p.normalizer(
-                    rpn_conv,
-                    gamma=rpn_conv_gamma,
-                    beta=rpn_conv_beta,
-                    moving_mean=rpn_conv_mmean,
-                    moving_var=rpn_conv_mvar,
-                    name="rpn_conv_3x3_bn_%s" % stride
-                )
-            elif p.normalizer.__name__ == "gn":
-                rpn_conv = p.normalizer(
-                    rpn_conv,
-                    gamma=rpn_conv_gamma,
-                    beta=rpn_conv_beta,
-                    name="rpn_conv_3x3_gn_%s" % stride
-                )
+            elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+                rpn_conv = p.normalizer(rpn_conv, name="rpn_conv_3x3_norm_%s" % stride)
             else:
                 raise NotImplementedError("Unsupported normalizer {}".format(p.normalizer.__name__))
 
