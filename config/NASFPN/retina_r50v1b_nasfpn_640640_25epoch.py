@@ -1,5 +1,5 @@
 from models.retinanet.builder import RetinaNet as Detector
-from models.NASFPN.builder import MSRAResNet50V1bFPN as Backbone
+from models.NASFPN.builder import ResNetV1bFPN as Backbone
 from models.NASFPN.builder import NASFPNNeck as Neck
 from models.NASFPN.builder import RetinaNetHeadWithBN as RpnHead
 from mxnext.complicate import normalizer_factory
@@ -27,6 +27,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
+        depth = 50
 
 
     class NeckParam:
@@ -108,7 +109,7 @@ def get_config(is_train):
         memonger_until = "S7_P6_7_bn"
 
         class pretrain:
-            prefix = "pretrain_model/resnet50_v1b"
+            prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0"]
 
