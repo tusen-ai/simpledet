@@ -186,63 +186,66 @@ class CascadeNeck(Neck):
 """
 1. rename symbol via stage
 2. (decode_bbox -> proposal_target) rather than (proposal -> proposal_target)
+3. add bias for getting bbox head logit
 """
 class CascadeBbox2fcHead(Bbox2fcHead):
     def __init__(self, pBbox):
         super().__init__(pBbox)
 
-        self.stage                  = pBbox.stage
-        self._cls_logit             = None
-        self._bbox_delta            = None
-        self._proposal              = None
-
-        # for stage '1st_3rd', using weight from 1st stage
-        stage = self.stage.split('_')[0]
-        self.fc1_weight = X.var("bbox_fc1_%s_weight" % stage)
-        self.fc2_weight = X.var("bbox_fc2_%s_weight" % stage)
-        self.fc1_bias = X.var("bbox_fc1_%s_bias" % stage)
-        self.fc2_bias = X.var("bbox_fc2_%s_bias" % stage)
-        self.cls_logit_weight = X.var(
-            "bbox_cls_logit_%s_weight" % stage,
-            init=X.gauss(0.01)
-        )
-        self.cls_logit_bias = X.var("bbox_cls_logit_%s_bias" % stage)
-        self.bbox_delta_weight = X.var(
-            "bbox_reg_delta_%s_weight" % stage,
-            init=X.gauss(0.001)
-        )
-        self.bbox_delta_bias = X.var("bbox_reg_delta_%s_bias" % stage)
-
+        self.stage          = pBbox.stage
+        self._cls_logit     = None
+        self._bbox_delta    = None
+        self._proposal      = None
 
     def _get_bbox_head_logit(self, conv_feat):
         # comment this for re-infer in test stage
         # if self._head_feat is not None:
         #     return self._head_feat
 
+        p = self.p
         stage = self.stage
+
+        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
 
         flatten = X.flatten(conv_feat, name="bbox_feat_flatten_" + stage)
         reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape_" + stage)
-        fc1 = X.conv(
-            reshape,
-            filter=1024,
-            weight=self.fc1_weight,
-            bias=self.fc1_bias,
-            no_bias=False,
-            name="bbox_fc1_" + stage
-        )
-        fc1_relu = X.relu(fc1, name="bbox_fc1_relu_" + stage)
-        fc2 = X.conv(
-            fc1_relu,
-            filter=1024,
-            weight=self.fc2_weight,
-            bias=self.fc2_bias,
-            no_bias=False,
-            name="bbox_fc2_" + stage
-        )
-        fc2_relu = X.relu(fc2, name="bbox_fc2_" + stage)
 
-        self._head_feat = fc2_relu
+        if p.normalizer.__name__ == "fix_bn":
+            fc1 = X.convrelu(
+                reshape,
+                filter=1024,
+                no_bias=False,
+                init=xavier_init,
+                name="bbox_fc1_" + stage
+            )
+            fc2 = X.convrelu(
+                fc1,
+                filter=1024,
+                no_bias=False,
+                init=xavier_init,
+                name="bbox_fc2_" + stage
+            )
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            fc1 = X.convnormrelu(
+                p.normalizer,
+                reshape,
+                filter=1024,
+                no_bias=False,
+                init=xavier_init,
+                name="bbox_fc1_" + stage
+            )
+            fc2 = X.convnormrelu(
+                p.normalizer,
+                fc1,
+                filter=1024,
+                no_bias=False,
+                init=xavier_init,
+                name="bbox_fc2_" + stage
+            )
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+
+        self._head_feat = fc2
 
         return self._head_feat
 
@@ -260,15 +263,13 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         cls_logit = X.fc(
             head_feat,
             filter=num_class,
-            weight=self.cls_logit_weight,
-            bias=self.cls_logit_bias,
+            init=X.gauss(0.01),
             name='bbox_cls_logit_' + stage
         )
         bbox_delta = X.fc(
             head_feat,
             filter=4 * num_reg_class,
-            weight=self.bbox_delta_weight,
-            bias=self.bbox_delta_bias,
+            init=X.gauss(0.001),
             name='bbox_reg_delta_' + stage
         )
 
@@ -392,52 +393,10 @@ class CascadeBbox2fcHead(Bbox2fcHead):
             class_agnostic=class_agnostic
         )
 
+        # append None for dummy proposal score
+        proposal = (proposal, None)
+
         self._proposal = proposal
 
         return proposal
-
-    def get_sampled_proposal(self, rois, bbox_pred, gt_bbox, im_info):
-        p = self.p
-        stage = self.stage
-
-        batch_image = p.batch_image
-
-        proposal_wo_gt = p.subsample_proposal.proposal_wo_gt
-        image_roi = p.subsample_proposal.image_roi
-        fg_fraction = p.subsample_proposal.fg_fraction
-        fg_thr = p.subsample_proposal.fg_thr
-        bg_thr_hi = p.subsample_proposal.bg_thr_hi
-        bg_thr_lo = p.subsample_proposal.bg_thr_lo
-
-        num_reg_class = p.bbox_target.num_reg_class
-        class_agnostic = p.bbox_target.class_agnostic
-        bbox_target_weight = p.bbox_target.weight
-        bbox_target_mean = p.bbox_target.mean
-        bbox_target_std = p.bbox_target.std
-
-        proposal = self.get_all_proposal(rois, bbox_pred, im_info)
-
-        (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
-            rois=proposal,
-            gt_boxes=gt_bbox,
-            num_classes=num_reg_class,
-            class_agnostic=class_agnostic,
-            batch_images=batch_image,
-            proposal_without_gt=proposal_wo_gt,
-            image_rois=image_roi,
-            fg_fraction=fg_fraction,
-            fg_thresh=fg_thr,
-            bg_thresh_hi=bg_thr_hi,
-            bg_thresh_lo=bg_thr_lo,
-            bbox_weight=bbox_target_weight,
-            bbox_mean=bbox_target_mean,
-            bbox_std=bbox_target_std,
-            name="subsample_proposal_" + stage
-        )
-
-        label = X.reshape(label, (-3, -2))
-        bbox_target = X.reshape(bbox_target, (-3, -2))
-        bbox_weight = X.reshape(bbox_weight, (-3, -2))
-
-        return bbox, label, bbox_target, bbox_weight
 
