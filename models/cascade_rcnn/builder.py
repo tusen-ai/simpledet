@@ -179,6 +179,20 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         self._bbox_delta    = None
         self._proposal      = None
 
+        # declare weight and bias
+        stage = self.stage
+        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
+
+        self.fc1_weight = X.var("bbox_fc1_%s_weight" % stage, init=xavier_init)
+        self.fc2_weight = X.var("bbox_fc2_%s_weight" % stage, init=xavier_init)
+        self.cls_logit_weight = X.var("bbox_cls_logit_%s_weight" % stage, init=X.gauss(0.01))
+        self.bbox_delta_weight = X.var("bbox_reg_delta_%s_weight" % stage, init=X.gauss(0.001))
+
+        self.fc1_bias = X.var("bbox_fc1_%s_bias" % stage)
+        self.fc2_bias = X.var("bbox_fc2_%s_bias" % stage)
+        self.cls_logit_bias = X.var("bbox_cls_logit_%s_bias" % stage)
+        self.bbox_delta_bias = X.var("bbox_reg_delta_%s_bias" % stage)
+
     def _get_bbox_head_logit(self, conv_feat):
         # comment this for re-infer in test stage
         # if self._head_feat is not None:
@@ -187,8 +201,6 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         p = self.p
         stage = self.stage
 
-        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
-
         flatten = X.flatten(conv_feat, name="bbox_feat_flatten_" + stage)
         reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape_" + stage)
 
@@ -196,15 +208,17 @@ class CascadeBbox2fcHead(Bbox2fcHead):
             fc1 = X.convrelu(
                 reshape,
                 filter=1024,
+                weight=self.fc1_weight,
+                bias=self.fc1_bias,
                 no_bias=False,
-                init=xavier_init,
                 name="bbox_fc1_" + stage
             )
             fc2 = X.convrelu(
                 fc1,
                 filter=1024,
+                weight=self.fc2_weight,
+                bias=self.fc2_bias,
                 no_bias=False,
-                init=xavier_init,
                 name="bbox_fc2_" + stage
             )
         elif p.normalizer.__name__ in ["sync_bn", "gn"]:
@@ -212,16 +226,18 @@ class CascadeBbox2fcHead(Bbox2fcHead):
                 p.normalizer,
                 reshape,
                 filter=1024,
+                weight=self.fc1_weight,
+                bias=self.fc1_bias,
                 no_bias=False,
-                init=xavier_init,
                 name="bbox_fc1_" + stage
             )
             fc2 = X.convnormrelu(
                 p.normalizer,
                 fc1,
                 filter=1024,
+                weight=self.fc2_weight,
+                bias=self.fc2_bias,
                 no_bias=False,
-                init=xavier_init,
                 name="bbox_fc2_" + stage
             )
         else:
@@ -245,13 +261,15 @@ class CascadeBbox2fcHead(Bbox2fcHead):
         cls_logit = X.fc(
             head_feat,
             filter=num_class,
-            init=X.gauss(0.01),
+            weight=self.cls_logit_weight,
+            bias=self.cls_logit_bias,
             name='bbox_cls_logit_' + stage
         )
         bbox_delta = X.fc(
             head_feat,
             filter=4 * num_reg_class,
-            init=X.gauss(0.001),
+            weight=self.bbox_delta_weight,
+            bias=self.bbox_delta_bias,
             name='bbox_reg_delta_' + stage
         )
 
