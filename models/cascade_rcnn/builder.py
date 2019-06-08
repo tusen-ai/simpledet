@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import mxnet as mx
 import mxnext as X
 
 from symbol.builder import FasterRcnn, Bbox2fcHead
@@ -128,7 +129,6 @@ class CascadeRcnn(object):
         )
 
         # average score between [1st_3rd, 2nd_3rd, 3rd]
-        import mxnet as mx
         cls_score_avg = mx.sym.add_n(cls_score_1st_3rd, cls_score_2nd_3rd, cls_score_3rd) / 3
 
         return X.group([rec_id, im_id, im_info, cls_score_avg, bbox_xyxy_3rd])
