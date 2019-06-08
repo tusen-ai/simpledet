@@ -165,24 +165,6 @@ class CascadeRcnn(object):
             return X.group([rec_id, im_id, im_info, proposal_3rd, cls_score_3rd])
 
 
-class CascadeNeck(Neck):
-    def __init__(self, pNeck):
-        super().__init__(pNeck)
-
-    def get_rcnn_feature(self, rcnn_feat):
-        p = self.p
-        conv_channel = p.conv_channel
-
-        conv_neck = X.convrelu(
-            rcnn_feat,
-            filter=conv_channel,
-            no_bias=False,
-            init=X.gauss(0.01),
-            name="conv_neck"
-        )
-        return conv_neck
-
-
 """
 1. rename symbol via stage
 2. (decode_bbox -> proposal_target) rather than (proposal -> proposal_target)
