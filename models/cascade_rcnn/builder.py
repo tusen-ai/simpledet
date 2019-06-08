@@ -4,7 +4,7 @@ from __future__ import print_function
 import math
 import mxnext as X
 
-from symbol.builder import FasterRcnn, Neck, RoiAlign, Bbox2fcHead
+from symbol.builder import FasterRcnn, Bbox2fcHead
 
 class CascadeRcnn(object):
     def __init__(self):
