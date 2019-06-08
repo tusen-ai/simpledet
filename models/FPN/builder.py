@@ -133,17 +133,10 @@ class FPNRpnHead(RpnHead):
                 weight=rpn_conv_weight,
                 bias=rpn_conv_bias
             )
-
-            if p.normalizer.__name__ == "fix_bn":
-                pass
-            elif p.normalizer.__name__ in ["sync_bn", "gn"]:
-                rpn_conv = p.normalizer(rpn_conv, name="rpn_conv_3x3_norm_%s" % stride)
-            else:
-                raise NotImplementedError("Unsupported normalizer {}".format(p.normalizer.__name__))
-
             rpn_relu = X.relu(rpn_conv, name='rpn_relu_%s' % stride)
             if p.fp16:
                 rpn_relu = X.to_fp32(rpn_relu, name="rpn_relu_%s_fp32" % stride)
+
             cls_logit = X.conv(
                 rpn_relu,
                 filter=2 * num_base_anchor,
