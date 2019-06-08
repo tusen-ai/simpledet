@@ -400,3 +400,47 @@ class CascadeBbox2fcHead(Bbox2fcHead):
 
         return proposal
 
+    def get_sampled_proposal(self, rois, bbox_pred, gt_bbox, im_info):
+        p = self.p
+        stage = self.stage
+
+        batch_image = p.batch_image
+
+        proposal_wo_gt = p.subsample_proposal.proposal_wo_gt
+        image_roi = p.subsample_proposal.image_roi
+        fg_fraction = p.subsample_proposal.fg_fraction
+        fg_thr = p.subsample_proposal.fg_thr
+        bg_thr_hi = p.subsample_proposal.bg_thr_hi
+        bg_thr_lo = p.subsample_proposal.bg_thr_lo
+
+        num_reg_class = p.bbox_target.num_reg_class
+        class_agnostic = p.bbox_target.class_agnostic
+        bbox_target_weight = p.bbox_target.weight
+        bbox_target_mean = p.bbox_target.mean
+        bbox_target_std = p.bbox_target.std
+
+        (proposal, proposal_score) = self.get_all_proposal(rois, bbox_pred, im_info)
+
+        (bbox, label, bbox_target, bbox_weight) = X.proposal_target(
+            rois=proposal,
+            gt_boxes=gt_bbox,
+            num_classes=num_reg_class,
+            class_agnostic=class_agnostic,
+            batch_images=batch_image,
+            proposal_without_gt=proposal_wo_gt,
+            image_rois=image_roi,
+            fg_fraction=fg_fraction,
+            fg_thresh=fg_thr,
+            bg_thresh_hi=bg_thr_hi,
+            bg_thresh_lo=bg_thr_lo,
+            bbox_weight=bbox_target_weight,
+            bbox_mean=bbox_target_mean,
+            bbox_std=bbox_target_std,
+            name="subsample_proposal_" + stage
+        )
+
+        label = X.reshape(label, (-3, -2))
+        bbox_target = X.reshape(bbox_target, (-3, -2))
+        bbox_weight = X.reshape(bbox_weight, (-3, -2))
+
+        return bbox, label, bbox_target, bbox_weight
