@@ -215,8 +215,9 @@ class CascadeBbox2fcHead(Bbox2fcHead):
 
 
     def _get_bbox_head_logit(self, conv_feat):
-        #if self._head_feat is not None:
-        #    return self._head_feat
+        # comment this for re-infer in test stage
+        # if self._head_feat is not None:
+        #     return self._head_feat
 
         stage = self.stage
 
