@@ -35,7 +35,6 @@ def get_config(is_train):
     class NeckParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        conv_channel = 256
 
 
     class RpnParam:

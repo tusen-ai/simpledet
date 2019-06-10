@@ -35,7 +35,9 @@ def get_config(is_train):
     class NeckParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        conv_channel = 1024
+
+        class reduce:
+            channel = 1024
 
 
     class RpnParam:
@@ -234,7 +236,7 @@ def get_config(is_train):
             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
             momentum = 0.9
             wd = 0.0001
-            clip_gradient = 35
+            clip_gradient = None
 
         class schedule:
             begin_epoch = 0
