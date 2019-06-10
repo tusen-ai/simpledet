@@ -323,7 +323,8 @@ class BboxHead(object):
             head_feat = dict(classification=head_feat, regression=head_feat)
 
         if p.fp16:
-            head_feat = X.to_fp32(head_feat, name="bbox_head_to_fp32")
+            head_feat["classification"] = X.to_fp32(head_feat["classification"], name="bbox_cls_head_to_fp32")
+            head_feat["regression"] = X.to_fp32(head_feat["regression"], name="bbox_reg_head_to_fp32")
 
         cls_logit = X.fc(
             head_feat["classification"],
