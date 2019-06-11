@@ -35,7 +35,6 @@ inline void SampleROI(
   const float fg_thresh,
   const float bg_thresh_hi,
   const float bg_thresh_lo,
-  const int image_rois,
   const bool class_agnostic,
   Tensor<cpu, 2, DType> &&rois,
   Tensor<cpu, 1, DType> &&labels,
