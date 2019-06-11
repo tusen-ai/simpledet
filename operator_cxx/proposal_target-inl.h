@@ -35,7 +35,6 @@ inline void SampleROI(
   const float fg_thresh,
   const float bg_thresh_hi,
   const float bg_thresh_lo,
-  const int image_rois,
   const bool class_agnostic,
   Tensor<cpu, 2, DType> &&rois,
   Tensor<cpu, 1, DType> &&labels,
@@ -142,8 +141,7 @@ class ProposalTargetOp : public Operator {
     const index_t num_image         = param_.batch_images;
     const index_t num_roi           = in_data[proposal_target_enum::kRois].Size() / (num_image * 4);
     const index_t num_gtbbox        = in_data[proposal_target_enum::kGtBboxes].Size() / (num_image * 5);
-    // when image_rois = -1 , keep out all rois without subsampling.
-    const int image_rois            = param_.image_rois == -1 ? num_roi : param_.image_rois;
+    const int image_rois            = param_.image_rois;
     Tensor<xpu, 3, DType> xpu_rois      = in_data[proposal_target_enum::kRois].
                                           get_with_shape<xpu, 3, DType>(Shape3(num_image, num_roi, 4), s);
     Tensor<xpu, 3, DType> xpu_gt_bboxes = in_data[proposal_target_enum::kGtBboxes].
@@ -175,9 +173,8 @@ class ProposalTargetOp : public Operator {
     for (index_t i = 0; i < num_image; ++i) {
       kept_rois.push_back(std::vector<Tensor<cpu, 1, DType>>());
       for (index_t j = 0; j < rois.size(1); ++j) {
-        // avoid filtering RoIs when image_rois equals to -1
         // y2 == 0 indicates padding
-        if (param_.image_rois == -1 || rois[i][j][3] > 0)
+        if (rois[i][j][3] > 0)
           kept_rois[i].push_back(rois[i][j]);
       }
       if (!param_.proposal_without_gt) {
@@ -238,7 +235,6 @@ class ProposalTargetOp : public Operator {
             param_.fg_thresh, 
             param_.bg_thresh_hi, 
             param_.bg_thresh_lo,
-            param_.image_rois,
             param_.class_agnostic,
             cpu_output_rois[i],
             cpu_labels[i],
@@ -332,7 +328,7 @@ class ProposalTargetProp : public OperatorProperty {
     using namespace mshadow;
     CHECK_EQ(in_shape->size(), 2) << "Input:[rois, gt_boxes]";
     const TShape &dshape = in_shape->at(proposal_target_enum::kRois);
-    const int image_rois  = param_.image_rois == -1 ? dshape[1]: param_.image_rois;
+    const int image_rois  = param_.image_rois;
 
     auto output_rois_shape = Shape3(dshape[0], image_rois, 4);
     auto label_shape = Shape2(dshape[0], image_rois);

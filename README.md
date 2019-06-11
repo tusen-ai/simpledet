@@ -8,9 +8,10 @@
 - Modular design for coding-free exploration of new experiment settings
 
 ### Recent Updates
-- Add RPN test (2019.5.28)
-- Add [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) (2019.6.04)
-- Add new ResNetV1b baselines from GluonCV (2019.6.7)
+- Add RPN test (2019.05.28)
+- Add [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) (2019.06.04)
+- Add new ResNetV1b baselines from GluonCV (2019.06.07)
+- Add Cascade R-CNN with FPN backbone (2019.06.11)
 
 ### Setup
 #### Install
