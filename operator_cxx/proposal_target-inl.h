@@ -328,7 +328,7 @@ class ProposalTargetProp : public OperatorProperty {
     using namespace mshadow;
     CHECK_EQ(in_shape->size(), 2) << "Input:[rois, gt_boxes]";
     const TShape &dshape = in_shape->at(proposal_target_enum::kRois);
-    const int image_rois  = param_.image_rois == -1 ? dshape[1]: param_.image_rois;
+    const int image_rois  = param_.image_rois;
 
     auto output_rois_shape = Shape3(dshape[0], image_rois, 4);
     auto label_shape = Shape2(dshape[0], image_rois);
