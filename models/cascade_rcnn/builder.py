@@ -255,18 +255,22 @@ class CascadeBbox2fcHead(Bbox2fcHead):
 
         head_feat = self._get_bbox_head_logit(conv_feat)
 
+        if not isinstance(head_feat, dict):
+            head_feat = dict(classification=head_feat, regression=head_feat)
+
         if p.fp16:
-            head_feat = X.to_fp32(head_feat, name="bbox_head_to_fp32_" + stage)
+            head_feat["classification"] = X.to_fp32(head_feat["classification"], name="bbox_cls_head_to_fp32_" + stage)
+            head_feat["regression"] = X.to_fp32(head_feat["regression"], name="bbox_reg_head_to_fp32_" + stage)
 
         cls_logit = X.fc(
-            head_feat,
+            head_feat["classification"],
             filter=num_class,
             weight=self.cls_logit_weight,
             bias=self.cls_logit_bias,
             name='bbox_cls_logit_' + stage
         )
         bbox_delta = X.fc(
-            head_feat,
+            head_feat["regression"],
             filter=4 * num_reg_class,
             weight=self.bbox_delta_weight,
             bias=self.bbox_delta_bias,
