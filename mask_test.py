@@ -103,9 +103,12 @@ if __name__ == "__main__":
             print('terminal output shape')
             print(pprint.pformat([i for i in terminal_out_shape_dict]))
 
+            arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
+            if pModel.process_weight is not None:
+                pModel.process_weight(sym, arg_params, aux_params)
+
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
-                arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
                 mod.bind(data_shapes=loader.provide_data, for_training=False)
                 mod.set_params(arg_params, aux_params, allow_extra=False)

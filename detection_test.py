@@ -5,6 +5,7 @@ import pprint
 from core.detection_module import DetModule
 from core.detection_input import Loader
 from utils.load_model import load_checkpoint
+from utils.patch_config import patch_config_as_nothrow
 
 from six.moves import reduce
 from six.moves.queue import Queue
@@ -34,6 +35,15 @@ if __name__ == "__main__":
 
     pGen, pKv, pRpn, pRoi, pBbox, pDataset, pModel, pOpt, pTest, \
     transform, data_name, label_name, metric_list = config.get_config(is_train=False)
+    pGen = patch_config_as_nothrow(pGen)
+    pKv = patch_config_as_nothrow(pKv)
+    pRpn = patch_config_as_nothrow(pRpn)
+    pRoi = patch_config_as_nothrow(pRoi)
+    pBbox = patch_config_as_nothrow(pBbox)
+    pDataset = patch_config_as_nothrow(pDataset)
+    pModel = patch_config_as_nothrow(pModel)
+    pOpt = patch_config_as_nothrow(pOpt)
+    pTest = patch_config_as_nothrow(pTest)
 
     sym = pModel.test_symbol
     sym.save(pTest.model.prefix + "_test.json")
@@ -94,9 +104,12 @@ if __name__ == "__main__":
             print('terminal output shape')
             print(pprint.pformat([i for i in terminal_out_shape_dict]))
 
+            arg_params, aux_params = load_checkpoint(pTest.model.prefix, args.epoch or pTest.model.epoch)
+            if pModel.process_weight is not None:
+                pModel.process_weight(sym, arg_params, aux_params)
+
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
-                arg_params, aux_params = load_checkpoint(pTest.model.prefix, args.epoch or pTest.model.epoch)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
                 mod.bind(data_shapes=loader.provide_data, for_training=False)
                 mod.set_params(arg_params, aux_params, allow_extra=False)
