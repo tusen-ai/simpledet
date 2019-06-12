@@ -254,6 +254,29 @@ class RpnHead(object):
             output_score=True
         )
 
+        if p.use_symbolic_proposal is not None:
+            batch_size = p.batch_image
+            max_side = p.anchor_generate.max_side
+            assert max_side is not None, "symbolic proposal requires max_side of image"
+
+            from mxnext.tvm.proposal import proposal as Proposal
+            proposal = Proposal(
+                cls_prob=cls_logit_reshape,
+                bbox_pred=bbox_delta,
+                im_info=im_info,
+                name='proposal',
+                feature_stride=rpn_stride,
+                scales=tuple(anchor_scale),
+                ratios=tuple(anchor_ratio),
+                rpn_pre_nms_top_n=pre_nms_top_n,
+                rpn_post_nms_top_n=post_nms_top_n,
+                threshold=nms_thr,
+                batch_size=batch_size,
+                max_side=max_side,
+                output_score=True,
+                variant="simpledet"
+            )
+
         self._proposal = proposal
 
         return proposal
@@ -870,3 +893,40 @@ class RoiAlign(RoiExtractor):
 
     def get_roi_feature_test(self, rcnn_feat, proposal):
         return self.get_roi_feature(rcnn_feat, proposal)
+
+
+def add_anchor_to_arg(sym, args, auxs, max_side, strides, scales, aspects):
+    import numpy as np
+
+    if not isinstance(strides, tuple) and not isinstance(strides, list):
+        strides = (strides, )
+
+    for stride in strides:
+        base_anchor = np.array([0, 0, stride - 1, stride - 1])
+
+        w = base_anchor[2] - base_anchor[0] + 1
+        h = base_anchor[3] - base_anchor[1] + 1
+        x_ctr = base_anchor[0] + 0.5 * (w - 1)
+        y_ctr = base_anchor[1] + 0.5 * (h - 1)
+
+        w_ratios = np.round(np.sqrt(w * h / aspects))
+        h_ratios = np.round(w_ratios * aspects)
+        ws = (np.outer(w_ratios, scales)).reshape(-1)
+        hs = (np.outer(h_ratios, scales)).reshape(-1)
+
+        base_anchor = np.stack(
+            [x_ctr - 0.5 * (ws - 1),
+             y_ctr - 0.5 * (hs - 1),
+             x_ctr + 0.5 * (ws - 1),
+             y_ctr + 0.5 * (hs - 1)],
+            axis=1)
+
+        shift_x = np.arange(0, max_side // stride, dtype=np.float32) * stride
+        shift_y = np.arange(0, max_side // stride, dtype=np.float32) * stride
+        grid_x, grid_y = np.meshgrid(shift_x, shift_y)
+        grid_x, grid_y = grid_x.reshape(-1), grid_y.reshape(-1)
+        grid = np.stack([grid_x, grid_y, grid_x, grid_y], axis=1)
+        all_anchor = grid[:, None, :] + base_anchor[None, :, :]
+        all_anchor = all_anchor.reshape(1, 1, max_side // stride, max_side // stride, -1)
+
+        args["anchor_stride%s" % stride] = mx.nd.array(all_anchor)
