@@ -287,6 +287,33 @@ class Pad2DImageBbox(DetectionAugmentation):
         input_record["gt_bbox"] = padded_gt_bbox
 
 
+class Pad2DImage(DetectionAugmentation):
+    """
+    input: image, ndarray(h, w, rgb)
+           gt_bbox, ndarry(n, 5)
+    output: image, ndarray(h, w, rgb)
+            gt_bbox, ndarray(max_num_gt, 5)
+    """
+
+    def __init__(self, pPad):
+        super().__init__()
+        self.p = pPad  # type: PadParam
+
+    def apply(self, input_record):
+        p = self.p
+
+        image = input_record["image"]
+
+        h, w = image.shape[:2]
+        shape = (p.long, p.short, 3) if h >= w \
+            else (p.short, p.long, 3)
+
+        padded_image = np.zeros(shape, dtype=np.float32)
+        padded_image[:h, :w] = image
+
+        input_record["image"] = padded_image
+
+
 class ConvertImageFromHwcToChw(DetectionAugmentation):
     def __init__(self):
         super().__init__()

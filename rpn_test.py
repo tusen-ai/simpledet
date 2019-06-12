@@ -44,7 +44,7 @@ if __name__ == "__main__":
     pTest = patch_config_as_nothrow(pTest)
 
     sym = pModel.rpn_test_symbol
-    sym.save(pTest.model.prefix + "_test.json")
+    sym.save(pTest.model.prefix + "_rpn_test.json")
 
     image_sets = pDataset.image_set
     roidbs_all = [pkl.load(open("data/cache/{}.roidb".format(i), "rb"), encoding="latin1") for i in image_sets]
@@ -86,9 +86,12 @@ if __name__ == "__main__":
         data_names = [k[0] for k in loader.provide_data]
 
         if index_split == 0:
+            arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
+            if pModel.process_weight is not None:
+                pModel.process_weight(sym, arg_params, aux_params)
+
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
-                arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
                 mod.bind(data_shapes=loader.provide_data, for_training=False)
                 mod.set_params(arg_params, aux_params, allow_extra=False)
