@@ -166,8 +166,8 @@ class TridentResNetV1bBuilder(Builder):
         else:
             shortcut = data
 
-        plus = [X.add(conv3_i, shortcut_i, name=name + "_plus_branch{}".format(i)) \
-                for i, conv3_i, shortcut_i in zip(branch_ids, conv3, shortcut)]
+        plus = [X.add(bn3_i, shortcut_i, name=name + "_plus_branch{}".format(i)) \
+                for i, bn3_i, shortcut_i in zip(branch_ids, bn3, shortcut)]
 
         return [X.relu(p) for p in plus]
 
