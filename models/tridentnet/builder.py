@@ -7,6 +7,7 @@ import mxnext as X
 from symbol.builder import RpnHead, Backbone, RoiExtractor
 from models.tridentnet.resnet_v2 import TridentResNetV2Builder
 from models.tridentnet.resnet_v1b import TridentResNetV1bBuilder
+from models.tridentnet.resnet_v1 import TridentResNetV1Builder
 from utils.patch_config import patch_config_as_nothrow
 
 
@@ -450,6 +451,22 @@ class TridentResNetV1bC4(Backbone):
         super().__init__(pBackbone)
         p = self.p
         b = TridentResNetV1bBuilder()
+        self.symbol = b.get_backbone(p.depth, "c4", p.normalizer, p.fp16,
+                                     p.num_branch, p.branch_dilates, p.branch_ids,
+                                     p.branch_bn_shared, p.branch_conv_shared, p.branch_deform)
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
+
+
+class TridentResNetV1C4(Backbone):
+    def __init__(self, pBackbone):
+        super().__init__(pBackbone)
+        p = self.p
+        b = TridentResNetV1Builder()
         self.symbol = b.get_backbone(p.depth, "c4", p.normalizer, p.fp16,
                                      p.num_branch, p.branch_dilates, p.branch_ids,
                                      p.branch_bn_shared, p.branch_conv_shared, p.branch_deform)
