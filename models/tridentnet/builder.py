@@ -452,7 +452,7 @@ class TridentResNetV1bC4(Backbone):
         p = self.p
         b = TridentResNetV1bBuilder()
         self.symbol = b.get_backbone(p.depth, "c4", p.normalizer, p.fp16,
-                                     p.num_branch, p.branch_dilates, p.branch_ids,
+                                     p.num_trident_block, p.num_branch, p.branch_dilates, p.branch_ids,
                                      p.branch_bn_shared, p.branch_conv_shared, p.branch_deform)
 
     def get_rpn_feature(self):
@@ -468,7 +468,7 @@ class TridentResNetV1C4(Backbone):
         p = self.p
         b = TridentResNetV1Builder()
         self.symbol = b.get_backbone(p.depth, "c4", p.normalizer, p.fp16,
-                                     p.num_branch, p.branch_dilates, p.branch_ids,
+                                     p.num_trident_block, p.num_branch, p.branch_dilates, p.branch_ids,
                                      p.branch_bn_shared, p.branch_conv_shared, p.branch_deform)
 
     def get_rpn_feature(self):

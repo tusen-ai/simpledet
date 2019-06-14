@@ -173,7 +173,7 @@ class TridentResNetV1Builder(Builder):
 
     @classmethod
     def resnet_trident_stage(cls, data, name, num_block, filter, stride, dilate, norm_type, norm_mom, ndev,
-                             num_branch, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform):
+                             num_trident_block, num_branch, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform):
         """
         One resnet stage is comprised of multiple resnet units. Refer to depth config for more information.
         :param data:
@@ -192,31 +192,41 @@ class TridentResNetV1Builder(Builder):
         :return:
         """
         assert isinstance(dilate, list) and len(dilate) == num_branch, 'dilate should be a list with num_branch items.'
+        num_trident_block = num_trident_block or (num_block - 1)  # transform all blocks by default
 
         d = [(d, d) for d in dilate]
 
         data = cls.resnet_unit(data, "{}_unit1".format(name), filter, stride, 1, True, norm_type, norm_mom, ndev)
-        data = [data] * num_branch
         for i in range(2, num_block + 1):
-            if branch_deform and i >= num_block - 2:
-                unit_deform = True
+            # [i ... num_block] == [1 ... num_trident_block]
+            if i == (num_block - num_trident_block + 1):
+                data = [data] * num_branch
+            if i >= (num_block - num_trident_block + 1):
+                if branch_deform and i >= num_block - 2:
+                    unit_deform = True
+                else:
+                    unit_deform = False
+                # cast back to fp32 as deformable conv is not optimized for fp16
+                if unit_deform and i == num_block - 2:
+                    for j in range(num_branch):
+                        data[j] = X.to_fp32(data[j], name="deform_to32")
+                data = cls.resnet_trident_unit(
+                    data, "{}_unit{}".format(name, i), filter, (1, 1), d, False, norm_type, norm_mom, ndev,
+                    branch_ids, branch_bn_shared, branch_conv_shared, branch_deform=unit_deform)
             else:
-                unit_deform = False
-            data = cls.resnet_trident_unit(
-                data, "{}_unit{}".format(name, i), filter, (1, 1), d, False, norm_type, norm_mom, ndev,
-                branch_ids, branch_bn_shared, branch_conv_shared, branch_deform=unit_deform)
+                data = cls.resnet_unit(data, "{}_unit{}".format(name, i), filter, 1, 1, False, norm_type, norm_mom, ndev)
 
         return data
 
     @classmethod
-    def resnet_trident_c4(cls, data, num_block, stride, dilate, norm_type, norm_mom, ndev,
+    def resnet_trident_c4(cls, data, num_block, stride, dilate, norm_type, norm_mom, ndev, num_trident_block,
                           num_branch, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform):
         return cls.resnet_trident_stage(
-            data, "stage3", num_block, 1024, stride, dilate, norm_type, norm_mom, ndev,
+            data, "stage3", num_block, 1024, stride, dilate, norm_type, norm_mom, ndev, num_trident_block,
             num_branch, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform)
 
     @classmethod
-    def resnet_factory(cls, depth, use_3x3_conv0, use_bn_preprocess,
+    def resnet_factory(cls, depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                        num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                        norm_type="local", norm_mom=0.9, ndev=None, fp16=False):
         num_c2_unit, num_c3_unit, num_c4_unit, num_c5_unit = cls.depth_config[depth]
@@ -227,7 +237,7 @@ class TridentResNetV1Builder(Builder):
         c1 = cls.resnet_c1(data, use_3x3_conv0, use_bn_preprocess, norm_type, norm_mom, ndev)
         c2 = cls.resnet_c2(c1, num_c2_unit, 1, 1, norm_type, norm_mom, ndev)
         c3 = cls.resnet_c3(c2, num_c3_unit, 2, 1, norm_type, norm_mom, ndev)
-        c4 = cls.resnet_trident_c4(c3, num_c4_unit, 2, branch_dilates, norm_type, norm_mom, ndev,
+        c4 = cls.resnet_trident_c4(c3, num_c4_unit, 2, branch_dilates, norm_type, norm_mom, ndev, num_trident_block,
                                    num_branch, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform)
         # stack branch features and merge into batch dim
         c4 = cls.stack_branch_symbols(c4)
@@ -236,17 +246,17 @@ class TridentResNetV1Builder(Builder):
         return c1, c2, c3, c4, c5
 
     @classmethod
-    def resnet_c4_factory(cls, depth, use_3x3_conv0, use_bn_preprocess,
+    def resnet_c4_factory(cls, depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                           num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                           norm_type="local", norm_mom=0.9, ndev=None, fp16=False):
-        c1, c2, c3, c4, c5 = cls.resnet_factory(depth, use_3x3_conv0, use_bn_preprocess,
+        c1, c2, c3, c4, c5 = cls.resnet_factory(depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                                                 num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                                                 norm_type, norm_mom, ndev, fp16)
 
         return c4
 
     @classmethod
-    def resnet_c4c5_factory(cls, depth, use_3x3_conv0, use_bn_preprocess,
+    def resnet_c4c5_factory(cls, depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                             num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                             norm_type="local", norm_mom=0.9, ndev=None, fp16=False):
         c1, c2, c3, c4, c5 = cls.resnet_factory(depth, use_3x3_conv0, use_bn_preprocess,
@@ -255,7 +265,7 @@ class TridentResNetV1Builder(Builder):
 
         return c4, c5
 
-    def get_backbone(self, depth, endpoint, normalizer, fp16,
+    def get_backbone(self, depth, endpoint, normalizer, fp16,num_trident_block,
                      num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform):
         # parse endpoint
         if endpoint == "c4":
@@ -265,6 +275,6 @@ class TridentResNetV1Builder(Builder):
         else:
             raise KeyError("Unknown backbone endpoint {}".format(endpoint))
 
-        return factory(depth, False, False,
+        return factory(depth, False, False, num_trident_block,
                        num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                        norm_type=normalizer, fp16=fp16)
