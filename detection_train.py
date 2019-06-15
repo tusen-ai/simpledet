@@ -87,7 +87,7 @@ def train_net(config):
         batch_size=input_batch_size,
         shuffle=True,
         kv=kv,
-        num_worker=6,
+        num_worker=12,
         num_collector=2,
         worker_queue_depth=2,
         collector_queue_depth=2

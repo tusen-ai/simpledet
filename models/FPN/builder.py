@@ -237,6 +237,7 @@ class FPNRpnHead(RpnHead):
         nms_thr = p.proposal.nms_thr
         min_bbox_side = p.proposal.min_bbox_side
         num_anchors = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
+        batch_size = p.batch_image
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_fpn_feat)
 
@@ -272,6 +273,28 @@ class FPNRpnHead(RpnHead):
                 rpn_min_size=min_bbox_side,
                 threshold=nms_thr,
                 iou_loss=False)
+
+            if p.use_symbolic_proposal is not None and stride != rpn_stride[-1]:
+                max_side = p.anchor_generate.max_side
+                assert max_side is not None, "symbolic proposal requires max_side of image"
+
+                from mxnext.tvm.proposal import proposal as Proposal
+                rpn_proposal, rpn_proposal_scores = Proposal(
+                    cls_prob=rpn_cls_score_reshape,
+                    bbox_pred=rpn_bbox_delta,
+                    im_info=im_info,
+                    name='proposal',
+                    feature_stride=stride,
+                    scales=tuple(anchor_scale),
+                    ratios=tuple(anchor_ratio),
+                    rpn_pre_nms_top_n=pre_nms_top_n,
+                    rpn_post_nms_top_n=post_nms_top_n,
+                    threshold=nms_thr,
+                    batch_size=batch_size,
+                    max_side=max_side,
+                    output_score=True,
+                    variant="simpledet"
+                )
             proposal_list.append(rpn_proposal)
             proposal_scores_list.append(rpn_proposal_scores)
 
@@ -279,9 +302,9 @@ class FPNRpnHead(RpnHead):
         proposal_concat = X.concat(proposal_list, axis=1, name="proposal_concat")
         proposal_scores_concat = X.concat(proposal_scores_list, axis=1, name="proposal_scores_concat")
 
-        proposal = mx.symbol.Custom(bbox=proposal_concat, score=proposal_scores_concat,
-                                    op_type='get_top_proposal', top_n=post_nms_top_n)
-
+        from mxnext.tvm.get_top_proposal import get_top_proposal
+        proposal = get_top_proposal(mx.symbol, bbox=proposal_concat, score=proposal_scores_concat,
+                                    top_n=post_nms_top_n, batch_size=batch_size)
         self._proposal = proposal
 
         return proposal
@@ -533,14 +556,10 @@ class FPNRoiAlign(RoiAlign):
         roi_canonical_scale = p.roi_canonical_scale
         roi_canonical_level = p.roi_canonical_level
 
-        group = mx.symbol.Custom(
-            op_type="assign_layer_fpn",
-            rois=proposal,
-            rcnn_stride=rcnn_stride,
-            roi_canonical_scale=roi_canonical_scale,
-            roi_canonical_level=roi_canonical_level,
-            name="assign_layer_fpn"
-        )
+        from mxnext.tvm.fpn_roi_assign import fpn_roi_assign
+        group = fpn_roi_assign(mx.symbol, proposal, rcnn_stride, 
+            roi_canonical_scale, roi_canonical_level)
+
         proposal_fpn = dict()
         for i, stride in enumerate(rcnn_stride):
             proposal_fpn["stride%s" % stride] = group[i]
