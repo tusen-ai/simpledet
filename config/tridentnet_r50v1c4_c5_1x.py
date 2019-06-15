@@ -201,8 +201,8 @@ def get_config(is_train):
 
     # data processing
     class NormParam:
-        mean = tuple(i * 255 for i in (0.485, 0.456, 0.406)) # RGB order
-        std = tuple(i * 255 for i in (0.229, 0.224, 0.225))
+        mean = (122.7717, 115.9465, 102.9801) # RGB order
+        std = (1.0, 1.0, 1.0)
 
     class ResizeParam:
         short = 800
