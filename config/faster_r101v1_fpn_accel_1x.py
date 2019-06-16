@@ -1,6 +1,6 @@
 from symbol.builder import FasterRcnn as Detector
 from symbol.builder import add_anchor_to_arg
-from models.FPN.builder import MSRAResNet50V1FPN as Backbone
+from models.FPN.builder import MSRAResNet101V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -12,7 +12,7 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 4 if is_train else 1
+        batch_image = 2 if is_train else 1
         fp16 = False
 
 
@@ -132,7 +132,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-50"
+            prefix = "pretrain_model/resnet-v1-101"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
