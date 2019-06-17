@@ -76,6 +76,7 @@ cp -r /tmp/simpledet/operator_cxx/* /tmp/mxnet/src/operator && \
 mkdir -p /tmp/mxnet/src/coco_api && \
 cp -r /tmp/cocoapi/common /tmp/mxnet/src/coco_api && \
 cd /tmp/mxnet && \
+echo "USE_SIGNAL_HANDLER = 1" >> ./config.mk && \
 echo "USE_OPENCV = 0" >> ./config.mk && \
 echo "USE_MKLDNN = 0" >> ./config.mk && \
 echo "USE_BLAS = openblas" >> ./config.mk && \
@@ -84,7 +85,7 @@ echo "USE_CUDA_PATH = /usr/local/cuda" >> ./config.mk && \
 echo "USE_CUDNN = 1" >> ./config.mk && \
 echo "USE_NCCL = 1" >> ./config.mk && \
 echo "USE_DIST_KVSTORE = 1" >> ./config.mk && \
-echo "CUDA_ARCH = -gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70" >> ./config.mk && \
+echo "CUDA_ARCH = -gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70" >> ./config.mk && \
 make -j$((`nproc`-1)) && \
 cd python && \
 python3 setup.py install && \
