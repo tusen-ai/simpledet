@@ -582,7 +582,7 @@ class Loader(mx.io.DataIter):
 
         # infer properties from roidb
         self.total_index = np.arange(len(roidb))
-        self.valid_count = valid_count
+        self.valid_count = valid_count if valid_count != -1 else len(roidb)
 
         # decide data and label names
         self.data_name = data_name
