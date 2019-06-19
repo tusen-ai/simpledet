@@ -558,7 +558,7 @@ class Loader(mx.io.DataIter):
 
     def __init__(self, roidb, transform, data_name, label_name, batch_size=1,
                  shuffle=False, num_worker=None, num_collector=None,
-                 worker_queue_depth=None, collector_queue_depth=None, kv=None):
+                 worker_queue_depth=None, collector_queue_depth=None, kv=None, valid_count=-1):
         """
         This Iter will provide roi data to Fast R-CNN network
         :param roidb: must be preprocessed
@@ -581,7 +581,8 @@ class Loader(mx.io.DataIter):
         self.shuffle = shuffle
 
         # infer properties from roidb
-        self.index = np.arange(len(roidb))
+        self.total_index = np.arange(len(roidb))
+        self.valid_count = valid_count
 
         # decide data and label names
         self.data_name = data_name
@@ -606,6 +607,10 @@ class Loader(mx.io.DataIter):
         self._thread_start()
         self.load_first_batch()
         self.reset()
+
+    @property
+    def index(self):
+        return self.total_index[:self.valid_count]
 
     @property
     def total_record(self):
@@ -643,7 +648,7 @@ class Loader(mx.io.DataIter):
     def reset(self):
         self._cur = 0
         if self.shuffle:
-            np.random.shuffle(self.index)
+            np.random.shuffle(self.total_index)
 
         self._insert_queue()
 
@@ -754,10 +759,12 @@ class AnchorLoader(mx.io.DataIter):
             v_part = len(v_roidb) // num_rank
             v_remain = len(v_roidb) % num_rank
             v_roidb_part = v_roidb[rank * v_part:(rank + 1) * v_part]
+            v_valid_count = len(v_roidb_part)
             v_roidb_part += v_roidb[-v_remain:][rank:rank+1]
             h_part = len(h_roidb) // num_rank
             h_remain = len(h_roidb) % num_rank
             h_roidb_part = h_roidb[rank * h_part:(rank + 1) * h_part]
+            h_valid_count = len(h_roidb_part)
             h_roidb_part += h_roidb[-h_remain:][rank:rank+1]
         else:
             v_roidb_part = v_roidb
@@ -766,6 +773,7 @@ class AnchorLoader(mx.io.DataIter):
         loaders = []
         if len(h_roidb_part) >= batch_size:
             h_loader = Loader(roidb=h_roidb_part,
+                              valid_count=h_valid_count,
                               transform=transform,
                               data_name=data_name,
                               label_name=label_name,
@@ -779,6 +787,7 @@ class AnchorLoader(mx.io.DataIter):
             loaders.append(h_loader)
         if len(v_roidb_part) >= batch_size:
             v_loader = Loader(roidb=v_roidb_part,
+                              valid_count=v_valid_count,
                               transform=transform,
                               data_name=data_name,
                               label_name=label_name,

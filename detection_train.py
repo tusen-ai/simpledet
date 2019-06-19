@@ -257,6 +257,8 @@ def train_net(config):
     )
 
     logging.info("Training has done")
+    time.sleep(10)
+    logging.info("Exiting")
 
 
 def parse_args():
