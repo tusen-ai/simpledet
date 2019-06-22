@@ -27,6 +27,7 @@ if __name__ == "__main__":
         transform, data_name, label_name, metric_list = config.get_config(is_train=False)
 
     sym = pModel.test_symbol
+    sym.save(pTest.model.prefix + "_infer_speed.json")
 
     # create dummy data batch
     data = mx.nd.ones(shape=[1, 3] + shape)
