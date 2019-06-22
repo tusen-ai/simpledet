@@ -12,7 +12,7 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 2 if is_train else 1
+        batch_image = 1 if is_train else 1
         fp16 = False
 
     class Trident:
@@ -20,7 +20,7 @@ def get_config(is_train):
         train_scaleaware = False
         test_scaleaware = False
         branch_ids = range(num_branch) if is_train else [1]
-        branch_dilates = [1, 2, 3] if is_train else [1]
+        branch_dilates = [1, 2, 3] if is_train else [2]
         valid_ranges = [(0, -1), (0, -1), (0, -1)] if is_train else [(0, -1)]
         valid_ranges_on_origin = True
         branch_bn_shared = True
@@ -74,7 +74,7 @@ def get_config(is_train):
 
         class proposal:
             pre_nms_top_n = 12000 if is_train else 6000
-            post_nms_top_n = 500 if is_train else 1000
+            post_nms_top_n = 500 if is_train else 300
             nms_thr = 0.7
             min_bbox_side = 0
 
