@@ -106,7 +106,37 @@ class Resize2DImageBbox(DetectionAugmentation):
         input_record["im_info"] = (round(h * scale), round(w * scale), scale)
 
 
-class Resize2DImageBboxByRoidb(DetectionAugmentation):
+class Resize2DImage(DetectionAugmentation):
+    """
+    input: image, ndarray(h, w, rgb)
+           gt_bbox, ndarry(n, 5)
+    output: image, ndarray(h', w', rgb)
+            im_info, tuple(h', w', scale)
+            gt_bbox, ndarray(n, 5)
+    """
+
+    def __init__(self, pResize):
+        super().__init__()
+        self.p = pResize  # type: ResizeParam
+
+    def apply(self, input_record):
+        p = self.p
+
+        image = input_record["image"]
+
+        short = min(image.shape[:2])
+        long = max(image.shape[:2])
+        scale = min(p.short / short, p.long / long)
+
+        input_record["image"] = cv2.resize(image, None, None, scale, scale,
+                                           interpolation=cv2.INTER_LINEAR)
+
+        # exactly as opencv
+        h, w = image.shape[:2]
+        input_record["im_info"] = (round(h * scale), round(w * scale), scale)
+
+
+class Resize2DImageByRoidb(DetectionAugmentation):
     """
     input: image, ndarray(h, w, rgb)
            gt_bbox, ndarry(n, 5)
@@ -120,7 +150,7 @@ class Resize2DImageBboxByRoidb(DetectionAugmentation):
         class ResizeParam:
             long = None
             short = None
-        self.resize_aug = Resize2DImageBbox(ResizeParam)
+        self.resize_aug = Resize2DImage(ResizeParam)
 
     def apply(self, input_record):
         self.resize_aug.p.long = input_record["resize_long"]
@@ -768,7 +798,9 @@ class AnchorLoader(mx.io.DataIter):
             h_roidb_part += h_roidb[-h_remain:][rank:rank+1]
         else:
             v_roidb_part = v_roidb
+            v_valid_count = len(v_roidb)
             h_roidb_part = h_roidb
+            h_valid_count = len(h_roidb)
 
         loaders = []
         if len(h_roidb_part) >= batch_size:
