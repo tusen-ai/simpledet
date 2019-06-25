@@ -12,7 +12,7 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 2 if is_train else 1
+        batch_image = 1 if is_train else 1
         fp16 = False
 
     class Trident:
@@ -74,7 +74,7 @@ def get_config(is_train):
 
         class proposal:
             pre_nms_top_n = 12000 if is_train else 6000
-            post_nms_top_n = 500 if is_train else 1000
+            post_nms_top_n = 500 if is_train else 300
             nms_thr = 0.7
             min_bbox_side = 0
 
