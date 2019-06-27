@@ -284,7 +284,7 @@ def get_config(is_train):
         mapping = dict(image="data")
 
 
-    from core.detection_input import ReadRoiRecord,  RandResize2DImageBbox, RandCrop2DImageBbox, Resize2DImageBboxByRoidb, \
+    from core.detection_input import ReadRoiRecord,  RandResize2DImageBbox, RandCrop2DImageBbox, Resize2DImageByRoidb, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord
     from models.tridentnet.input import ScaleAwareRange, TridentAnchorTarget2D
@@ -308,7 +308,7 @@ def get_config(is_train):
     else:
         transform = [
             ReadRoiRecord(None),
-            Resize2DImageBboxByRoidb(),
+            Resize2DImageByRoidb(),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)
         ]

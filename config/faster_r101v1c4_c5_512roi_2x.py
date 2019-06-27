@@ -1,35 +1,19 @@
-from models.tridentnet.builder import TridentFasterRcnn as Detector
-from models.tridentnet.builder import TridentMXNetResNetV2 as Backbone
-from models.tridentnet.builder import TridentRpnHead as RpnHead
-from models.tridentnet.builder import process_branch_outputs, process_branch_rpn_outputs
+from symbol.builder import FasterRcnn as Detector
+from symbol.builder import ResNet101V1 as Backbone
 from symbol.builder import Neck
+from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
-from symbol.builder import BboxC5Head as BboxHead
+from symbol.builder import BboxC5V1Head as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
 def get_config(is_train):
     class General:
-        log_frequency = 20
-        depth = 101
+        log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 1 if is_train else 1
+        batch_image = 2 if is_train else 1
         fp16 = False
 
-    class Trident:
-        num_branch = 3
-        train_scaleaware = True
-        test_scaleaware = True
-        branch_ids = range(num_branch)
-        branch_dilates = [1, 2, 3]
-        valid_ranges = [(0, 90), (30, 160), (90, -1)]
-        valid_ranges_on_origin = True
-        branch_bn_shared = True
-        branch_conv_shared = True
-        branch_deform = False
-
-        assert num_branch == len(branch_ids)
-        assert num_branch == len(valid_ranges)
 
     class KvstoreParam:
         kvstore     = "local"
@@ -37,20 +21,16 @@ def get_config(is_train):
         gpus        = [0, 1, 2, 3, 4, 5, 6, 7]
         fp16        = General.fp16
 
+
     class NormalizeParam:
         # normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
         normalizer = normalizer_factory(type="fixbn")
 
+
     class BackboneParam:
         fp16 = General.fp16
-        depth = General.depth
         normalizer = NormalizeParam.normalizer
-        num_branch = Trident.num_branch
-        branch_ids = Trident.branch_ids
-        branch_dilates = Trident.branch_dilates
-        branch_bn_shared = Trident.branch_bn_shared
-        branch_conv_shared = Trident.branch_conv_shared
-        branch_deform = Trident.branch_deform
+
 
     class NeckParam:
         fp16 = General.fp16
@@ -60,7 +40,7 @@ def get_config(is_train):
     class RpnParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        batch_image = General.batch_image * Trident.num_branch
+        batch_image = General.batch_image
 
         class anchor_generate:
             scale = (2, 4, 8, 16, 32)
@@ -75,14 +55,14 @@ def get_config(is_train):
 
         class proposal:
             pre_nms_top_n = 12000 if is_train else 6000
-            post_nms_top_n = 500 if is_train else 300
+            post_nms_top_n = 2000 if is_train else 1000
             nms_thr = 0.7
             min_bbox_side = 0
 
         class subsample_proposal:
-            proposal_wo_gt = True
-            image_roi = 128
-            fg_fraction = 0.5
+            proposal_wo_gt = False
+            image_roi = 512
+            fg_fraction = 0.25
             fg_thr = 0.5
             bg_thr_hi = 0.5
             bg_thr_lo = 0.0
@@ -99,8 +79,8 @@ def get_config(is_train):
         fp16        = General.fp16
         normalizer  = NormalizeParam.normalizer
         num_class   = 1 + 80
-        image_roi   = 128
-        batch_image = General.batch_image * Trident.num_branch
+        image_roi   = 512
+        batch_image = General.batch_image
 
         class regress_target:
             class_agnostic = True
@@ -128,16 +108,13 @@ def get_config(is_train):
     bbox_head = BboxHead(BboxParam)
     detector = Detector()
     if is_train:
-        train_sym = detector.get_train_symbol(
-            backbone, neck, rpn_head, roi_extractor, bbox_head,
-            num_branch=Trident.num_branch, scaleaware=Trident.train_scaleaware)
+        train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)
         rpn_test_sym = None
         test_sym = None
     else:
         train_sym = None
-        rpn_test_sym = detector.get_rpn_test_symbol(backbone, neck, rpn_head, Trident.num_branch)
-        test_sym = detector.get_test_symbol(
-            backbone, neck, rpn_head, roi_extractor, bbox_head, num_branch=Trident.num_branch)
+        rpn_test_sym = detector.get_rpn_test_symbol(backbone, neck, rpn_head)
+        test_sym = detector.get_test_symbol(backbone, neck, rpn_head, roi_extractor, bbox_head)
 
 
     class ModelParam:
@@ -151,7 +128,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-%d" % General.depth
+            prefix = "pretrain_model/resnet-v1-101"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -162,32 +139,26 @@ def get_config(is_train):
             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
             momentum = 0.9
             wd = 0.0001
-            clip_gradient = 5
+            clip_gradient = 35
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 3000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)
+            iter = 750 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)
 
 
     class TestParam:
-        min_det_score = 0.001
+        min_det_score = 0.05
         max_det_per_image = 100
 
         process_roidb = lambda x: x
-        if Trident.test_scaleaware:
-            process_output = lambda x, y: process_branch_outputs(
-                x, Trident.num_branch, Trident.valid_ranges, Trident.valid_ranges_on_origin)
-        else:
-            process_output = lambda x, y: x
-
-        process_rpn_output = lambda x, y: process_branch_rpn_outputs(x, Trident.num_branch)
+        process_output = lambda x, y: x
 
         class model:
             prefix = "experiments/{}/checkpoint".format(General.name)
@@ -201,6 +172,11 @@ def get_config(is_train):
             annotation = "data/coco/annotations/instances_minival2014.json"
 
     # data processing
+    class NormParam:
+        mean = (122.7717, 115.9465, 102.9801) # RGB order
+        std = (1.0, 1.0, 1.0)
+
+
     class ResizeParam:
         short = 800
         long = 1200 if is_train else 2000
@@ -208,12 +184,9 @@ def get_config(is_train):
 
     class PadParam:
         short = 800
-        long = 1200 if is_train else 2000
+        long = 1200
         max_num_gt = 100
 
-    class ScaleRange:
-        valid_ranges = Trident.valid_ranges
-        cal_on_origin = Trident.valid_ranges_on_origin # True: valid_ranges on origin image scale / valid_ranges on resized image scale
 
     class AnchorTarget2DParam:
         class generate:
@@ -233,9 +206,6 @@ def get_config(is_train):
             image_anchor = 256
             pos_fraction = 0.5
 
-        class trident:
-            invalid_anchor_threshd = 0.3
-
 
     class RenameParam:
         mapping = dict(image="data")
@@ -243,27 +213,25 @@ def get_config(is_train):
 
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord
-    from models.tridentnet.input import ScaleAwareRange, TridentAnchorTarget2D
+        RenameRecord, AnchorTarget2D, Norm2DImage
 
     if is_train:
         transform = [
             ReadRoiRecord(None),
+            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
             ConvertImageFromHwcToChw(),
-            ScaleAwareRange(ScaleRange),
-            TridentAnchorTarget2D(AnchorTarget2DParam),
+            AnchorTarget2D(AnchorTarget2DParam),
             RenameRecord(RenameParam.mapping)
         ]
         data_name = ["data", "im_info", "gt_bbox"]
-        if Trident.train_scaleaware:
-            data_name.append("valid_ranges")
         label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),
+            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)

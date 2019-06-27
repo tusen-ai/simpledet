@@ -1,17 +1,16 @@
 from models.tridentnet.builder import TridentFasterRcnn as Detector
-from models.tridentnet.builder import TridentMXNetResNetV2 as Backbone
+from models.tridentnet.builder import TridentResNetV1C4 as Backbone
 from models.tridentnet.builder import TridentRpnHead as RpnHead
 from models.tridentnet.builder import process_branch_outputs, process_branch_rpn_outputs
 from symbol.builder import Neck
 from symbol.builder import RoiAlign as RoiExtractor
-from symbol.builder import BboxC5Head as BboxHead
+from symbol.builder import BboxC5V1Head as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
 def get_config(is_train):
     class General:
-        log_frequency = 20
-        depth = 101
+        log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 1 if is_train else 1
         fp16 = False
@@ -43,8 +42,8 @@ def get_config(is_train):
 
     class BackboneParam:
         fp16 = General.fp16
-        depth = General.depth
         normalizer = NormalizeParam.normalizer
+        depth = 101
         num_branch = Trident.num_branch
         branch_ids = Trident.branch_ids
         branch_dilates = Trident.branch_dilates
@@ -151,7 +150,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-%d" % General.depth
+            prefix = "pretrain_model/resnet-v1-%s" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -166,9 +165,9 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
@@ -176,34 +175,14 @@ def get_config(is_train):
             iter = 3000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)
 
 
-    class TestParam:
-        min_det_score = 0.001
-        max_det_per_image = 100
-
-        process_roidb = lambda x: x
-        if Trident.test_scaleaware:
-            process_output = lambda x, y: process_branch_outputs(
-                x, Trident.num_branch, Trident.valid_ranges, Trident.valid_ranges_on_origin)
-        else:
-            process_output = lambda x, y: x
-
-        process_rpn_output = lambda x, y: process_branch_rpn_outputs(x, Trident.num_branch)
-
-        class model:
-            prefix = "experiments/{}/checkpoint".format(General.name)
-            epoch = OptimizeParam.schedule.end_epoch
-
-        class nms:
-            type = "nms"
-            thr = 0.5
-
-        class coco:
-            annotation = "data/coco/annotations/instances_minival2014.json"
-
     # data processing
+    class NormParam:
+        mean = (122.7717, 115.9465, 102.9801) # RGB order
+        std = (1.0, 1.0, 1.0)
+
     class ResizeParam:
-        short = 800
-        long = 1200 if is_train else 2000
+        short_ranges = [800] if is_train else [800]
+        long_ranges = ([1200] if is_train else [2000]) * len(short_ranges)
 
 
     class PadParam:
@@ -241,14 +220,49 @@ def get_config(is_train):
         mapping = dict(image="data")
 
 
+    class TestParam:
+        min_det_score = 0.001
+        max_det_per_image = 100
+
+        class model:
+            prefix = "experiments/{}/checkpoint".format(General.name)
+            epoch = OptimizeParam.schedule.end_epoch
+
+        class nms:
+            type = "nms"
+            thr = 0.5
+
+        class coco:
+            annotation = "data/coco/annotations/instances_minival2014.json"
+
+        if Trident.test_scaleaware:
+            process_output = lambda x, y: process_branch_outputs(
+                x, Trident.num_branch, Trident.valid_ranges, Trident.valid_ranges_on_origin)
+        else:
+            process_output = lambda x, y: x
+
+        process_rpn_output = lambda x, y: process_branch_rpn_outputs(x, Trident.num_branch)
+
+        def process_roidb(roidb):
+            ms_roidb = []
+            for r_ in roidb:
+                for short, long in zip(ResizeParam.short_ranges, ResizeParam.long_ranges):
+                    r = r_.copy()
+                    r["resize_long"] = long
+                    r["resize_short"] = short
+                    ms_roidb.append(r)
+            return ms_roidb
+
+
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord
+        RenameRecord, Norm2DImage, Resize2DImageByRoidb
     from models.tridentnet.input import ScaleAwareRange, TridentAnchorTarget2D
 
     if is_train:
         transform = [
             ReadRoiRecord(None),
+            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
@@ -264,7 +278,8 @@ def get_config(is_train):
     else:
         transform = [
             ReadRoiRecord(None),
-            Resize2DImageBbox(ResizeParam),
+            Norm2DImage(NormParam),
+            Resize2DImageByRoidb(),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)
         ]

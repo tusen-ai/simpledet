@@ -10,10 +10,10 @@ from mxnext.complicate import normalizer_factory
 
 def get_config(is_train):
     class General:
-        log_frequency = 20
-        depth = 101
+        log_frequency = 10
+        depth = 50
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 1 if is_train else 1
+        batch_image = 2 if is_train else 1
         fp16 = False
 
     class Trident:
@@ -166,9 +166,9 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"

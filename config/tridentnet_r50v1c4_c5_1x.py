@@ -1,19 +1,18 @@
 from models.tridentnet.builder import TridentFasterRcnn as Detector
-from models.tridentnet.builder import TridentMXNetResNetV2 as Backbone
+from models.tridentnet.builder import TridentResNetV1C4 as Backbone
 from models.tridentnet.builder import TridentRpnHead as RpnHead
 from models.tridentnet.builder import process_branch_outputs, process_branch_rpn_outputs
 from symbol.builder import Neck
 from symbol.builder import RoiAlign as RoiExtractor
-from symbol.builder import BboxC5Head as BboxHead
+from symbol.builder import BboxC5V1Head as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
 def get_config(is_train):
     class General:
-        log_frequency = 20
-        depth = 101
+        log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 1 if is_train else 1
+        batch_image = 2 if is_train else 1
         fp16 = False
 
     class Trident:
@@ -43,8 +42,8 @@ def get_config(is_train):
 
     class BackboneParam:
         fp16 = General.fp16
-        depth = General.depth
         normalizer = NormalizeParam.normalizer
+        depth = 50
         num_branch = Trident.num_branch
         branch_ids = Trident.branch_ids
         branch_dilates = Trident.branch_dilates
@@ -151,7 +150,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-%d" % General.depth
+            prefix = "pretrain_model/resnet-v1-%s" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -201,6 +200,10 @@ def get_config(is_train):
             annotation = "data/coco/annotations/instances_minival2014.json"
 
     # data processing
+    class NormParam:
+        mean = (122.7717, 115.9465, 102.9801) # RGB order
+        std = (1.0, 1.0, 1.0)
+
     class ResizeParam:
         short = 800
         long = 1200 if is_train else 2000
@@ -243,12 +246,13 @@ def get_config(is_train):
 
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord
+        RenameRecord, Norm2DImage
     from models.tridentnet.input import ScaleAwareRange, TridentAnchorTarget2D
 
     if is_train:
         transform = [
             ReadRoiRecord(None),
+            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
@@ -264,6 +268,7 @@ def get_config(is_train):
     else:
         transform = [
             ReadRoiRecord(None),
+            Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)

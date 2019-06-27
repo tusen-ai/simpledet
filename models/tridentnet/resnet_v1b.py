@@ -2,12 +2,12 @@ from __future__ import print_function
 
 import mxnet as mx
 import mxnext as X
-from mxnext.backbone.resnet_v2 import Builder
+from mxnext.backbone.resnet_v1b import Builder
 
 
 bn_count = [10000]
 
-class TridentResNetV2Builder(Builder):
+class TridentResNetV1bBuilder(Builder):
     def __init__(self):
         super().__init__()
 
@@ -125,47 +125,51 @@ class TridentResNetV2Builder(Builder):
 
         norm = X.normalizer_factory(type=norm_type, ndev=ndev, mom=norm_mom)
 
-        bn1 = cls.bn_shared(
-            data, name=name + "_bn1", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
-        relu1 = [X.relu(bn) for bn in bn1]
         conv1 = cls.conv_shared(
-            relu1, name=name + "_conv1", num_filter=filter // 4, kernel=(1, 1),
+            data, name=name + "_conv1", num_filter=filter // 4, kernel=(1, 1),
             branch_ids=branch_ids, share_weight=branch_conv_shared)
+        bn1 = cls.bn_shared(
+            conv1, name=name + "_bn1", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
+        relu1 = [X.relu(bn) for bn in bn1]
 
-        bn2 = cls.bn_shared(
-            conv1, name=name + "_bn2", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
-        relu2 = [X.relu(bn) for bn in bn2]
         if not branch_deform:
             conv2 = cls.conv_shared(
-                relu2, name=name + "_conv2", num_filter=filter // 4, kernel=(3, 3),
+                relu1, name=name + "_conv2", num_filter=filter // 4, kernel=(3, 3),
                 pad=dilate, stride=stride, dilate=dilate,
                 branch_ids=branch_ids, share_weight=branch_conv_shared)
         else:
             conv2_offset = cls.conv_shared(
-                relu2, name=name + "_conv2_offset", num_filter=72, kernel=(3, 3),
+                relu1, name=name + "_conv2_offset", num_filter=72, kernel=(3, 3),
                 pad=(1, 1), stride=(1, 1), dilate=(1, 1), no_bias=False,
                 branch_ids=branch_ids, share_weight=branch_conv_shared)
             conv2 = cls.deform_conv_shared(
-                relu2, name=name + "_conv2", conv_offset=conv2_offset,  num_filter=filter // 4, kernel=(3, 3),
+                relu1, name=name + "_conv2", conv_offset=conv2_offset,  num_filter=filter // 4, kernel=(3, 3),
                 pad=dilate, stride=stride, dilate=dilate, num_deformable_group=4,
                 branch_ids=branch_ids, share_weight=branch_conv_shared)
+        bn2 = cls.bn_shared(
+            conv2, name=name + "_bn2", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
+        relu2 = [X.relu(bn) for bn in bn2]
 
-        bn3 = cls.bn_shared(
-            conv2, name=name + "_bn3", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
-        relu3 = [X.relu(bn) for bn in bn3]
         conv3 = cls.conv_shared(
-            relu3, name=name + "_conv3", num_filter=filter, kernel=(1, 1),
+            relu2, name=name + "_conv3", num_filter=filter, kernel=(1, 1),
             branch_ids=branch_ids, share_weight=branch_conv_shared)
+        bn3 = cls.bn_shared(
+            conv3, name=name + "_bn3", normalizer=norm, branch_ids=branch_ids, share_weight=branch_bn_shared)
 
         if proj:
             shortcut = cls.conv_shared(
-                relu1, name=name + "_sc", num_filter=filter, kernel=(1, 1),
+                data, name=name + "_sc", num_filter=filter, kernel=(1, 1),
                 branch_ids=branch_ids, share_weight=branch_conv_shared)
+            shortcut = cls.bn_shared(
+                shortcut, name=name + "_sc_bn", normalizer=norm, branch_ids=branch_ids, 
+                share_weight=branch_bn_shared)
         else:
             shortcut = data
 
-        return [X.add(conv3_i, shortcut_i, name=name + "_plus_branch{}".format(i)) \
-                for i, conv3_i, shortcut_i in zip(branch_ids, conv3, shortcut)]
+        plus = [X.add(bn3_i, shortcut_i, name=name + "_plus_branch{}".format(i)) \
+                for i, bn3_i, shortcut_i in zip(branch_ids, bn3, shortcut)]
+
+        return [X.relu(p) for p in plus]
 
     @classmethod
     def resnet_trident_stage(cls, data, name, num_block, filter, stride, dilate, norm_type, norm_mom, ndev,
@@ -225,7 +229,7 @@ class TridentResNetV2Builder(Builder):
     def resnet_factory(cls, depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                        num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                        norm_type="local", norm_mom=0.9, ndev=None, fp16=False):
-        num_c2_unit, num_c3_unit, num_c4_unit, num_c5_unit = TridentResNetV2Builder.depth_config[depth]
+        num_c2_unit, num_c3_unit, num_c4_unit, num_c5_unit = cls.depth_config[depth]
 
         data = X.var("data")
         if fp16:
@@ -255,26 +259,14 @@ class TridentResNetV2Builder(Builder):
     def resnet_c4c5_factory(cls, depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
                             num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                             norm_type="local", norm_mom=0.9, ndev=None, fp16=False):
-        c1, c2, c3, c4, c5 = cls.resnet_factory(depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
+        c1, c2, c3, c4, c5 = cls.resnet_factory(depth, use_3x3_conv0, use_bn_preprocess,
                                                 num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                                                 norm_type, norm_mom, ndev, fp16)
-        c5 = X.fixbn(c5, "bn1")
-        c5 = X.relu(c5)
 
         return c4, c5
 
-    def get_backbone(self, variant, depth, endpoint, normalizer, fp16, num_trident_block,
+    def get_backbone(self, depth, endpoint, normalizer, fp16,num_trident_block,
                      num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform):
-        # parse variant
-        if variant == "mxnet":
-            use_bn_preprocess = True
-            use_3x3_conv0 = False
-        elif variant == "tusimple":
-            use_bn_preprocess = False
-            use_3x3_conv0 = True
-        else:
-            raise KeyError("Unknown backbone variant {}".format(variant))
-
         # parse endpoint
         if endpoint == "c4":
             factory = self.resnet_c4_factory
@@ -283,6 +275,6 @@ class TridentResNetV2Builder(Builder):
         else:
             raise KeyError("Unknown backbone endpoint {}".format(endpoint))
 
-        return factory(depth, use_3x3_conv0, use_bn_preprocess, num_trident_block,
+        return factory(depth, False, False, num_trident_block,
                        num_branch, branch_dilates, branch_ids, branch_bn_shared, branch_conv_shared, branch_deform,
                        norm_type=normalizer, fp16=fp16)
