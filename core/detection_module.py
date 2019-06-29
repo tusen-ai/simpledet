@@ -987,7 +987,7 @@ class DetModule(BaseModule):
             end_of_batch = False
             next_data_batch = next(data_iter)
             while not end_of_batch:
-                if profile is True and nbatch == 1:
+                if profile is True and epoch == begin_epoch and nbatch == 1:
                     self.logger.info("Profiling begins")
                     import mxnet as mx
                     mx.profiler.set_state("run")             
@@ -1026,7 +1026,7 @@ class DetModule(BaseModule):
                         callback(batch_end_params)
                 nbatch += 1
 
-                if profile is True and nbatch == 10:
+                if profile is True and epoch == begin_epoch and nbatch == 10:
                     self.logger.info("Profiling ends")
                     mx.profiler.set_state("stop")             
                     mx.profiler.dump()
