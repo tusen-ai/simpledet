@@ -987,6 +987,11 @@ class DetModule(BaseModule):
             end_of_batch = False
             next_data_batch = next(data_iter)
             while not end_of_batch:
+                if profile is True and nbatch == 1:
+                    self.logger.info("Profiling begins")
+                    import mxnet as mx
+                    mx.profiler.set_state("run")             
+
                 data_batch = next_data_batch
                 if monitor is not None:
                     monitor.tic()
@@ -1023,7 +1028,7 @@ class DetModule(BaseModule):
 
                 if profile is True and nbatch == 10:
                     self.logger.info("Profiling ends")
-                    import mxnet as mx
+                    mx.profiler.set_state("stop")             
                     mx.profiler.dump()
 
             # one epoch of training is finished

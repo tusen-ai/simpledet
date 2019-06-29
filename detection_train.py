@@ -235,8 +235,7 @@ def train_net(config):
 
     profile = pGen.profile or False
     if profile:
-        mx.profiler.set_config(profile_all=True, filename="%s.json" % pGen.name)
-        mx.profiler.set_state('run')
+        mx.profiler.set_config(profile_all=True, filename=os.path.join(save_path, "profile.json"))
 
     # train
     mod.fit(
