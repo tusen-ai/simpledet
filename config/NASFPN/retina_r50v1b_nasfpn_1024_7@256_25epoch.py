@@ -9,7 +9,7 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 8 if is_train else 1
+        batch_image = 4 if is_train else 1
         fp16 = True
 
 
@@ -21,7 +21,7 @@ def get_config(is_train):
 
 
     class NormalizeParam:
-        normalizer = normalizer_factory(type="localbn", wd_mult=0.0)
+        normalizer = normalizer_factory(type="syncbn", ndev=8, wd_mult=1.0)
 
 
     class BackboneParam:
@@ -159,15 +159,15 @@ def get_config(is_train):
 
 
     class ResizeParam:
-        short = 640
-        long = 640
+        short = 1024
+        long = 1024
         scale_min = 0.8
         scale_max = 1.2
 
 
     class PadParam:
-        short = 640
-        long = 640
+        short = ResizeParam.short
+        long = ResizeParam.long
         max_num_gt = 100
 
 
@@ -177,8 +177,8 @@ def get_config(is_train):
 
         class _generate:
             def __init__(self):
-                self.short = (80, 40, 20, 10, 5)
-                self.long = (80, 40, 20, 10, 5)
+                self.short = (128, 64, 32, 16, 8)
+                self.long = (128, 64, 32, 16, 8)
                 self.stride = (8, 16, 32, 64, 128)
 
             scales = (4 * 2 ** 0, 4 * 2 ** (1.0 / 3.0), 4 * 2 ** (2.0 / 3.0))
