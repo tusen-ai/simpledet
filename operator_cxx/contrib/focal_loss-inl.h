@@ -47,7 +47,7 @@ namespace op {
 namespace focal_loss_enum {
 enum FocalLossOpInputs {kData, kLabel};
 enum FocalLossOpOutputs {kOut};
-enum FOcalLossOpType {kNull, kBatch, kValid};
+enum FocalLossOpType {kNull, kBatch, kValid};
 enum FocalLossOpResource {kTempSpace};
 }  // namespace focal_loss_enum
 
@@ -55,6 +55,7 @@ struct FocalLossParam : public dmlc::Parameter<FocalLossParam> {
   float alpha, gamma;
   float grad_scale;
   int normalization;
+  bool out_grad;
   uint64_t workspace;
   DMLC_DECLARE_PARAMETER(FocalLossParam) {
     DMLC_DECLARE_FIELD(alpha).set_default(0.25f)
@@ -72,6 +73,8 @@ struct FocalLossParam : public dmlc::Parameter<FocalLossParam> {
               "If this is set to batch, the output gradient will be divided by the batch size. "
               "If this is set to valid, the output gradient will be divided by the number of "
               "valid input elements.");
+    DMLC_DECLARE_FIELD(out_grad).set_default(false)
+    .describe("Multiplies gradient with output gradient element-wise");
     DMLC_DECLARE_FIELD(workspace).set_default(256)
     .describe("Workspace for focal loss in MB, default to 256");
   }
@@ -205,11 +208,17 @@ class FocalLossOp : public Operator{
     Kernel<mxnet::op::where<kWriteTo>, xpu>::Launch(s, grad.shape_.Size(),
       grad.dptr_, ignore_index.dptr_, one_bc.dptr_, grad.dptr_);
 
+    if (param_.out_grad) {
+      Tensor<xpu, 3, DType> ograd = out_grad[focal_loss_enum::kOut].get<xpu, 3, DType>(s);
+      CHECK_EQ(ograd.CheckContiguous(), true);
+      grad *= ograd;
+    }
+
     if (param_.normalization == focal_loss_enum::kValid) {
       temp = sumall_except_dim<0>(reduce_keepdim<red::sum, false>(
         F<mshadow_op::le>(ScalarExp<DType>(1.f), label), 0));
       temp = F<mshadow_op::plus>(temp, ScalarExp<DType>(1.f));
-      temp = F<mshadow_op::maximum>(ScalarExp<DType>(1.f), temp);
+      //temp = F<mshadow_op::maximum>(ScalarExp<DType>(1.f), temp);
       Assign(gdata, req[focal_loss_enum::kData],
         grad * ScalarExp<DType>(param_.grad_scale) / broadcast<0>(broadcast_keepdim(
         temp, 0, grad.shape_[0]), grad.shape_));
@@ -306,7 +315,12 @@ class FocalLossProp : public OperatorProperty {
     const std::vector<int> &out_grad,
     const std::vector<int> &in_data,
     const std::vector<int> &out_data) const override {
-    return {in_data[focal_loss_enum::kLabel], out_data[focal_loss_enum::kOut]};
+    if (param_.out_grad) {
+      return {in_data[focal_loss_enum::kLabel], out_data[focal_loss_enum::kOut],
+              out_grad[focal_loss_enum::kOut]};
+    } else {
+      return {in_data[focal_loss_enum::kLabel], out_data[focal_loss_enum::kOut]};
+    }
   }
 
   std::vector<ResourceRequest> BackwardResource(
