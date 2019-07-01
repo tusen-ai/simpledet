@@ -180,7 +180,7 @@ class EncodeGtPoly(DetectionAugmentation):
 
 
 if __name__ == "__main__":
-    import six.moves.cPickle as pkl
+    import pickle as pkl
     import time
 
     import pycocotools.mask as mask_util

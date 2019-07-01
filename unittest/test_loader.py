@@ -1,7 +1,7 @@
+import pickle as pkl
 import unittest
 import mxnet as mx
 
-from six.moves import cPickle as pkl
 from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
     ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
     RenameRecord, AnchorTarget2D, AnchorLoader

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import mxnet as mx
 
-from six.moves.queue import Queue
+from queue import Queue
 from threading import Thread
 from operator_py.cython.bbox import bbox_overlaps_cython
 from operator_py.bbox_transform import nonlinear_transform as bbox_transform
