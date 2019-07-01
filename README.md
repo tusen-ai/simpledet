@@ -13,6 +13,7 @@
 - Add new ResNetV1b baselines from GluonCV (2019.06.07)
 - Add Cascade R-CNN with FPN backbone (2019.06.11)
 - Speed up FPN up to 70% (2019.06.16)
+- Update [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) to include larger models (2019.7.1)
 
 ### Setup
 #### Install
