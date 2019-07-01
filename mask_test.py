@@ -1,20 +1,20 @@
-import os
+import argparse
+import importlib
 import math
+import os
 import pprint
+import pickle as pkl
+from functools import reduce
+from queue import Queue
+from threading import Thread
 
 from core.detection_module import DetModule
 from core.detection_input import Loader
 from utils.load_model import load_checkpoint
 from utils.patch_config import patch_config_as_nothrow
 
-from six.moves import reduce
-from six.moves.queue import Queue
-from threading import Thread
-import argparse
-import importlib
 import mxnet as mx
 import numpy as np
-import six.moves.cPickle as pkl
 
 
 def parse_args():

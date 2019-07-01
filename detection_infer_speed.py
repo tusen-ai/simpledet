@@ -1,9 +1,9 @@
+import argparse
+import importlib
 import time
 
 from core.detection_module import DetModule
 
-import argparse
-import importlib
 import mxnet as mx
 
 

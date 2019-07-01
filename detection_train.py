@@ -1,13 +1,10 @@
 import argparse
-import logging
-import pprint
-import mxnet as mx
-import numpy as np
-import os
 import importlib
-
-from six.moves import reduce
-from six.moves import cPickle as pkl
+import logging
+import os
+import pprint
+import pickle as pkl
+from functools import reduce
 
 from core.detection_module import DetModule
 from utils import callback
@@ -16,6 +13,8 @@ from utils.lr_scheduler import WarmupMultiFactorScheduler, LRSequential, Advance
 from utils.load_model import load_checkpoint
 from utils.patch_config import patch_config_as_nothrow
 
+import mxnet as mx
+import numpy as np
 
 def train_net(config):
     pGen, pKv, pRpn, pRoi, pBbox, pDataset, pModel, pOpt, pTest, \
