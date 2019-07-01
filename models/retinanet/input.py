@@ -189,9 +189,11 @@ class PyramidAnchorTarget2D(PyramidAnchorTarget2DBase):
         reg_weight = np.concatenate(reg_weight_list, axis=1)
 
         input_record["rpn_cls_label"] = cls_label
+        input_record["rpn_cls_fg_count"] = np.sum(cls_label > 0)
         input_record["rpn_reg_target"] = reg_target
         input_record["rpn_reg_weight"] = reg_weight
 
         return input_record["rpn_cls_label"], \
+               input_record["rpn_cls_fg_count"], \
                input_record["rpn_reg_target"], \
                input_record["rpn_reg_weight"]

@@ -237,18 +237,23 @@ class RetinaNetHead(RpnHead):
         raise NotImplementedError
 
     def get_loss(self, conv_feat, cls_label, bbox_target, bbox_weight):
+        import mxnet as mx
+
         p = self.p
         stride = p.anchor_generate.stride
         if not isinstance(stride, tuple):
             stride = (stride)
         num_class = p.num_class
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
+        image_per_device = p.batch_image
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
         cls_logit_reshape_list = []
         bbox_delta_reshape_list = []
 
         scale_loss_shift = 128.0 if p.fp16 else 1.0
+        fg_count = X.var("rpn_cls_fg_count") * image_per_device
+        fg_count = mx.sym.slice_axis(fg_count, axis=0, begin=0, end=1)
 
         # reshape logit and delta
         for s in stride:
@@ -288,26 +293,22 @@ class RetinaNetHead(RpnHead):
         cls_loss = X.focal_loss(
             data=cls_logit_concat,
             label=cls_label,
-            normalization='valid',
             alpha=p.focal_loss.alpha,
             gamma=p.focal_loss.gamma,
-            grad_scale=1.0 * scale_loss_shift,
-            workspace=1024,
-            name="cls_loss"
+            workspace=1500,
+            out_grad=True
         )
+        cls_loss = mx.sym.broadcast_div(cls_loss, fg_count)
+        cls_loss = X.make_loss(cls_loss, grad_scale=scale_loss_shift, name="cls_loss")
 
         scalar = 0.11
         # regression loss
-        bbox_norm = X.bbox_norm(
-            data=bbox_delta_concat - bbox_target,
-            label=cls_label,
-            name="bbox_norm"
-        )
         bbox_loss = bbox_weight * X.smooth_l1(
-            data=bbox_norm,
+            data=bbox_delta_concat - bbox_target,
             scalar=math.sqrt(1/scalar),
             name="bbox_loss"
         )
+        bbox_loss = mx.sym.broadcast_div(bbox_loss, fg_count)
         reg_loss = X.make_loss(
             data=bbox_loss,
             grad_scale=1.0 * scale_loss_shift,

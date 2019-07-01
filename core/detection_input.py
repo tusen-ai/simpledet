@@ -723,6 +723,7 @@ class Loader(mx.io.DataIter):
     def collector(self):
         while True:
             record = self.data_queue.get()
+            record["rpn_cls_fg_count"][:] = record["rpn_cls_fg_count"].sum() / len(record["rpn_cls_fg_count"])
             data = [mx.nd.array(record[name]) for name in self.data_name]
             label = [mx.nd.array(record[name]) for name in self.label_name]
             provide_data = [(k, v.shape) for k, v in zip(self.data_name, data)]
