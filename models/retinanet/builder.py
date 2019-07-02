@@ -447,6 +447,20 @@ class MSRAResNet101V1FPN(Backbone):
         return self.symbol
 
 
+class MSRAResNetV1bFPN(Backbone):
+    def __init__(self, pBackbone):
+        super().__init__(pBackbone)
+        from mxnext.backbone.resnet_v1b import Builder
+        b = Builder()
+        self.symbol = b.get_backbone("msra", self.p.depth, "fpn", pBackbone.normalizer, pBackbone.fp16)
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
+
+
 class RetinaNetNeck(Neck):
     def __init__(self, pNeck):
         super().__init__(pNeck)
