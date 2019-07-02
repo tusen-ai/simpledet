@@ -246,14 +246,16 @@ class RetinaNetHead(RpnHead):
         num_class = p.num_class
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
         image_per_device = p.batch_image
+        sync_loss = p.sync_loss or False
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_feat)
         cls_logit_reshape_list = []
         bbox_delta_reshape_list = []
 
         scale_loss_shift = 128.0 if p.fp16 else 1.0
-        fg_count = X.var("rpn_cls_fg_count") * image_per_device
-        fg_count = mx.sym.slice_axis(fg_count, axis=0, begin=0, end=1)
+        if sync_loss:
+            fg_count = X.var("rpn_fg_count") * image_per_device
+            fg_count = mx.sym.slice_axis(fg_count, axis=0, begin=0, end=1)
 
         # reshape logit and delta
         for s in stride:
@@ -290,16 +292,28 @@ class RetinaNetHead(RpnHead):
         bbox_delta_concat = X.concat(bbox_delta_reshape_list, axis=2, name="bbox_delta_concat")
 
         # classification loss
-        cls_loss = X.focal_loss(
-            data=cls_logit_concat,
-            label=cls_label,
-            alpha=p.focal_loss.alpha,
-            gamma=p.focal_loss.gamma,
-            workspace=1500,
-            out_grad=True
-        )
-        cls_loss = mx.sym.broadcast_div(cls_loss, fg_count)
-        cls_loss = X.make_loss(cls_loss, grad_scale=scale_loss_shift, name="cls_loss")
+        if sync_loss:
+            cls_loss = X.focal_loss(
+                data=cls_logit_concat,
+                label=cls_label,
+                alpha=p.focal_loss.alpha,
+                gamma=p.focal_loss.gamma,
+                workspace=1500,
+                out_grad=True
+            )
+            cls_loss = mx.sym.broadcast_div(cls_loss, fg_count)
+            cls_loss = X.make_loss(cls_loss, grad_scale=scale_loss_shift, name="cls_loss")
+        else:
+            cls_loss = X.focal_loss(
+                data=cls_logit_concat,
+                label=cls_label,
+                normalization='valid',
+                alpha=p.focal_loss.alpha,
+                gamma=p.focal_loss.gamma,
+                grad_scale=1.0 * scale_loss_shift,
+                workspace=1024,
+                name="cls_loss"
+            )
 
         scalar = 0.11
         # regression loss
@@ -308,7 +322,14 @@ class RetinaNetHead(RpnHead):
             scalar=math.sqrt(1/scalar),
             name="bbox_loss"
         )
-        bbox_loss = mx.sym.broadcast_div(bbox_loss, fg_count)
+        if sync_loss:
+            bbox_loss = mx.sym.broadcast_div(bbox_loss, fg_count)
+        else:
+            bbox_loss = X.bbox_norm(
+                data=bbox_loss,
+                label=cls_label,
+                name="bbox_norm"
+            )
         reg_loss = X.make_loss(
             data=bbox_loss,
             grad_scale=1.0 * scale_loss_shift,

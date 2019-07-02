@@ -604,7 +604,12 @@ class Loader(mx.io.DataIter):
             (self.rank, self.num_worker) = (0, 1)
 
         # data processing utilities
-        self.transform = transform
+        if isinstance(transform, dict):
+            self.transform = transform["sample"]
+            self.batch_transform = transform["batch"]
+        else:
+            self.transform = transform
+            self.batch_transform = list()
 
         # save parameters as properties
         self.roidb = roidb
@@ -718,12 +723,13 @@ class Loader(mx.io.DataIter):
             data_batch = {}
             for name in self.data_name + self.label_name:
                 data_batch[name] = np.stack([r[name] for r in records])
+            for trans in self.batch_transform:
+                trans.apply(data_batch)
             data_queue.put(data_batch)
 
     def collector(self):
         while True:
             record = self.data_queue.get()
-            record["rpn_cls_fg_count"][:] = record["rpn_cls_fg_count"].sum() / len(record["rpn_cls_fg_count"])
             data = [mx.nd.array(record[name]) for name in self.data_name]
             label = [mx.nd.array(record[name]) for name in self.label_name]
             provide_data = [(k, v.shape) for k, v in zip(self.data_name, data)]
