@@ -3,8 +3,8 @@
 ![](./doc/image/diagram.png)
 - FP16 training for memory saving and up to **2.5X** acceleration
 - Highly scalable distributed training available **out of box**
-- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet and **[TridentNet](./models/tridentnet)**
-- Extensive feature set including **large batch BN**, deformable convolution, soft NMS, multi-scale train/test
+- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, **[TridentNet](./models/tridentnet)** and **[NASFPN](./models/NASFPN)**
+- Extensive feature set including **large batch BN**, **loss synchronization**, deformable convolution, soft NMS, multi-scale train/test
 - Modular design for coding-free exploration of new experiment settings
 
 ### Recent Updates
