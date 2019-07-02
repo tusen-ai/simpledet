@@ -42,6 +42,7 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        sync_loss = True
 
         class anchor_generate:
             scale = (4 * 2 ** 0, 4 * 2 ** (1.0 / 3.0), 4 * 2 ** (2.0 / 3.0))
@@ -203,21 +204,27 @@ def get_config(is_train):
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord
     from models.NASFPN.input import RandResizeCrop2DImageBbox, ResizeCrop2DImageBbox
-    from models.retinanet.input import PyramidAnchorTarget2D, Norm2DImage
+    from models.retinanet.input import PyramidAnchorTarget2D, Norm2DImage, \
+        AverageFgCount
 
     if is_train:
-        transform = [
-            ReadRoiRecord(None),
-            Norm2DImage(NormParam),
-            RandResizeCrop2DImageBbox(ResizeParam),
-            Flip2DImageBbox(),
-            Pad2DImageBbox(PadParam),
-            ConvertImageFromHwcToChw(),
-            PyramidAnchorTarget2D(AnchorTarget2DParam()),
-            RenameRecord(RenameParam.mapping)
-        ]
+        transform = {
+            "sample": [
+                ReadRoiRecord(None),
+                Norm2DImage(NormParam),
+                RandResizeCrop2DImageBbox(ResizeParam),
+                Flip2DImageBbox(),
+                Pad2DImageBbox(PadParam),
+                ConvertImageFromHwcToChw(),
+                PyramidAnchorTarget2D(AnchorTarget2DParam()),
+                RenameRecord(RenameParam.mapping)
+            ],
+            "batch": [
+                AverageFgCount("rpn_fg_count")
+            ]
+        }
         data_name = ["data"]
-        label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
+        label_name = ["rpn_cls_label", "rpn_fg_count", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),

@@ -106,10 +106,10 @@ class RandResizeCrop2DImageBbox(DetectionAugmentation):
         input_record["image"] = scaled_image
         input_record["gt_bbox"] = gt_bbox
         input_record["im_info"] = (scaled_image.shape[0], scaled_image.shape[1], image_scale)
-        
+
 
 if __name__ == "__main__":
-    import six.moves.cPickle as pkl
+    import pickle as pkl
     import time
 
     import pycocotools.mask as mask_util

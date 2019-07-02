@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import mxnet as mx
 
-from six.moves.queue import Queue
+from queue import Queue
 from threading import Thread
 from operator_py.cython.bbox import bbox_overlaps_cython
 from operator_py.bbox_transform import nonlinear_transform as bbox_transform
@@ -604,7 +604,12 @@ class Loader(mx.io.DataIter):
             (self.rank, self.num_worker) = (0, 1)
 
         # data processing utilities
-        self.transform = transform
+        if isinstance(transform, dict):
+            self.transform = transform["sample"]
+            self.batch_transform = transform["batch"]
+        else:
+            self.transform = transform
+            self.batch_transform = list()
 
         # save parameters as properties
         self.roidb = roidb
@@ -718,6 +723,8 @@ class Loader(mx.io.DataIter):
             data_batch = {}
             for name in self.data_name + self.label_name:
                 data_batch[name] = np.stack([r[name] for r in records])
+            for trans in self.batch_transform:
+                trans.apply(data_batch)
             data_queue.put(data_batch)
 
     def collector(self):

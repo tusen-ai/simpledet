@@ -990,7 +990,7 @@ class DetModule(BaseModule):
                 if profile is True and epoch == begin_epoch and nbatch == 1:
                     self.logger.info("Profiling begins")
                     import mxnet as mx
-                    mx.profiler.set_state("run")             
+                    mx.profiler.set_state("run")
 
                 data_batch = next_data_batch
                 if monitor is not None:
