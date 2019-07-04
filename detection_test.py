@@ -108,6 +108,10 @@ if __name__ == "__main__":
             if pModel.process_weight is not None:
                 pModel.process_weight(sym, arg_params, aux_params)
 
+            # merge batch normalization to speedup test
+            from utils.graph_optimize import merge_bn
+            sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
+
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
