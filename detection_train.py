@@ -134,6 +134,10 @@ def train_net(config):
     if pModel.process_weight is not None:
         pModel.process_weight(sym, arg_params, aux_params)
 
+    # merge batch normalization to save memory in fix bn training
+    from utils.graph_optimize import merge_bn
+    sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
+
     if pModel.random:
         import time
         mx.random.seed(int(time.time()))

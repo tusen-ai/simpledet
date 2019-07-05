@@ -4,7 +4,7 @@
 - FP16 training for memory saving and up to **2.5X** acceleration
 - Highly scalable distributed training available **out of box**
 - Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, **[TridentNet](./models/tridentnet)** and **[NASFPN](./models/NASFPN)**
-- Extensive feature set including **large batch BN**, **loss synchronization**, deformable convolution, soft NMS, multi-scale train/test
+- Extensive feature set including **large batch BN**, **loss synchronization**, **automatic BN fusion**, deformable convolution, soft NMS, multi-scale train/test
 - Modular design for coding-free exploration of new experiment settings
 
 ### Recent Updates
@@ -14,6 +14,7 @@
 - Add Cascade R-CNN with FPN backbone (2019.06.11)
 - Speed up FPN up to 70% (2019.06.16)
 - Update [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) to include larger models (2019.07.01)
+- Automatic BN fusion for fixed BN training, saving up to 50% GPU memory (2019.07.04)
 
 ### Setup
 #### Install
