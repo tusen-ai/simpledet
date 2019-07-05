@@ -502,7 +502,7 @@ MXNET_REGISTER_OP_PROPERTY(_contrib_Proposal_v2, ProposalProp_v2)
 .add_argument("cls_prob", "NDArray-or-Symbol", "Probability of how likely proposal is object.")
 .add_argument("bbox_pred", "NDArray-or-Symbol", "BBox Predicted deltas from anchors for proposals")
 .add_argument("im_info", "NDArray-or-Symbol", "Image size and scale.")
-.add_argument("valid_range", "NDArray-or-Symbol", "Valid scale ranges for image scale.")
+.add_argument("valid_ranges", "NDArray-or-Symbol", "Valid scale ranges for image scale.")
 .add_arguments(ProposalParam_v2::__FIELDS__());
 
 }  // namespace op
