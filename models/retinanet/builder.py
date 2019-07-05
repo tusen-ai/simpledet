@@ -298,7 +298,7 @@ class RetinaNetHead(RpnHead):
                 label=cls_label,
                 alpha=p.focal_loss.alpha,
                 gamma=p.focal_loss.gamma,
-                workspace=1500,
+                workspace=1800,
                 out_grad=True
             )
             cls_loss = mx.sym.broadcast_div(cls_loss, fg_count)
