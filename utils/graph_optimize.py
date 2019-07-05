@@ -45,18 +45,34 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
             node_op_map[nid] = ["Variable"]
         elif op_name == "BatchNorm":
             e = node["inputs"][0]
+            _, gamma, beta, mmean, mvar = children
+            gamma_name, beta_name, mmean_name, mvar_name = gamma.name, beta.name, mmean.name, mvar.name
+            assert "gamma" in gamma_name
+            assert "beta" in beta_name
+            assert "moving_mean" in mmean_name
+            assert "moving_var" in mvar_name
             eps = float(attrs["eps"])
-            if node_op_map[e[0]][e[1]] == "Convolution" and attrs["use_global_stats"] == "True":
+            if attrs["use_global_stats"] == "True" and node_op_map[e[0]][e[1]] == "Convolution":
                 if not symbol_only:
-                    if (node_name + "_moving_mean") not in auxs:
+                    if (mmean_name) not in auxs:
                         logging.info("Can not find {}, skipping".format(node_name + "_moving_mean"))
                     else:
                         logging.info("Merging {}".format(node_name))
                         # modify beta before gamma since gamma is not depend on beta
-                        args[node_name + "_beta"] -= args[node_name + "_gamma"] * auxs[node_name + "_moving_mean"] / mx.nd.sqrt(eps + auxs[node_name + "_moving_var"])
-                        args[node_name + "_gamma"] /= mx.nd.sqrt(eps + auxs[node_name + "_moving_var"])
-                        args[node_name + "_gamma"] = args[node_name + "_gamma"].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
-                        args[node_name + "_beta"] = args[node_name + "_beta"].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
+                        args[beta_name] -= args[gamma_name] * auxs[mmean_name] / mx.nd.sqrt(eps + auxs[mvar_name])
+                        args[gamma_name] /= mx.nd.sqrt(eps + auxs[mvar_name])
+                        # expand for broadcasting
+                        if args[gamma_name].ndim == 1:
+                            args[gamma_name] = args[gamma_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
+                            args[beta_name] = args[beta_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
+                            auxs[mmean_name] = auxs[mmean_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
+                            auxs[mvar_name] = auxs[mvar_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
+                        # set mmean and mvar to identity to avoid fusing more than once in weight sharing
+                        auxs[mmean_name][:] = 0.0
+                        auxs[mvar_name][:] = 1.0
+                        # copy shared gamma and beta for each BN
+                        args[node_name + "_gamma"] = args[gamma_name]
+                        args[node_name + "_beta"] = args[beta_name]
                 # BroadcastScale is needed
                 gamma = mx.sym.var(node_name + "_gamma", shape=args[node_name + "_gamma"].shape)
                 beta = mx.sym.var(node_name + "_beta", shape=args[node_name + "_beta"].shape)
