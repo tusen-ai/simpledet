@@ -964,6 +964,9 @@ class DetModule(BaseModule):
         self.bind(data_shapes=train_data.provide_data, label_shapes=train_data.provide_label,
                   for_training=True, force_rebind=force_rebind)
 
+        self.logger.info("MEM usage: {} MiB".
+            format(int(self._exec_group.execs[0].debug_str().split('\n')[-3].split()[1])))
+
         if monitor is not None:
             self.install_monitor(monitor)
         self.init_params(initializer=initializer, arg_params=arg_params, aux_params=aux_params,
