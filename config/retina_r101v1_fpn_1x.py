@@ -14,7 +14,7 @@ def get_config(is_train):
 
 
     class KvstoreParam:
-        kvstore     = "local"
+        kvstore     = "nccl"
         batch_image = General.batch_image
         gpus        = [0, 1, 2, 3, 4, 5, 6, 7]
         fp16        = General.fp16

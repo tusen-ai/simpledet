@@ -28,7 +28,8 @@ class FGAccMetric(mx.metric.EvalMetric):
         # select class with maximum score as prediction
         pred_score = pred.max(axis=-1)
         pred_label = pred.argmax(axis=-1) + 1
-        pred_label *= pred_score > self.thr
+        if self.thr != 0:
+            pred_label *= pred_score > self.thr
 
         pred_label = pred_label.asnumpy().astype('int32')
 
