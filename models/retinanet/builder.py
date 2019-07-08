@@ -311,7 +311,7 @@ class RetinaNetHead(RpnHead):
                 alpha=p.focal_loss.alpha,
                 gamma=p.focal_loss.gamma,
                 grad_scale=1.0 * scale_loss_shift,
-                workspace=1024,
+                workspace=1500,
                 name="cls_loss"
             )
 

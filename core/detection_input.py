@@ -103,7 +103,7 @@ class Resize2DImageBbox(DetectionAugmentation):
 
         # exactly as opencv
         h, w = image.shape[:2]
-        input_record["im_info"] = (round(h * scale), round(w * scale), scale)
+        input_record["im_info"] = np.array([round(h * scale), round(w * scale), scale], dtype=np.float32)
 
 
 class Resize2DImage(DetectionAugmentation):
@@ -133,7 +133,7 @@ class Resize2DImage(DetectionAugmentation):
 
         # exactly as opencv
         h, w = image.shape[:2]
-        input_record["im_info"] = (round(h * scale), round(w * scale), scale)
+        input_record["im_info"] = np.array([round(h * scale), round(w * scale), scale], dtype=np.float32)
 
 
 class Resize2DImageByRoidb(DetectionAugmentation):
@@ -283,7 +283,7 @@ class RandCrop2DImageBbox(DetectionAugmentation):
 
         input_record["image"] = im_cropped
         input_record["gt_bbox"] = gt_bbox
-        input_record["im_info"] = (crop_h, crop_w, input_record["im_info"][2])
+        input_record["im_info"] = np.array([crop_h, crop_w, input_record["im_info"][2]], dtype=np.float32)
 
 
 class Pad2DImageBbox(DetectionAugmentation):
@@ -629,6 +629,9 @@ class Loader(mx.io.DataIter):
         self.data = None
         self.label = None
 
+        self.debug = False
+        self.result = None
+
         # multi-thread settings
         self.num_worker = num_worker
         self.num_collector = num_collector
@@ -700,12 +703,16 @@ class Loader(mx.io.DataIter):
         return result
 
     def next(self):
+        if self.debug and self.result is not None:
+            return self.result
+
         if self.iter_next():
             # print("[worker] %d" % self.data_queue.qsize())
             # print("[collector] %d" % self.result_queue.qsize())
             result = self.load_batch()
             self.data = result.data
             self.label = result.label
+            self.result = result
             return result
         else:
             raise StopIteration
@@ -722,7 +729,7 @@ class Loader(mx.io.DataIter):
                 records.append(roi_record)
             data_batch = {}
             for name in self.data_name + self.label_name:
-                data_batch[name] = np.stack([r[name] for r in records])
+                data_batch[name] = np.ascontiguousarray(np.stack([r[name] for r in records]))
             for trans in self.batch_transform:
                 trans.apply(data_batch)
             data_queue.put(data_batch)
@@ -730,8 +737,8 @@ class Loader(mx.io.DataIter):
     def collector(self):
         while True:
             record = self.data_queue.get()
-            data = [mx.nd.array(record[name]) for name in self.data_name]
-            label = [mx.nd.array(record[name]) for name in self.label_name]
+            data = [mx.nd.from_numpy(record[name], zero_copy=True) for name in self.data_name]
+            label = [mx.nd.from_numpy(record[name], zero_copy=True) for name in self.label_name]
             provide_data = [(k, v.shape) for k, v in zip(self.data_name, data)]
             provide_label = [(k, v.shape) for k, v in zip(self.label_name, label)]
             data_batch = mx.io.DataBatch(data=data,
