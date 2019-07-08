@@ -88,7 +88,6 @@ struct ProposalTargetParam : public dmlc::Parameter<ProposalTargetParam> {
   float bg_thresh_lo;
   bool proposal_without_gt;
   bool class_agnostic;
-  bool ohem;
   bool output_iou;
   nnvm::Tuple<float> bbox_mean;
   nnvm::Tuple<float> bbox_std;
@@ -104,7 +103,6 @@ struct ProposalTargetParam : public dmlc::Parameter<ProposalTargetParam> {
     DMLC_DECLARE_FIELD(fg_fraction).set_default(0.25f).describe("Fraction of foreground proposals");
     DMLC_DECLARE_FIELD(proposal_without_gt).describe("Do not append ground-truth bounding boxes to output");
     DMLC_DECLARE_FIELD(class_agnostic).set_default(false).describe("class agnostic bbox_target");
-    DMLC_DECLARE_FIELD(ohem).set_default(false).describe("Do online hard sample mining");
     DMLC_DECLARE_FIELD(output_iou).set_default(false).describe("output match_gt_iou");
     float tmp[] = {0.f, 0.f, 0.f, 0.f};
     DMLC_DECLARE_FIELD(bbox_mean).set_default(nnvm::Tuple<float>(tmp, tmp+4)).describe("Bounding box mean");
@@ -136,7 +134,6 @@ class ProposalTargetOp : public Operator {
     CHECK_EQ(req[proposal_target_enum::kLabel], kWriteTo);
     CHECK_EQ(req[proposal_target_enum::kBboxTarget], kWriteTo);
     CHECK_EQ(req[proposal_target_enum::kBboxWeight], kWriteTo);
- //   printf("PROPOSAL_TARGET START\n");
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const index_t num_image         = param_.batch_images;
     const index_t num_roi           = in_data[proposal_target_enum::kRois].Size() / (num_image * 4);
@@ -156,12 +153,12 @@ class ProposalTargetOp : public Operator {
 
     // clean up bboxes
     for (index_t i = 0; i < num_image; ++i) {
-        kept_gtbboxes.push_back(std::vector<Tensor<cpu, 1, DType>>());
-        for (index_t j = 0; j < gt_bboxes.size(1); ++j) {
-            if (gt_bboxes[i][j][4] != -1) {
-                kept_gtbboxes[i].push_back(gt_bboxes[i][j]);
-            }
+      kept_gtbboxes.push_back(std::vector<Tensor<cpu, 1, DType>>());
+      for (index_t j = 0; j < gt_bboxes.size(1); ++j) {
+        if (gt_bboxes[i][j][4] != -1) {
+          kept_gtbboxes[i].push_back(gt_bboxes[i][j]);
         }
+      }
     }
 
     //for append gt
@@ -187,62 +184,57 @@ class ProposalTargetOp : public Operator {
         }
       }
     }
-  //  printf("PROPOSAL_TARGET MID\n");
+
     TensorContainer<cpu, 3, DType> cpu_output_rois(Shape3(num_image, image_rois, 4), 0.f);
     TensorContainer<cpu, 2, DType> cpu_labels(Shape2(num_image, image_rois), 0.f);
     TensorContainer<cpu, 3, DType> cpu_bbox_targets(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 3, DType> cpu_bbox_weights(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 2, DType> cpu_match_gt_ious(Shape2(num_image, image_rois), 0.f);
 
-    if (param_.ohem) {
-        LOG(FATAL) << "OHEM not Implemented.";
-    } else {
-        index_t fg_rois_per_image = static_cast<index_t>(image_rois * param_.fg_fraction);
-        TensorContainer<cpu, 1, DType> bbox_mean(Shape1(4));
-        TensorContainer<cpu, 1, DType> bbox_std(Shape1(4));
-        TensorContainer<cpu, 1, DType> bbox_weight(Shape1(4));
-        bbox_mean[0] = param_.bbox_mean[0];
-        bbox_mean[1] = param_.bbox_mean[1];
-        bbox_mean[2] = param_.bbox_mean[2];
-        bbox_mean[3] = param_.bbox_mean[3];
-        bbox_std[0] = param_.bbox_std[0];
-        bbox_std[1] = param_.bbox_std[1];
-        bbox_std[2] = param_.bbox_std[2];
-        bbox_std[3] = param_.bbox_std[3];
-        bbox_weight[0] = param_.bbox_weight[0];
-        bbox_weight[1] = param_.bbox_weight[1];
-        bbox_weight[2] = param_.bbox_weight[2];
-        bbox_weight[3] = param_.bbox_weight[3];
-        for (index_t i = 0; i < num_image; ++i) {
-          TensorContainer<cpu, 2, DType> kept_rois_i    (Shape2(kept_rois[i].size(),     rois.size(2)));
-          TensorContainer<cpu, 2, DType> kept_gtbboxes_i(Shape2(kept_gtbboxes[i].size(), gt_bboxes.size(2)));
-          for (index_t j = 0; j < kept_rois_i.size(0); ++j) {
-              Copy(kept_rois_i[j], kept_rois[i][j]);
-          }
-          for (index_t j = 0; j < kept_gtbboxes_i.size(0); ++j) {
-              Copy(kept_gtbboxes_i[j], kept_gtbboxes[i][j]);
-          }
-      //    printf("BEFORE SAMPLEROI");
-          proposal_target_v1::SampleROI(
-            kept_rois_i, 
-            kept_gtbboxes_i, 
-            bbox_mean, 
-            bbox_std, 
-            bbox_weight,
-            fg_rois_per_image, 
-            image_rois,
-            param_.num_classes, 
-            param_.fg_thresh, 
-            param_.bg_thresh_hi, 
-            param_.bg_thresh_lo,
-            param_.class_agnostic,
-            cpu_output_rois[i],
-            cpu_labels[i],
-            cpu_bbox_targets[i],
-            cpu_bbox_weights[i],
-            cpu_match_gt_ious[i]
-          );
-        }
+    index_t fg_rois_per_image = static_cast<index_t>(image_rois * param_.fg_fraction);
+    TensorContainer<cpu, 1, DType> bbox_mean(Shape1(4));
+    TensorContainer<cpu, 1, DType> bbox_std(Shape1(4));
+    TensorContainer<cpu, 1, DType> bbox_weight(Shape1(4));
+    bbox_mean[0] = param_.bbox_mean[0];
+    bbox_mean[1] = param_.bbox_mean[1];
+    bbox_mean[2] = param_.bbox_mean[2];
+    bbox_mean[3] = param_.bbox_mean[3];
+    bbox_std[0] = param_.bbox_std[0];
+    bbox_std[1] = param_.bbox_std[1];
+    bbox_std[2] = param_.bbox_std[2];
+    bbox_std[3] = param_.bbox_std[3];
+    bbox_weight[0] = param_.bbox_weight[0];
+    bbox_weight[1] = param_.bbox_weight[1];
+    bbox_weight[2] = param_.bbox_weight[2];
+    bbox_weight[3] = param_.bbox_weight[3];
+    for (index_t i = 0; i < num_image; ++i) {
+      TensorContainer<cpu, 2, DType> kept_rois_i    (Shape2(kept_rois[i].size(),     rois.size(2)));
+      TensorContainer<cpu, 2, DType> kept_gtbboxes_i(Shape2(kept_gtbboxes[i].size(), gt_bboxes.size(2)));
+      for (index_t j = 0; j < kept_rois_i.size(0); ++j) {
+          Copy(kept_rois_i[j], kept_rois[i][j]);
+      }
+      for (index_t j = 0; j < kept_gtbboxes_i.size(0); ++j) {
+          Copy(kept_gtbboxes_i[j], kept_gtbboxes[i][j]);
+      }
+      proposal_target_v1::SampleROI(
+        kept_rois_i, 
+        kept_gtbboxes_i, 
+        bbox_mean, 
+        bbox_std, 
+        bbox_weight,
+        fg_rois_per_image, 
+        image_rois,
+        param_.num_classes, 
+        param_.fg_thresh, 
+        param_.bg_thresh_hi, 
+        param_.bg_thresh_lo,
+        param_.class_agnostic,
+        cpu_output_rois[i],
+        cpu_labels[i],
+        cpu_bbox_targets[i],
+        cpu_bbox_weights[i],
+        cpu_match_gt_ious[i]
+      );
     }
 
     Tensor<xpu, 3, DType> xpu_output_rois  = out_data[proposal_target_enum::kRoiOutput].
