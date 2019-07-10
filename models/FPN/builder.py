@@ -194,7 +194,7 @@ class FPNRpnHead(RpnHead):
             rpn_bbox_delta = bbox_delta_dict[stride]
             rpn_cls_logit_reshape = X.reshape(
                 data=rpn_cls_logit,
-                shape=(0, 2, -1),
+                shape=(0, 2, num_anchor, -1),
                 name="rpn_cls_score_reshape_stride%s" % stride
             )
             rpn_bbox_delta_reshape = X.reshape(
@@ -204,7 +204,6 @@ class FPNRpnHead(RpnHead):
             )
             rpn_bbox_delta_list.append(rpn_bbox_delta_reshape)
             rpn_cls_logit_list.append(rpn_cls_logit_reshape)
-
 
             anchor_max_side = p.anchor_generate.max_side // stride
             anchors = X.var("anchor_stride%s" % stride,
@@ -224,7 +223,7 @@ class FPNRpnHead(RpnHead):
 
         # concat output of each level
         rpn_bbox_delta_concat = X.concat(rpn_bbox_delta_list, axis=2, name="rpn_bbox_pred_concat")
-        rpn_cls_logit_concat = X.concat(rpn_cls_logit_list, axis=2, name="rpn_cls_score_concat")
+        rpn_cls_logit_concat = X.concat(rpn_cls_logit_list, axis=-1, name="rpn_cls_score_concat")
 
         cls_loss = X.softmax_output(
             data=rpn_cls_logit_concat,

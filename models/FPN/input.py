@@ -123,10 +123,11 @@ class PyramidAnchorTarget2D(PyramidAnchorTarget2DBase):
                 fh, fw = p.generate.long, p.generate.short
             else:
                 fh, fw = p.generate.short, p.generate.long
-            cls_label_level = cls_label_level.reshape((fh, fw, -1)).transpose(2, 0, 1).reshape(-1)
+            cls_label_level = cls_label_level.reshape((fh, fw, -1)).transpose(2, 0, 1)
             reg_target_level = reg_target_level.reshape((fh, fw, -1)).transpose(2, 0, 1)
             reg_weight_level = reg_weight_level.reshape((fh, fw, -1)).transpose(2, 0, 1)
 
+            cls_label_level = cls_label_level.reshape(-1, fh * fw)
             reg_target_level = reg_target_level.reshape(-1, fh * fw)
             reg_weight_level = reg_weight_level.reshape(-1, fh * fw)
 
@@ -134,7 +135,7 @@ class PyramidAnchorTarget2D(PyramidAnchorTarget2DBase):
             reg_target_list.append(reg_target_level)
             reg_weight_list.append(reg_weight_level)
 
-        cls_label = np.concatenate(cls_label_list, axis=0)
+        cls_label = np.concatenate(cls_label_list, axis=1).reshape(-1)
         reg_target = np.concatenate(reg_target_list, axis=1)
         reg_weight = np.concatenate(reg_weight_list, axis=1)
 
