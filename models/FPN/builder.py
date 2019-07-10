@@ -59,15 +59,15 @@ class FPNBboxDualHeadSmall(BboxHead):
 
         for i in range(num_block):
             conv_feat = X.conv(
-                conv_feat, 
-                kernel=3, 
-                filter=256, 
-                init=X.gauss(0.01), 
+                conv_feat,
+                kernel=3,
+                filter=256,
+                init=X.gauss(0.01),
                 name="bbox_reg_block%s" % (i + 1)
             )
             conv_feat = self.add_norm(conv_feat)
             conv_feat = X.relu(conv_feat)
-        
+
         return conv_feat
 
     def _cls_head(self, conv_feat):
@@ -88,7 +88,7 @@ class FPNBboxDualHeadSmall(BboxHead):
             return self._head_feat
 
         self._head_feat = dict(
-            classification=self._cls_head(conv_feat), 
+            classification=self._cls_head(conv_feat),
             regression=self._reg_head(conv_feat)
         )
 
@@ -166,11 +166,18 @@ class FPNRpnHead(RpnHead):
     def get_anchor_target(self, conv_fpn_feat):
         raise NotImplementedError
 
-    def get_loss(self, conv_fpn_feat, cls_label, bbox_target, bbox_weight):
+    def get_loss(self, conv_fpn_feat, gt_bbox, im_info):
         p = self.p
         batch_image = p.batch_image
         image_anchor = p.anchor_generate.image_anchor
         rpn_stride = p.anchor_generate.stride
+        anchor_scale = p.anchor_generate.scale
+        anchor_ratio = p.anchor_generate.ratio
+        num_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
+        allowed_border = p.anchor_assign.allowed_border
+        fg_fraction = p.anchor_assign.pos_fraction
+        fg_thr = p.anchor_assign.pos_thr
+        bg_thr = p.anchor_assign.neg_thr
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_fpn_feat)
 
@@ -178,6 +185,9 @@ class FPNRpnHead(RpnHead):
 
         rpn_cls_logit_list = []
         rpn_bbox_delta_list = []
+        anchor_list = []
+        feat_list = []
+        anchor_dict = {}
 
         for stride in rpn_stride:
             rpn_cls_logit = cls_logit_dict[stride]
@@ -194,6 +204,23 @@ class FPNRpnHead(RpnHead):
             )
             rpn_bbox_delta_list.append(rpn_bbox_delta_reshape)
             rpn_cls_logit_list.append(rpn_cls_logit_reshape)
+
+
+            anchor_max_side = p.anchor_generate.max_side // stride
+            anchors = X.var("anchor_stride%s" % stride,
+                shape=(1, 1, anchor_max_side, anchor_max_side, num_anchor * 4),
+                dtype='float32') # (1, 1, long_side, long_side, #anchor * 4)
+            anchor_list.append(anchors)
+            feat_list.append(rpn_cls_logit)
+            anchor_dict["stride%s" % stride] = anchors
+
+        self.anchor_dict = anchor_dict
+
+        max_side = p.anchor_generate.max_side
+        from mxnext.tvm.rpn_target import _fpn_rpn_target_batch
+        cls_label, bbox_target, bbox_weight = _fpn_rpn_target_batch(
+            mx.sym, feat_list, anchor_list, gt_bbox, im_info, batch_image, num_anchor,
+            max_side, rpn_stride, allowed_border, image_anchor, fg_fraction, fg_thr, bg_thr)
 
         # concat output of each level
         rpn_bbox_delta_concat = X.concat(rpn_bbox_delta_list, axis=2, name="rpn_bbox_pred_concat")
@@ -222,7 +249,7 @@ class FPNRpnHead(RpnHead):
             grad_scale=1.0 / (batch_image * image_anchor) * scale_loss_shift,
             name='rpn_reg_loss'
         )
-        return cls_loss, reg_loss
+        return cls_loss, reg_loss, X.stop_grad(cls_label, "rpn_cls_label_blockgrad")
 
     def get_all_proposal(self, conv_fpn_feat, im_info):
         if self._proposal is not None:
@@ -279,10 +306,12 @@ class FPNRpnHead(RpnHead):
                 assert max_side is not None, "symbolic proposal requires max_side of image"
 
                 from mxnext.tvm.proposal import proposal as Proposal
+                anchors = self.anchor_dict["stride%s" % stride]
                 rpn_proposal, rpn_proposal_scores = Proposal(
                     cls_prob=rpn_cls_score_reshape,
                     bbox_pred=rpn_bbox_delta,
                     im_info=im_info,
+                    anchors=anchors,
                     name='proposal',
                     feature_stride=stride,
                     scales=tuple(anchor_scale),
@@ -557,7 +586,7 @@ class FPNRoiAlign(RoiAlign):
         roi_canonical_level = p.roi_canonical_level
 
         from mxnext.tvm.fpn_roi_assign import fpn_roi_assign
-        group = fpn_roi_assign(mx.symbol, proposal, rcnn_stride, 
+        group = fpn_roi_assign(mx.symbol, proposal, rcnn_stride,
             roi_canonical_scale, roi_canonical_level)
 
         proposal_fpn = dict()

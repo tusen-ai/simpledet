@@ -1031,7 +1031,7 @@ class DetModule(BaseModule):
 
                 if profile is True and epoch == begin_epoch and nbatch == 10:
                     self.logger.info("Profiling ends")
-                    mx.profiler.set_state("stop")             
+                    mx.profiler.set_state("stop")
                     mx.profiler.dump()
 
             # one epoch of training is finished
