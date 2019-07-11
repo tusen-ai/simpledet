@@ -99,10 +99,32 @@ class FPNRpnHead(RpnHead):
     def __init__(self, pRpn):
         super().__init__(pRpn)
 
-        self.cls_logit_dict         = None
-        self.bbox_delta_dict        = None
-        self._proposal              = None
-        self._proposal_scores       = None
+        self.anchor_dict      = None
+        self.cls_logit_dict   = None
+        self.bbox_delta_dict  = None
+        self._proposal        = None
+        self._proposal_scores = None
+
+    def get_anchor(self):
+        p = self.p
+
+        if not p.nnvm_rpn_target and not p.nnvm_proposal:
+            return
+
+        anchor_scale = p.anchor_generate.scale
+        anchor_ratio = p.anchor_generate.ratio
+        num_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
+        strides = p.anchor_generate.stride
+
+        anchor_dict = {}
+        for stride in strides:
+            max_side = p.anchor_generate.max_side // stride
+            anchors = X.var("anchor_stride%s" % stride,
+                shape=(1, 1, max_side, max_side, num_anchor * 4),
+                dtype='float32') # (1, 1, long_side, long_side, #anchor * 4)
+            anchor_dict["stride%s" % stride] = anchors
+
+        self.anchor_dict = anchor_dict
 
     def get_output(self, conv_fpn_feat):
         if self.cls_logit_dict is not None and self.bbox_delta_dict is not None:
@@ -163,9 +185,6 @@ class FPNRpnHead(RpnHead):
 
         return self.cls_logit_dict, self.bbox_delta_dict
 
-    def get_anchor_target(self, conv_fpn_feat):
-        raise NotImplementedError
-
     def get_loss(self, conv_fpn_feat, gt_bbox, im_info):
         p = self.p
         batch_image = p.batch_image
@@ -174,10 +193,6 @@ class FPNRpnHead(RpnHead):
         anchor_scale = p.anchor_generate.scale
         anchor_ratio = p.anchor_generate.ratio
         num_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
-        allowed_border = p.anchor_assign.allowed_border
-        fg_fraction = p.anchor_assign.pos_fraction
-        fg_thr = p.anchor_assign.pos_thr
-        bg_thr = p.anchor_assign.neg_thr
 
         cls_logit_dict, bbox_delta_dict = self.get_output(conv_fpn_feat)
 
@@ -185,9 +200,7 @@ class FPNRpnHead(RpnHead):
 
         rpn_cls_logit_list = []
         rpn_bbox_delta_list = []
-        anchor_list = []
         feat_list = []
-        anchor_dict = {}
 
         for stride in rpn_stride:
             rpn_cls_logit = cls_logit_dict[stride]
@@ -204,22 +217,27 @@ class FPNRpnHead(RpnHead):
             )
             rpn_bbox_delta_list.append(rpn_bbox_delta_reshape)
             rpn_cls_logit_list.append(rpn_cls_logit_reshape)
-
-            anchor_max_side = p.anchor_generate.max_side // stride
-            anchors = X.var("anchor_stride%s" % stride,
-                shape=(1, 1, anchor_max_side, anchor_max_side, num_anchor * 4),
-                dtype='float32') # (1, 1, long_side, long_side, #anchor * 4)
-            anchor_list.append(anchors)
             feat_list.append(rpn_cls_logit)
-            anchor_dict["stride%s" % stride] = anchors
 
-        self.anchor_dict = anchor_dict
+        if p.nnvm_rpn_target:
+            from mxnext.tvm.rpn_target import _fpn_rpn_target_batch
 
-        max_side = p.anchor_generate.max_side
-        from mxnext.tvm.rpn_target import _fpn_rpn_target_batch
-        cls_label, bbox_target, bbox_weight = _fpn_rpn_target_batch(
-            mx.sym, feat_list, anchor_list, gt_bbox, im_info, batch_image, num_anchor,
-            max_side, rpn_stride, allowed_border, image_anchor, fg_fraction, fg_thr, bg_thr)
+            anchor_list = [self.anchor_dict["stride%s" % s] for s in rpn_stride]
+            gt_bbox = mx.sym.slice_axis(gt_bbox, axis=-1, begin=0, end=4)
+
+            max_side = p.anchor_generate.max_side
+            allowed_border = p.anchor_assign.allowed_border
+            fg_fraction = p.anchor_assign.pos_fraction
+            fg_thr = p.anchor_assign.pos_thr
+            bg_thr = p.anchor_assign.neg_thr
+
+            cls_label, bbox_target, bbox_weight = _fpn_rpn_target_batch(
+                mx.sym, feat_list, anchor_list, gt_bbox, im_info, batch_image, num_anchor,
+                max_side, rpn_stride, allowed_border, image_anchor, fg_fraction, fg_thr, bg_thr)
+        else:
+            cls_label = X.var("rpn_cls_label")
+            bbox_target = X.var("rpn_reg_target")
+            bbox_weight = X.var("rpn_reg_weight")
 
         # concat output of each level
         rpn_bbox_delta_concat = X.concat(rpn_bbox_delta_list, axis=2, name="rpn_bbox_pred_concat")
@@ -300,9 +318,9 @@ class FPNRpnHead(RpnHead):
                 threshold=nms_thr,
                 iou_loss=False)
 
-            if p.use_symbolic_proposal is not None and stride != rpn_stride[-1]:
+            if p.nnvm_proposal and stride != rpn_stride[-1]:
                 max_side = p.anchor_generate.max_side
-                assert max_side is not None, "symbolic proposal requires max_side of image"
+                assert max_side is not None, "nnvm proposal requires max_side of image"
 
                 from mxnext.tvm.proposal import proposal as Proposal
                 anchors = self.anchor_dict["stride%s" % stride]

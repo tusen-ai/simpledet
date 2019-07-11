@@ -12,9 +12,9 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 4 if is_train else 1
+        batch_image = 2 if is_train else 1
         fp16 = False
-        loader_worker = 4
+        loader_worker = 8
 
 
     class KvstoreParam:
@@ -42,7 +42,8 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
-        use_symbolic_proposal = True
+        nnvm_proposal = True
+        nnvm_rpn_target = False
 
         class anchor_generate:
             scale = (8,)
@@ -251,8 +252,11 @@ def get_config(is_train):
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)
         ]
-        data_name = ["data", "gt_bbox"]
-        label_name = ["im_info"]
+        data_name = ["data"]
+        label_name = ["gt_bbox", "im_info"]
+        if not RpnParam.nnvm_rpn_target:
+            transform.append(PyramidAnchorTarget2D(AnchorTarget2DParam()))
+            label_name += ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),

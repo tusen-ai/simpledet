@@ -58,6 +58,7 @@ class FasterRcnn(object):
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
+        rpn_head.get_anchor()
         rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
         proposal, bbox_cls, bbox_target, bbox_weight = rpn_head.get_sampled_proposal(rpn_feat, gt_bbox, im_info)
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
@@ -87,6 +88,7 @@ class FasterRcnn(object):
         im_id = X.var("im_id")
         rec_id = X.var("rec_id")
 
+        rpn_head.get_anchor()
         rpn_feat = backbone.get_rpn_feature()
         rpn_feat = neck.get_rpn_feature(rpn_feat)
 
