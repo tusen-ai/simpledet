@@ -195,14 +195,14 @@ def train_net(config):
             )
         elif lr_mode == 'cosine':
             warmup_lr_scheduler = AdvancedLRScheduler(
-                mode='linear', 
+                mode='linear',
                 base_lr=pOpt.warmup.lr,
-                target_lr=base_lr, 
+                target_lr=base_lr,
                 niters=pOpt.warmup.iter // kv.num_workers
             )
             cosine_lr_scheduler = AdvancedLRScheduler(
-                mode='cosine', 
-                base_lr=base_lr, 
+                mode='cosine',
+                base_lr=base_lr,
                 target_lr=0,
                 niters=(iter_per_epoch * (end_epoch - begin_epoch) - pOpt.warmup.iter) // kv.num_workers
             )
@@ -214,8 +214,8 @@ def train_net(config):
             lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(lr_iter_discount, lr_factor)
         elif lr_mode == 'cosine':
             lr_scheduler = AdvancedLRScheduler(
-                mode='cosine', 
-                base_lr=base_lr, 
+                mode='cosine',
+                base_lr=base_lr,
                 target_lr=0,
                 niters=iter_per_epoch * (end_epoch - begin_epoch) // kv.num_workers
             )

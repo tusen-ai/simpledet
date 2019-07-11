@@ -52,16 +52,14 @@ class FasterRcnn(object):
     def get_train_symbol(cls, backbone, neck, rpn_head, roi_extractor, bbox_head):
         gt_bbox = X.var("gt_bbox")
         im_info = X.var("im_info")
-        rpn_cls_label = X.var("rpn_cls_label")
-        rpn_reg_target = X.var("rpn_reg_target")
-        rpn_reg_weight = X.var("rpn_reg_weight")
 
         rpn_feat = backbone.get_rpn_feature()
         rcnn_feat = backbone.get_rcnn_feature()
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
-        rpn_loss = rpn_head.get_loss(rpn_feat, rpn_cls_label, rpn_reg_target, rpn_reg_weight)
+        rpn_head.get_anchor()
+        rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
         proposal, bbox_cls, bbox_target, bbox_weight = rpn_head.get_sampled_proposal(rpn_feat, gt_bbox, im_info)
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         bbox_loss = bbox_head.get_loss(roi_feat, bbox_cls, bbox_target, bbox_weight)
@@ -90,6 +88,7 @@ class FasterRcnn(object):
         im_id = X.var("im_id")
         rec_id = X.var("rec_id")
 
+        rpn_head.get_anchor()
         rpn_feat = backbone.get_rpn_feature()
         rpn_feat = neck.get_rpn_feature(rpn_feat)
 

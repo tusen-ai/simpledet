@@ -67,7 +67,8 @@ if __name__ == "__main__":
         roidb = roidbs_all[index_split * split_size:(index_split + 1) * split_size]
         roidb = pTest.process_roidb(roidb)
         for i, x in enumerate(roidb):
-            x["rec_id"] = i
+            x["rec_id"] = np.array(i, dtype=np.float32)
+            x["im_id"] = np.array(x["im_id"], dtype=np.float32)
 
         loader = Loader(roidb=roidb,
                         transform=transform,
