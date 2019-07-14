@@ -106,6 +106,9 @@ class RpnHead(object):
         self._bbox_delta            = None
         self._proposal              = None
 
+    def get_anchor(self):
+        pass
+
     def get_output(self, conv_feat):
         if self._cls_logit is not None and self._bbox_delta is not None:
             return self._cls_logit, self._bbox_delta
@@ -160,10 +163,8 @@ class RpnHead(object):
 
         return self._cls_logit, self._bbox_delta
 
-    def get_anchor_target(self, conv_feat):
-        raise NotImplementedError
 
-    def get_loss(self, conv_feat, cls_label, bbox_target, bbox_weight):
+    def get_loss(self, conv_feat, gt_bboxes, im_infos):
         p = self.p
         batch_image = p.batch_image
         image_anchor = p.anchor_generate.image_anchor
@@ -171,6 +172,10 @@ class RpnHead(object):
         cls_logit, bbox_delta = self.get_output(conv_feat)
 
         scale_loss_shift = 128.0 if p.fp16 else 1.0
+
+        cls_label = X.var("rpn_cls_label")
+        bbox_target = X.var("rpn_reg_target")
+        bbox_weight = X.var("rpn_reg_weight")
 
         # classification loss
         cls_logit_reshape = X.reshape(
