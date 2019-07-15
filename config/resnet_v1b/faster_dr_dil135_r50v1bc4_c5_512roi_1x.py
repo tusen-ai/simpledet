@@ -31,7 +31,7 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 50
-
+        dilates = (1, 3, 5)
 
     class NeckParam:
         fp16 = General.fp16
@@ -56,7 +56,7 @@ def get_config(is_train):
 
         class proposal:
             pre_nms_top_n = 12000 if is_train else 6000
-            post_nms_top_n = 2000 if is_train else 1000
+            post_nms_top_n = 2000 if is_train else 300
             nms_thr = 0.7
             min_bbox_side = 0
 
