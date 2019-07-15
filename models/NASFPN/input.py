@@ -12,7 +12,7 @@ class ResizeCrop2DImageBbox(DetectionAugmentation):
     def __init__(self, pResize):
         super(ResizeCrop2DImageBbox, self).__init__()
         self.p = pResize
-    
+
     def apply(self, input_record):
         p = self.p
 
@@ -25,16 +25,16 @@ class ResizeCrop2DImageBbox(DetectionAugmentation):
         # compute the accurate scale_factor using rounded scaled image size
         height, width = image.shape[:2]
         max_image_size = float(max(height, width))
-        image_scale = float(output_size) / max_image_size        
+        image_scale = float(output_size) / max_image_size
         scaled_height = int(float(height) * image_scale)
         scaled_width = int(float(width) * image_scale)
         # resize input image and crop it to the output size
-        scaled_image = cv2.resize(image, (scaled_width, scaled_height), 
+        scaled_image = cv2.resize(image, (scaled_width, scaled_height),
                                   interpolation=cv2.INTER_LINEAR)
         scaled_image = scaled_image[
             0:0 + output_size,
             0:0 + output_size, :]
-        
+
         # resize boxes and crop it to the output size
         gt_bbox[:, :4] = gt_bbox[:, :4] * image_scale
         bbox_offset = np.stack([0, 0,
@@ -44,7 +44,7 @@ class ResizeCrop2DImageBbox(DetectionAugmentation):
 
         input_record["image"] = scaled_image
         input_record["gt_bbox"] = gt_bbox
-        input_record["im_info"] = (scaled_image.shape[0], scaled_image.shape[1], image_scale)        
+        input_record["im_info"] = np.array([scaled_image.shape[0], scaled_image.shape[1], image_scale], dtype=np.float32)
 
 
 class RandResizeCrop2DImageBbox(DetectionAugmentation):
@@ -90,12 +90,12 @@ class RandResizeCrop2DImageBbox(DetectionAugmentation):
         offset_x = int(offset_x)
 
         # resize input image and crop it to the output size
-        scaled_image = cv2.resize(image, (scaled_width, scaled_height), 
+        scaled_image = cv2.resize(image, (scaled_width, scaled_height),
                                   interpolation=cv2.INTER_LINEAR)
         scaled_image = scaled_image[
             offset_y:offset_y + output_size,
             offset_x:offset_x + output_size, :]
-        
+
         # resize boxes and crop it to the output size
         gt_bbox[:, :4] = gt_bbox[:, :4] * image_scale
         bbox_offset = np.stack([offset_x, offset_y,
@@ -105,8 +105,7 @@ class RandResizeCrop2DImageBbox(DetectionAugmentation):
 
         input_record["image"] = scaled_image
         input_record["gt_bbox"] = gt_bbox
-        input_record["im_info"] = (scaled_image.shape[0], scaled_image.shape[1], image_scale)
-
+        input_record["im_info"] = np.array([scaled_image.shape[0], scaled_image.shape[1], image_scale], dtype=np.float32)
 
 if __name__ == "__main__":
     import pickle as pkl

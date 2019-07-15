@@ -48,7 +48,7 @@ class Resize2DImageBboxMask(DetectionAugmentation):
 
         # exactly as opencv
         h, w = image.shape[:2]
-        input_record["im_info"] = (round(h * scale), round(w * scale), scale)
+        input_record["im_info"] = np.array([round(h * scale), round(w * scale), scale], dtype=np.float32)
 
         # resize poly
         for i, segms in enumerate(gt_poly):
