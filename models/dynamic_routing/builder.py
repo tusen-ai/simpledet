@@ -6,13 +6,15 @@ from symbol.builder import Backbone
 
 
 def dr_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
+    p = kwargs["params"]
+
     conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
     bn1 = norm(conv1, name=name + "_bn1")
     relu1 = relu(bn1, name=name + "_relu1")
 
     # conv2 filter banks
     conv2_weight = X.var(name + "_conv2_weight")
-    dil1, dil2, dil3 = kwargs.get("dilates", (1, 2, 3))
+    dil1, dil2, dil3 = p.dilates or (1, 2, 3)
     conv2_1 = conv(relu1, name=name + "_conv2_1", weight=conv2_weight,
         filter=filter // 4, kernel=3, stride=stride, dilate=dil1)
     conv2_2 = conv(relu1, name=name + "_conv2_2", weight=conv2_weight,
@@ -21,7 +23,7 @@ def dr_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
         filter=filter // 4, kernel=3, stride=stride, dilate=dil3)
 
     # construct
-    if kwargs.get("baseline", False):
+    if p.baseline or False:
         conv2 = mx.sym.add_n(conv2_1, conv2_2, conv2_3)
     else:
         conv2_bank = mx.sym.stack(conv2_1, conv2_2, conv2_3, axis=1)  # n x 3 x c x h x w
@@ -80,7 +82,7 @@ class DRResNetC4(Backbone):
         c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
         c3 = helper.resnet_c3(c2, num_c3, 2, 1, p.normalizer)
         c4 = hybrid_resnet_stage(c3, "stage3", num_c4, 3, dr_resnet_unit, 1024, 2, 1,
-            p.normalizer, dilates=p.dilates, baseline=p.baseline)
+            p.normalizer, params=p)
 
         self.symbol = c4
 
