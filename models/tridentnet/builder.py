@@ -304,6 +304,47 @@ class TridentRpnHead(RpnHead):
 
         return bbox, label, bbox_target, bbox_weight
 
+    def get_loss(self, conv_feat, cls_label, bbox_target, bbox_weight):
+        p = self.p
+        batch_image = p.batch_image
+        image_anchor = p.anchor_generate.image_anchor
+
+        cls_logit, bbox_delta = self.get_output(conv_feat)
+
+        scale_loss_shift = 128.0 if p.fp16 else 1.0
+
+        # classification loss
+        cls_logit_reshape = X.reshape(
+            cls_logit,
+            shape=(0, -4, 2, -1, 0, 0),  # (N,C,H,W) -> (N,2,C/2,H,W)
+            name="rpn_cls_logit_reshape"
+        )
+        cls_loss = X.softmax_output(
+            data=cls_logit_reshape,
+            label=cls_label,
+            multi_output=True,
+            normalization='valid',
+            use_ignore=True,
+            ignore_label=-1,
+            grad_scale=1.0 * scale_loss_shift,
+            name="rpn_cls_loss"
+        )
+
+        # regression loss
+        reg_loss = X.smooth_l1(
+            (bbox_delta - bbox_target),
+            scalar=3.0,
+            name='rpn_reg_l1'
+        )
+        reg_loss = bbox_weight * reg_loss
+        reg_loss = X.loss(
+            reg_loss,
+            grad_scale=1.0 / (batch_image * image_anchor) * scale_loss_shift,
+            name='rpn_reg_loss'
+        )
+
+        return cls_loss, reg_loss
+
 
 class TridentMaskRpnHead(TridentRpnHead):
     def __init__(self, pRpn, pMask):
