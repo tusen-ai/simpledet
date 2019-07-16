@@ -46,14 +46,21 @@ def dr_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
 
     return relu(eltwise, name=name + "_relu")
 
-def dr_resnet_stage(data, name, num_block, filter, stride, dilate, norm, **kwargs):
+def hybrid_resnet_stage(data, name, num_block, num_special_block, special_res_unit, filter,
+    stride, dilate, norm, **kwargs):
     s, d = stride, dilate
 
-    data = resnet_unit(data, "{}_unit1".format(name), filter, s, d, True, norm)
-    for i in range(2, num_block + 1 - 3):
-        data = resnet_unit(data, "{}_unit{}".format(name, i), filter, 1, d, False, norm)
-    for i in range(num_block + 1 - 3, num_block + 1):
-        data = dr_resnet_unit(data, "{}_unit{}".format(name, i), filter, 1, d, False, norm, **kwargs)
+    for i in range(1, num_block + 1 - num_special_block):
+        proj = True if i == 1 else False
+        s = stride if i == 1 else 1
+        d = dilate
+        data = resnet_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm)
+
+    for i in range(num_block + 1 - num_special_block, num_block + 1):
+        proj = True if i == 1 else False
+        s = stride if i == 1 else 1
+        d = dilate
+        data = special_res_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm, **kwargs)
 
     return data
 
@@ -72,8 +79,8 @@ class DRResNetC4(Backbone):
         c1 = helper.resnet_c1(data, p.normalizer)
         c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
         c3 = helper.resnet_c3(c2, num_c3, 2, 1, p.normalizer)
-        c4 = dr_resnet_stage(c3, "stage3", num_c4, 1024, 2, 1, p.normalizer,
-            dilates=p.dilates, baseline=p.baseline)
+        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, 3, dr_resnet_unit, 1024, 2, 1,
+            p.normalizer, dilates=p.dilates, baseline=p.baseline)
 
         self.symbol = c4
 
@@ -110,17 +117,6 @@ def dcn_resnet_unit(input, name, filter, stride, dilate, proj, norm):
 
     return relu(eltwise, name=name + "_relu")
 
-def dcn_resnet_stage(data, name, num_block, filter, stride, dilate, norm):
-    s, d = stride, dilate
-
-    data = resnet_unit(data, "{}_unit1".format(name), filter, s, d, True, norm)
-    for i in range(2, num_block + 1 - 3):
-        data = resnet_unit(data, "{}_unit{}".format(name, i), filter, 1, d, False, norm)
-    for i in range(num_block + 1 - 3, num_block + 1):
-        data = dcn_resnet_unit(data, "{}_unit{}".format(name, i), filter, 1, d, False, norm)
-
-    return data
-
 
 class DCNResNetC4(Backbone):
     def __init__(self, pBackbone):
@@ -136,7 +132,7 @@ class DCNResNetC4(Backbone):
         c1 = helper.resnet_c1(data, p.normalizer)
         c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
         c3 = helper.resnet_c3(c2, num_c3, 2, 1, p.normalizer)
-        c4 = dcn_resnet_stage(c3, "stage3", num_c4, 1024, 2, 1, p.normalizer)
+        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, 3, dcn_resnet_unit, 1024, 2, 1, p.normalizer)
 
         self.symbol = c4
 
