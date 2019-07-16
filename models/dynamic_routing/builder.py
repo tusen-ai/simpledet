@@ -141,3 +141,28 @@ class DCNResNetC4(Backbone):
 
     def get_rcnn_feature(self):
         return self.symbol
+
+
+class DCNv2ResNetC4(Backbone):
+    def __init__(self, pBackbone):
+        super().__init__(pBackbone)
+        p = self.p
+
+        import mxnext.backbone.resnet_v1b_helper as helper
+        num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
+
+        data = X.var("data")
+        if p.fp16:
+            data = data.astype("float16")
+        c1 = helper.resnet_c1(data, p.normalizer)
+        c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
+        c3 = hybrid_resnet_stage(c2, "stage2", num_c3, num_c3, dcn_resnet_unit, 512, 2, 1, p.normalizer)
+        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, num_c4, dcn_resnet_unit, 1024, 2, 1, p.normalizer)
+
+        self.symbol = c4
+
+    def get_rpn_feature(self):
+        return self.symbol
+
+    def get_rcnn_feature(self):
+        return self.symbol
