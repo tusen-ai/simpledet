@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from models.dynamic_routing.builder import SplitResNetC4 as Backbone
+from models.dynamic_routing.builder import WideResNetC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
@@ -31,7 +31,6 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 50
-        dilates = (1, 2)
         num_c3_block = 4
         num_c4_block = 6
 
@@ -136,6 +135,19 @@ def get_config(is_train):
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        def process_weight(sym, arg, aux):
+            import mxnet as mx
+            arg_keys = list(arg.keys())
+            aux_keys = list(aux.keys())
+            for k in arg_keys:
+                if "conv2" in k:
+                    arg[k.replace("conv2", "conv2_wide")] = mx.nd.concat(arg[k], arg[k], dim=0)
+                if "bn2" in k:
+                    arg[k.replace("bn2", "bn2_wide")] = mx.nd.concat(arg[k], arg[k], dim=0)
+            for k in aux_keys:
+                if "bn2" in k:
+                    aux[k.replace("bn2", "bn2_wide")] = mx.nd.concat(aux[k], aux[k], dim=0)
+
 
     class OptimizeParam:
         class optimizer:
@@ -154,7 +166,7 @@ def get_config(is_train):
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 750
+            iter = 2000
 
 
     class TestParam:

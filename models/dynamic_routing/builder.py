@@ -110,6 +110,43 @@ def binary_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs
     return relu(eltwise, name=name + "_relu")
 
 
+def split_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
+    p = kwargs["params"]
+
+    conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
+    bn1 = norm(conv1, name=name + "_bn1")
+    relu1 = relu(bn1, name=name + "_relu1")
+
+    # conv2 filter banks
+    conv2_weight = X.var(name + "_conv2_weight", shape=(filter // 4, filter // 4, 3, 3), dtype="float32")
+    dil1, dil2 = p.dilates or (1, 2)
+    num_outputs = len(p.dilates)
+    conv2_weights = mx.sym.split(conv2_weight, num_outputs=num_outputs, axis=0)
+
+    conv2s = []
+    for i, (conv2_i_weight, dil_i) in enumerate(zip(conv2_weights, p.dilates), start=1):
+        conv2_i = conv(relu1, name=name + "_conv2_%d" % i, weight=conv2_i_weight,
+            filter=filter // (4 * num_outputs), kernel=3, stride=stride, dilate=dil_i)
+        conv2s.append(conv2_i)
+
+    conv2 = mx.sym.concat(*conv2s, dim=1)  # n x c x h x w
+    bn2 = norm(conv2, name=name + "_bn2")
+    relu2 = relu(bn2, name=name + "_relu2")
+
+    conv3 = conv(relu2, name=name + "_conv3", filter=filter)
+    bn3 = norm(conv3, name=name + "_bn3")
+
+    if proj:
+        shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
+        shortcut = norm(shortcut, name=name + "_sc_bn")
+    else:
+        shortcut = input
+
+    eltwise = add(bn3, shortcut, name=name + "_plus")
+
+    return relu(eltwise, name=name + "_relu")
+
+
 def deep_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     p = kwargs["params"]
 
@@ -126,6 +163,32 @@ def deep_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     relu2_2 = relu(bn2_2, name=name + "_relu2_2")
 
     conv3 = conv(relu2_2, name=name + "_conv3", filter=filter)
+    bn3 = norm(conv3, name=name + "_bn3")
+
+    if proj:
+        shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
+        shortcut = norm(shortcut, name=name + "_sc_bn")
+    else:
+        shortcut = input
+
+    eltwise = add(bn3, shortcut, name=name + "_plus")
+
+    return relu(eltwise, name=name + "_relu")
+
+
+def wide_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
+    p = kwargs["params"]
+
+    conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
+    bn1 = norm(conv1, name=name + "_bn1")
+    relu1 = relu(bn1, name=name + "_relu1")
+
+    # conv2 filter banks
+    conv2 = conv(relu1, name=name + "_conv2_wide", filter=filter // 2, kernel=3, stride=stride, dilate=dilate)
+    bn2 = norm(conv2, name=name + "_bn2_wide")
+    relu2 = relu(bn2, name=name + "_relu2")
+
+    conv3 = conv(relu2, name=name + "_conv3", filter=filter)
     bn3 = norm(conv3, name=name + "_bn3")
 
     if proj:
@@ -188,8 +251,9 @@ def hybrid_resnet_c4_builder(special_resnet_unit):
     return ResNetC4
 
 
-BinaryResNetC4 = hybrid_resnet_c4_builder(binary_resnet_unit)
+SplitResNetC4 = hybrid_resnet_c4_builder(split_resnet_unit)
 DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
 DCNResNetC4 = hybrid_resnet_c4_builder(dcn_resnet_unit)
 DRResNetC4 = hybrid_resnet_c4_builder(dr_resnet_unit)
 DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
+WideResNetC4 = hybrid_resnet_c4_builder(wide_resnet_unit)

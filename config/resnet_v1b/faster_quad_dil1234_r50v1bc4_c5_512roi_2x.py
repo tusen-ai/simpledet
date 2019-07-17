@@ -31,7 +31,7 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 50
-        dilates = (1, 2)
+        dilates = (1, 2, 3, 4)
         num_c3_block = 4
         num_c4_block = 6
 
@@ -147,14 +147,14 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 750
+            iter = 2000
 
 
     class TestParam:
