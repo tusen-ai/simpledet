@@ -119,7 +119,6 @@ def split_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs)
 
     # conv2 filter banks
     conv2_weight = X.var(name + "_conv2_weight", shape=(filter // 4, filter // 4, 3, 3), dtype="float32")
-    dil1, dil2 = p.dilates or (1, 2)
     num_outputs = len(p.dilates)
     conv2_weights = mx.sym.split(conv2_weight, num_outputs=num_outputs, axis=0)
 
