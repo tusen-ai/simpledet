@@ -152,7 +152,7 @@ def get_config(is_train):
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 1000
+            iter = 2000
 
 
     class TestParam:
