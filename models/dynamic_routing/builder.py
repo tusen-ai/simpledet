@@ -76,40 +76,6 @@ def dcn_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     return relu(eltwise, name=name + "_relu")
 
 
-def binary_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
-    p = kwargs["params"]
-
-    conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
-    bn1 = norm(conv1, name=name + "_bn1")
-    relu1 = relu(bn1, name=name + "_relu1")
-
-    # conv2 filter banks
-    conv2_weight = X.var(name + "_conv2_weight", shape=(filter // 4, filter // 4, 3, 3), dtype="float32")
-    conv2_1_weight, conv2_2_weight = mx.sym.split(conv2_weight, num_outputs=2, axis=0)
-    dil1, dil2 = p.dilates or (1, 2)
-    conv2_1 = conv(relu1, name=name + "_conv2_1", weight=conv2_1_weight,
-        filter=filter // 8, kernel=3, stride=stride, dilate=dil1)
-    conv2_2 = conv(relu1, name=name + "_conv2_2", weight=conv2_2_weight,
-        filter=filter // 8, kernel=3, stride=stride, dilate=dil2)
-
-    conv2 = mx.sym.concat(conv2_1, conv2_2, dim=1)  # n x c x h x w
-    bn2 = norm(conv2, name=name + "_bn2")
-    relu2 = relu(bn2, name=name + "_relu2")
-
-    conv3 = conv(relu2, name=name + "_conv3", filter=filter)
-    bn3 = norm(conv3, name=name + "_bn3")
-
-    if proj:
-        shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
-        shortcut = norm(shortcut, name=name + "_sc_bn")
-    else:
-        shortcut = input
-
-    eltwise = add(bn3, shortcut, name=name + "_plus")
-
-    return relu(eltwise, name=name + "_relu")
-
-
 def split_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     p = kwargs["params"]
 
