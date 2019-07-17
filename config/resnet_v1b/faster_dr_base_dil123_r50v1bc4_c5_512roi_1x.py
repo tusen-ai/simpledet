@@ -33,6 +33,9 @@ def get_config(is_train):
         depth = 50
         dilates = (1, 2, 3)
         baseline = True
+        num_c3_block = 0
+        num_c4_block = 3
+
 
     class NeckParam:
         fp16 = General.fp16

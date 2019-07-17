@@ -31,7 +31,8 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 101
-
+        num_c3_block = 0
+        num_c4_block = 3
 
     class NeckParam:
         fp16 = General.fp16

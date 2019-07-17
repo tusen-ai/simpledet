@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from models.dynamic_routing.builder import DCNResNetC4 as Backbone
+from models.dynamic_routing.builder import DeepResNetC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
@@ -30,9 +30,10 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        depth = 101
-        num_c3_block = 4
-        num_c4_block = 23
+        depth = 50
+        num_c3_block = 0
+        num_c4_block = 3
+
 
     class NeckParam:
         fp16 = General.fp16
@@ -134,6 +135,21 @@ def get_config(is_train):
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        def process_weight(sym, arg, aux):
+            arg_keys = list(arg.keys())
+            aux_keys = list(aux.keys())
+            for k in arg_keys:
+                if "conv2" in k:
+                    arg[k.replace("conv2", "conv2_1")] = arg[k]
+                    arg[k.replace("conv2", "conv2_2")] = arg[k]
+                if "bn2" in k:
+                    arg[k.replace("bn2", "bn2_1")] = arg[k]
+                    arg[k.replace("bn2", "bn2_2")] = arg[k]
+            for k in aux_keys:
+                if "bn2" in k:
+                    aux[k.replace("bn2", "bn2_1")] = aux[k]
+                    aux[k.replace("bn2", "bn2_2")] = aux[k]
+
 
     class OptimizeParam:
         class optimizer:
@@ -145,14 +161,14 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 12
-            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 6
+            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
             lr = 0.0
-            iter = 1000
+            iter = 750
 
 
     class TestParam:

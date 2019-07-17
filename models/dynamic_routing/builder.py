@@ -48,53 +48,8 @@ def dr_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
 
     return relu(eltwise, name=name + "_relu")
 
-def hybrid_resnet_stage(data, name, num_block, num_special_block, special_res_unit, filter,
-    stride, dilate, norm, **kwargs):
-    s, d = stride, dilate
 
-    for i in range(1, num_block + 1 - num_special_block):
-        proj = True if i == 1 else False
-        s = stride if i == 1 else 1
-        d = dilate
-        data = resnet_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm)
-
-    for i in range(num_block + 1 - num_special_block, num_block + 1):
-        proj = True if i == 1 else False
-        s = stride if i == 1 else 1
-        d = dilate
-        data = special_res_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm, **kwargs)
-
-    return data
-
-
-class DRResNetC4(Backbone):
-    def __init__(self, pBackbone):
-        super().__init__(pBackbone)
-        p = self.p
-
-        import mxnext.backbone.resnet_v1b_helper as helper
-        num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
-
-        data = X.var("data")
-        if p.fp16:
-            data = data.astype("float16")
-        c1 = helper.resnet_c1(data, p.normalizer)
-        c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
-        c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block or 0, dr_resnet_unit, 512, 2, 1,
-            p.normalizer, params=p)
-        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block or 3, dr_resnet_unit, 1024, 2, 1,
-            p.normalizer, params=p)
-
-        self.symbol = c4
-
-    def get_rpn_feature(self):
-        return self.symbol
-
-    def get_rcnn_feature(self):
-        return self.symbol
-
-
-def dcn_resnet_unit(input, name, filter, stride, dilate, proj, norm):
+def dcn_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
     bn1 = norm(conv1, name=name + "_bn1")
     relu1 = relu(bn1, name=name + "_relu1")
@@ -119,56 +74,6 @@ def dcn_resnet_unit(input, name, filter, stride, dilate, proj, norm):
     eltwise = add(bn3, shortcut, name=name + "_plus")
 
     return relu(eltwise, name=name + "_relu")
-
-
-class DCNResNetC4(Backbone):
-    def __init__(self, pBackbone):
-        super().__init__(pBackbone)
-        p = self.p
-
-        import mxnext.backbone.resnet_v1b_helper as helper
-        num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
-
-        data = X.var("data")
-        if p.fp16:
-            data = data.astype("float16")
-        c1 = helper.resnet_c1(data, p.normalizer)
-        c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
-        c3 = helper.resnet_c3(c2, num_c3, 2, 1, p.normalizer)
-        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, 3, dcn_resnet_unit, 1024, 2, 1, p.normalizer)
-
-        self.symbol = c4
-
-    def get_rpn_feature(self):
-        return self.symbol
-
-    def get_rcnn_feature(self):
-        return self.symbol
-
-
-class DCNv2ResNetC4(Backbone):
-    def __init__(self, pBackbone):
-        super().__init__(pBackbone)
-        p = self.p
-
-        import mxnext.backbone.resnet_v1b_helper as helper
-        num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
-
-        data = X.var("data")
-        if p.fp16:
-            data = data.astype("float16")
-        c1 = helper.resnet_c1(data, p.normalizer)
-        c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
-        c3 = hybrid_resnet_stage(c2, "stage2", num_c3, num_c3, dcn_resnet_unit, 512, 2, 1, p.normalizer)
-        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, num_c4, dcn_resnet_unit, 1024, 2, 1, p.normalizer)
-
-        self.symbol = c4
-
-    def get_rpn_feature(self):
-        return self.symbol
-
-    def get_rcnn_feature(self):
-        return self.symbol
 
 
 def binary_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
@@ -205,28 +110,86 @@ def binary_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs
     return relu(eltwise, name=name + "_relu")
 
 
-class BinaryResNetC4(Backbone):
-    def __init__(self, pBackbone):
-        super().__init__(pBackbone)
-        p = self.p
+def deep_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
+    p = kwargs["params"]
 
-        import mxnext.backbone.resnet_v1b_helper as helper
-        num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
+    conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
+    bn1 = norm(conv1, name=name + "_bn1")
+    relu1 = relu(bn1, name=name + "_relu1")
 
-        data = X.var("data")
-        if p.fp16:
-            data = data.astype("float16")
-        c1 = helper.resnet_c1(data, p.normalizer)
-        c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
-        c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block or 4, binary_resnet_unit, 512, 2, 1,
-            p.normalizer, params=p)
-        c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block or 6, binary_resnet_unit, 1024, 2, 1,
-            p.normalizer, params=p)
+    # conv2 filter banks
+    conv2_1 = conv(relu1, name=name + "_conv2_1", filter=filter // 4, kernel=3, stride=stride, dilate=dilate)
+    bn2_1 = norm(conv2_1, name=name + "_bn2_1")
+    relu2_1 = relu(bn2_1, name=name + "_relu2_1")
+    conv2_2 = conv(relu2_1, name=name + "_conv2_2", filter=filter // 4, kernel=3, stride=stride, dilate=dilate)
+    bn2_2 = norm(conv2_2, name=name + "_bn2_2")
+    relu2_2 = relu(bn2_2, name=name + "_relu2_2")
 
-        self.symbol = c4
+    conv3 = conv(relu2_2, name=name + "_conv3", filter=filter)
+    bn3 = norm(conv3, name=name + "_bn3")
 
-    def get_rpn_feature(self):
-        return self.symbol
+    if proj:
+        shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
+        shortcut = norm(shortcut, name=name + "_sc_bn")
+    else:
+        shortcut = input
 
-    def get_rcnn_feature(self):
-        return self.symbol
+    eltwise = add(bn3, shortcut, name=name + "_plus")
+
+    return relu(eltwise, name=name + "_relu")
+
+
+def hybrid_resnet_stage(data, name, num_block, num_special_block, special_res_unit, filter,
+    stride, dilate, norm, **kwargs):
+    s, d = stride, dilate
+
+    for i in range(1, num_block + 1 - num_special_block):
+        proj = True if i == 1 else False
+        s = stride if i == 1 else 1
+        d = dilate
+        data = resnet_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm)
+
+    for i in range(num_block + 1 - num_special_block, num_block + 1):
+        proj = True if i == 1 else False
+        s = stride if i == 1 else 1
+        d = dilate
+        data = special_res_unit(data, "{}_unit{}".format(name, i), filter, s, d, proj, norm, **kwargs)
+
+    return data
+
+
+def hybrid_resnet_c4_builder(special_resnet_unit):
+    class ResNetC4(Backbone):
+        def __init__(self, pBackbone):
+            super().__init__(pBackbone)
+            p = self.p
+
+            import mxnext.backbone.resnet_v1b_helper as helper
+            num_c2, num_c3, num_c4, _ = helper.depth_config[p.depth]
+
+            data = X.var("data")
+            if p.fp16:
+                data = data.astype("float16")
+            c1 = helper.resnet_c1(data, p.normalizer)
+            c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
+            c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block, special_resnet_unit, 512, 2, 1,
+                p.normalizer, params=p)
+            c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block, special_resnet_unit, 1024, 2, 1,
+                p.normalizer, params=p)
+
+            self.symbol = c4
+
+        def get_rpn_feature(self):
+            return self.symbol
+
+        def get_rcnn_feature(self):
+            return self.symbol
+
+    return ResNetC4
+
+
+BinaryResNetC4 = hybrid_resnet_c4_builder(binary_resnet_unit)
+DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
+DCNResNetC4 = hybrid_resnet_c4_builder(dcn_resnet_unit)
+DRResNetC4 = hybrid_resnet_c4_builder(dr_resnet_unit)
+DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
