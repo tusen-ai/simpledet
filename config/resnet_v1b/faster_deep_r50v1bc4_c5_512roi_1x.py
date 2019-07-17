@@ -12,7 +12,7 @@ def get_config(is_train):
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
-        fp16 = False
+        fp16 = True
 
 
     class KvstoreParam:
@@ -31,8 +31,8 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 50
-        num_c3_block = 0
-        num_c4_block = 3
+        num_c3_block = 4
+        num_c4_block = 6
 
 
     class NeckParam:

@@ -118,7 +118,7 @@ def deep_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     relu1 = relu(bn1, name=name + "_relu1")
 
     # conv2 filter banks
-    conv2_1 = conv(relu1, name=name + "_conv2_1", filter=filter // 4, kernel=3, stride=stride, dilate=dilate)
+    conv2_1 = conv(relu1, name=name + "_conv2_1", filter=filter // 4, kernel=3, stride=1, dilate=dilate)
     bn2_1 = norm(conv2_1, name=name + "_bn2_1")
     relu2_1 = relu(bn2_1, name=name + "_relu2_1")
     conv2_2 = conv(relu2_1, name=name + "_conv2_2", filter=filter // 4, kernel=3, stride=stride, dilate=dilate)
