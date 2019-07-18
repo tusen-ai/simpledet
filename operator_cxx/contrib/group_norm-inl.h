@@ -1,4 +1,34 @@
 /*
+Copyright (c) 2016-present, Facebook Inc. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the names of Facebook, Deepmind Technologies, NYU, NEC Laboratories America
+   and IDIAP Research Institute nor the names of its contributors may be
+   used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+*/
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -57,7 +87,7 @@ template <typename xpu>
 class GroupNormOp : public Operator {
  public:
   explicit GroupNormOp(GroupNormParam param) { param_ = param; }
-  virtual void Forward(const OpContext &ctx, 
+  virtual void Forward(const OpContext &ctx,
                        const std::vector<TBlob> &in_data,
                        const std::vector<OpReqType> &req,
                        const std::vector<TBlob> &out_data,
@@ -84,7 +114,7 @@ class GroupNormOp : public Operator {
     Tensor<xpu, 1> beta = in_data[group_norm::kBeta].FlatTo1D<xpu, float>(s);
     CHECK_EQ(C, gamma.shape_.Size());
     CHECK_EQ(C, beta.shape_.Size());
-    
+
     // Get Outputs
     Tensor<xpu, 1> Y = out_data[group_norm::kOut].FlatTo1D<xpu, float>(s);
     Tensor<xpu, 1> mu = out_data[group_norm::kMu].FlatTo1D<xpu, float>(s);
@@ -128,7 +158,7 @@ class GroupNormOp : public Operator {
     Tensor<xpu, 1> rsig = out_data[group_norm::kRsig].FlatTo1D<xpu, float>(s);
     Tensor<xpu, 1> mu = out_data[group_norm::kMu].FlatTo1D<xpu, float>(s);
     // Get temp space
-    Tensor<xpu, 2> workspace = 
+    Tensor<xpu, 2> workspace =
       ctx.requested[group_norm::kTempSpace].get_space<xpu>(Shape2(2, mu.shape_[0]), s);
     Tensor<xpu, 1> ds = workspace[0];
     Tensor<xpu, 1> db = workspace[1];
@@ -155,7 +185,7 @@ class GroupNormProp : public OperatorProperty {
     return param_.__DICT__();
   }
 
-  bool InferShape(std::vector<TShape> *in_shape, 
+  bool InferShape(std::vector<TShape> *in_shape,
                   std::vector<TShape> *out_shape,
                   std::vector<TShape> *aux_shape) const override {
     using namespace mshadow;
@@ -180,12 +210,12 @@ class GroupNormProp : public OperatorProperty {
   std::string TypeString() const override { return "_contrib_GroupNorm"; }
 
   std::vector<int> DeclareBackwardDependency(
-      const std::vector<int> &out_grad, 
+      const std::vector<int> &out_grad,
       const std::vector<int> &in_data,
       const std::vector<int> &out_data) const override {
-    return {out_grad[group_norm::kOut], 
+    return {out_grad[group_norm::kOut],
             out_data[group_norm::kMu],
-            out_data[group_norm::kRsig], 
+            out_data[group_norm::kRsig],
             in_data[group_norm::kData],
             in_data[group_norm::kGamma]};
   }
