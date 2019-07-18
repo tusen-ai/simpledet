@@ -1,6 +1,6 @@
 from symbol.builder import RPN as Detector
 from models.FPN.builder import MSRAResNet50V1FPN as Backbone
-from models.FPN.builder import FPNConvTopDown as Neck
+from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from mxnext.complicate import normalizer_factory
 

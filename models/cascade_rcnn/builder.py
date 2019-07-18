@@ -16,16 +16,13 @@ class CascadeRcnn(object):
                          bbox_head_2nd, bbox_head_3rd):
         gt_bbox = X.var("gt_bbox")
         im_info = X.var("im_info")
-        rpn_cls_label = X.var("rpn_cls_label")
-        rpn_reg_target = X.var("rpn_reg_target")
-        rpn_reg_weight = X.var("rpn_reg_weight")
 
         rpn_feat = backbone.get_rpn_feature()
         rcnn_feat = backbone.get_rcnn_feature()
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
-        rpn_loss = rpn_head.get_loss(rpn_feat, rpn_cls_label, rpn_reg_target, rpn_reg_weight)
+        rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
 
         # stage1
         proposal, bbox_cls, bbox_target, bbox_weight = \
