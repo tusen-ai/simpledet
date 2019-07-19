@@ -34,7 +34,7 @@ class ReadRoiRecord(DetectionAugmentation):
 
     def apply(self, input_record):
         image = cv2.imread(input_record["image_url"], cv2.IMREAD_COLOR)
-        input_record["image"] = image[:, :, ::-1]
+        input_record["image"] = image[:, :, ::-1].astype("float32")
         # TODO: remove this compatibility method
         input_record["gt_bbox"] = np.concatenate([input_record["gt_bbox"],
                                                   input_record["gt_class"].reshape(-1, 1)],
