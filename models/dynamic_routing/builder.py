@@ -200,9 +200,9 @@ def hybrid_resnet_c4_builder(special_resnet_unit):
                 data = data.astype("float16")
             c1 = helper.resnet_c1(data, p.normalizer)
             c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
-            c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block, special_resnet_unit, 512, 2, 1,
+            c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block or 0, special_resnet_unit, 512, 2, 1,
                 p.normalizer, params=p)
-            c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block, special_resnet_unit, 1024, 2, 1,
+            c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block or 0, special_resnet_unit, 1024, 2, 1,
                 p.normalizer, params=p)
 
             self.symbol = c4
@@ -216,9 +216,43 @@ def hybrid_resnet_c4_builder(special_resnet_unit):
     return ResNetC4
 
 
+def hybrid_resnet_fpn_builder(special_resnet_unit):
+    class ResNetFPN(Backbone):
+        def __init__(self, pBackbone):
+            super().__init__(pBackbone)
+            p = self.p
+
+            import mxnext.backbone.resnet_v1b_helper as helper
+            num_c2, num_c3, num_c4, num_c5 = helper.depth_config[p.depth]
+
+            data = X.var("data")
+            if p.fp16:
+                data = data.astype("float16")
+            c1 = helper.resnet_c1(data, p.normalizer)
+            c2 = helper.resnet_c2(c1, num_c2, 1, 1, p.normalizer)
+            c3 = hybrid_resnet_stage(c2, "stage2", num_c3, p.num_c3_block or 0, special_resnet_unit, 512, 2, 1,
+                p.normalizer, params=p)
+            c4 = hybrid_resnet_stage(c3, "stage3", num_c4, p.num_c4_block or 0, special_resnet_unit, 1024, 2, 1,
+                p.normalizer, params=p)
+            c5 = hybrid_resnet_stage(c4, "stage4", num_c5, p.num_c5_block or 0, special_resnet_unit, 2048, 2, 1,
+                p.normalizer, params=p)
+
+            self.symbol = (c2, c3, c4, c5)
+
+        def get_rpn_feature(self):
+            return self.symbol
+
+        def get_rcnn_feature(self):
+            return self.symbol
+
+    return ResNetFPN
+
+
 SplitResNetC4 = hybrid_resnet_c4_builder(split_resnet_unit)
 DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
 DCNResNetC4 = hybrid_resnet_c4_builder(dcn_resnet_unit)
 DRResNetC4 = hybrid_resnet_c4_builder(dr_resnet_unit)
 DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
 WideResNetC4 = hybrid_resnet_c4_builder(wide_resnet_unit)
+
+DeepResNetFPN = hybrid_resnet_fpn_builder(deep_resnet_unit)
