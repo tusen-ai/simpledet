@@ -450,23 +450,29 @@ class Bbox2fcHead(BboxHead):
     def __init__(self, pBbox):
         super().__init__(pBbox)
 
+    def add_norm(self, sym):
+        p = self.p
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
     def _get_bbox_head_logit(self, conv_feat):
         if self._head_feat is not None:
             return self._head_feat
 
-        p = self.p
+        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
 
-        flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
-        reshape = X.reshape(flatten, (0, 0, 1, 1), name="bbox_feat_reshape")
-
-        if p.normalizer.__name__ == "fix_bn":
-            fc1 = X.convrelu(reshape, filter=1024, name="bbox_fc1")
-            fc2 = X.convrelu(fc1, filter=1024, name="bbox_fc2")
-        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
-            fc1 = X.convnormrelu(p.normalizer, reshape, filter=1024, name="bbox_fc1")
-            fc2 = X.convnormrelu(p.normalizer, fc1, filter=1024, name="bbox_fc2")
-        else:
-            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        flatten = X.reshape(conv_feat, shape=(0, -1, 1, 1), name="bbox_feat_reshape")
+        fc1 = X.conv(flatten, filter=1024, name="bbox_fc1", init=xavier_init)
+        fc1 = self.add_norm(fc1)
+        fc1 = X.relu(fc1)
+        fc2 = X.conv(fc1, filter=1024, name="bbox_fc2", init=xavier_init)
+        fc2 = self.add_norm(fc2)
+        fc2 = X.relu(fc2)
 
         self._head_feat = fc2
 
