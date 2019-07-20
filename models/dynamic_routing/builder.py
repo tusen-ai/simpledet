@@ -141,6 +141,35 @@ def deep_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     return relu(eltwise, name=name + "_relu")
 
 
+def deepv2_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
+    p = kwargs["params"]
+
+    conv1 = conv(input, name=name + "_conv1", filter=filter // 4)
+    bn1 = norm(conv1, name=name + "_bn1")
+    relu1 = relu(bn1, name=name + "_relu1")
+
+    # conv2 filter banks
+    conv2_1 = conv(relu1, name=name + "_conv2_1", filter=filter // 8, kernel=5, stride=1, dilate=dilate)
+    bn2_1 = norm(conv2_1, name=name + "_bn2_1")
+    relu2_1 = relu(bn2_1, name=name + "_relu2_1")
+    conv2_2 = conv(relu2_1, name=name + "_conv2_2", filter=filter // 8, kernel=5, stride=stride, dilate=dilate)
+    bn2_2 = norm(conv2_2, name=name + "_bn2_2")
+    relu2_2 = relu(bn2_2, name=name + "_relu2_2")
+
+    conv3 = conv(relu2_2, name=name + "_conv3", filter=filter)
+    bn3 = norm(conv3, name=name + "_bn3")
+
+    if proj:
+        shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
+        shortcut = norm(shortcut, name=name + "_sc_bn")
+    else:
+        shortcut = input
+
+    eltwise = add(bn3, shortcut, name=name + "_plus")
+
+    return relu(eltwise, name=name + "_relu")
+
+
 def wide_resnet_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
     p = kwargs["params"]
 
@@ -256,3 +285,4 @@ DeepResNetC4 = hybrid_resnet_c4_builder(deep_resnet_unit)
 WideResNetC4 = hybrid_resnet_c4_builder(wide_resnet_unit)
 
 DeepResNetFPN = hybrid_resnet_fpn_builder(deep_resnet_unit)
+Deepv2ResNetFPN = hybrid_resnet_fpn_builder(deepv2_resnet_unit)
