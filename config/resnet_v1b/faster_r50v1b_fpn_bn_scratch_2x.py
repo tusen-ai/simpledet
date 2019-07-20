@@ -165,10 +165,11 @@ def get_config(is_train):
             clip_gradient = None
 
         class schedule:
+            mult = 2
             begin_epoch = 0
-            end_epoch = 12
-            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 6 * mult
+            lr_iter = [60000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       80000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"

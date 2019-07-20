@@ -165,7 +165,7 @@ def get_config(is_train):
             clip_gradient = None
 
         class schedule:
-            mult = 1
+            mult = 4
             begin_epoch = 0
             end_epoch = 6 * mult
             lr_iter = [60000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
