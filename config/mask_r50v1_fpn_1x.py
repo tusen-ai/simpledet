@@ -1,3 +1,4 @@
+from symbol.builder import add_anchor_to_arg
 from models.FPN.builder import MSRAResNet50V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -17,6 +18,7 @@ def get_config(is_train):
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
         fp16 = False
+        loader_worker = 8
 
 
     class KvstoreParam:
@@ -44,12 +46,16 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        nnvm_proposal = True
+        nnvm_rpn_target = False
 
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
             stride = (4, 8, 16, 32, 64)
             image_anchor = 256
+            max_side = 1400
+
 
         class head:
             conv_channel = 256
@@ -193,6 +199,13 @@ def get_config(is_train):
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
             excluded_params = ["mask_fcn"]
 
+        def process_weight(sym, arg, aux):
+            for stride in RpnParam.anchor_generate.stride:
+                add_anchor_to_arg(
+                    sym, arg, aux, RpnParam.anchor_generate.max_side,
+                    stride, RpnParam.anchor_generate.scale,
+                    RpnParam.anchor_generate.ratio)
+
 
     # data processing
     class NormParam:
@@ -304,7 +317,7 @@ def get_config(is_train):
         []
     )
 
-    metric_list = [rpn_acc_metric, rpn_l1_metric, box_acc_metric, box_l1_metric, mask_cls_metric]
+    metric_list = [rpn_acc_metric, rpn_l1_metric, box_acc_metric, box_l1_metric,]
 
     return General, KvstoreParam, RpnParam, RoiParam, BboxParam, DatasetParam, \
            ModelParam, OptimizeParam, TestParam, \

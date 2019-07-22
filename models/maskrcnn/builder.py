@@ -25,6 +25,7 @@ class MaskFasterRcnn(object):
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
+        rpn_head.get_anchor()
         rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
         proposal, bbox_cls, bbox_target, bbox_weight, mask_proposal, mask_target = \
             rpn_head.get_sampled_proposal(rpn_feat, gt_bbox, gt_poly, im_info)
@@ -259,6 +260,8 @@ class MaskFasterRcnnHead(object):
         mask_fcn_logit = self.get_output(conv_feat)
 
         scale_loss_shift = 128.0 if pMask.fp16 else 1.0
+
+        mask_fcn_logit = mx.sym.slice_axis(mask_fcn_logit, axis=1, begin=0, end=1)
 
         mask_fcn_logit = X.reshape(
             mask_fcn_logit,
