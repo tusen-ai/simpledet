@@ -88,6 +88,15 @@ if __name__ == "__main__":
         data_names = [k[0] for k in loader.provide_data]
 
         if index_split == 0:
+            arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
+            if pModel.process_weight is not None:
+                pModel.process_weight(sym, arg_params, aux_params)
+
+            # merge batch normalization to speedup test
+            from utils.graph_optimize import merge_bn
+            sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
+            sym.save(pTest.model.prefix + "_test.json")
+
             # infer shape
             worker_data_shape = dict(loader.provide_data + loader.provide_label)
             for key in worker_data_shape:
@@ -103,10 +112,6 @@ if __name__ == "__main__":
             print(pprint.pformat([i for i in out_shape_dict if i[0].endswith('output')]))
             print('terminal output shape')
             print(pprint.pformat([i for i in terminal_out_shape_dict]))
-
-            arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
-            if pModel.process_weight is not None:
-                pModel.process_weight(sym, arg_params, aux_params)
 
             for i in pKv.gpus:
                 ctx = mx.gpu(i)

@@ -15,6 +15,7 @@
 - Speed up FPN up to 70% (2019.06.16)
 - Update [NASFPN](https://github.com/TuSimple/simpledet/tree/master/models/NASFPN) to include larger models (2019.07.01)
 - Automatic BN fusion for fixed BN training, saving up to 50% GPU memory (2019.07.04)
+- Speed up MaskRCNN by 80% (2019.07.23)
 
 ### Setup
 #### Install

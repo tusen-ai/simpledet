@@ -25,14 +25,15 @@ class MaskFasterRcnn(object):
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
+        rpn_head.get_anchor()
         rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
-        proposal, bbox_cls, bbox_target, bbox_weight, mask_proposal, mask_target = \
+        proposal, bbox_cls, bbox_target, bbox_weight, mask_proposal, mask_target, mask_ind = \
             rpn_head.get_sampled_proposal(rpn_feat, gt_bbox, gt_poly, im_info)
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, mask_proposal)
 
         bbox_loss = bbox_head.get_loss(roi_feat, bbox_cls, bbox_target, bbox_weight)
-        mask_loss = mask_head.get_loss(mask_roi_feat, mask_target)
+        mask_loss = mask_head.get_loss(mask_roi_feat, mask_target, mask_ind)
         return X.group(rpn_loss + bbox_loss + mask_loss)
 
     @staticmethod
@@ -129,19 +130,24 @@ class MaskRpnHead(RpnHead):
             name="subsample_proposal"
         )
 
+        num_fg_rois_per_img = int(image_roi * fg_fraction)
+        mask_label = mx.sym.slice_axis(
+            label,
+            axis=1,
+            begin=0,
+            end=num_fg_rois_per_img
+        )
         label = X.reshape(label, (-3, -2))
         bbox_target = X.reshape(bbox_target, (-3, -2))
         bbox_weight = X.reshape(bbox_weight, (-3, -2))
         mask_target = X.reshape(mask_target, (-3, -2))
-
-        num_fg_rois_per_img = int(image_roi * fg_fraction)
         mask_proposal = mx.sym.slice_axis(
             bbox,
             axis=1,
             begin=0,
             end=num_fg_rois_per_img)
 
-        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target
+        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label
 
 
 class MaskFPNRpnHead(FPNRpnHead):
@@ -193,19 +199,24 @@ class MaskFPNRpnHead(FPNRpnHead):
             name="subsample_proposal"
         )
 
+        num_fg_rois_per_img = int(image_roi * fg_fraction)
+        mask_label = mx.sym.slice_axis(
+            label,
+            axis=1,
+            begin=0,
+            end=num_fg_rois_per_img
+        )
         label = X.reshape(label, (-3, -2))
         bbox_target = X.reshape(bbox_target, (-3, -2))
         bbox_weight = X.reshape(bbox_weight, (-3, -2))
         mask_target = X.reshape(mask_target, (-3, -2))
-
-        num_fg_rois_per_img = int(image_roi * fg_fraction)
         mask_proposal = mx.sym.slice_axis(
             bbox,
             axis=1,
             begin=0,
             end=num_fg_rois_per_img)
 
-        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target
+        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label
 
 
 class MaskFasterRcnnHead(object):
@@ -251,7 +262,7 @@ class MaskFasterRcnnHead(object):
             name="mask_prob")
         return mask_prob
 
-    def get_loss(self, conv_feat, mask_target):
+    def get_loss(self, conv_feat, mask_target, mask_ind):
         pBbox = self.pBbox
         pMask = self.pMask
         batch_image = pBbox.batch_image
@@ -259,6 +270,16 @@ class MaskFasterRcnnHead(object):
         mask_fcn_logit = self.get_output(conv_feat)
 
         scale_loss_shift = 128.0 if pMask.fp16 else 1.0
+
+        mask_fcn_logits = mx.sym.split(mask_fcn_logit, num_outputs=batch_image, axis=0)
+        mask_inds = mx.sym.split(mask_ind, num_outputs=batch_image, axis=0, squeeze_axis=True)
+        mask_fcn_logit_list = []
+        for mask_fcn_logit, mask_ind in zip(mask_fcn_logits, mask_inds):
+            batch_ind = mx.sym.arange(pMask.num_fg_roi)
+            mask_ind = mx.sym.stack(batch_ind, mask_ind)
+            mask_fcn_logit = mx.sym.gather_nd(mask_fcn_logit, mask_ind, axis=1)
+            mask_fcn_logit_list.append(mask_fcn_logit)
+        mask_fcn_logit = mx.sym.concat(*mask_fcn_logit_list, dim=0)
 
         mask_fcn_logit = X.reshape(
             mask_fcn_logit,

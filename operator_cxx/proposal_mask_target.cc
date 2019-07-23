@@ -61,7 +61,7 @@ inline void convertPoly2Mask(const DType *roi,
       byte* byte_mask = new byte[mask_size*mask_size*n_seg];
       rleDecode(rles, byte_mask, n_seg);
 
-      DType* mask_cat = mask + category * mask_size * mask_size;
+      DType* mask_cat = mask;
       // Flatten mask
       for(int j = 0; j < mask_size*mask_size; j++){
         float cur_byte = 0;
@@ -104,7 +104,7 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
                       Tensor<cpu, 2, DType> &&bbox_targets,
                       Tensor<cpu, 2, DType> &&bbox_weights,
                       Tensor<cpu, 1, DType> &&match_gt_ious,
-                      Tensor<cpu, 4, DType> &&mask_targets) {
+                      Tensor<cpu, 3, DType> &&mask_targets) {
   /*
   overlaps = bbox_overlaps(rois[:, 1:].astype(np.float), gt_boxes[:, :4].astype(np.float))
   gt_assignment = overlaps.argmax(axis=1)
@@ -235,7 +235,6 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
   for (index_t i=0; i < fg_rois_this_image; ++i) {
     convertPoly2Mask(rois[i].dptr_, gt_polys[gt_assignment[kept_indexes[i]]].dptr_, mask_size, mask_targets[i].dptr_);
   }
-
 }
 
 template <typename DType>
