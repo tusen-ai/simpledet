@@ -71,7 +71,7 @@ All AP results are reported on minival2014 of the [COCO dataset](http://cocodata
 |Cascade|R50v2-C5|2MLP|1X|8X 1080Ti|2|no|5.9G|25 img/s|38.8|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r50v2_c5_red_1x.zip)|
 |Cascade|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|6.6G|21 img/s|40.3|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r50v1_fpn_1x.zip)|
 |Faster|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|4.2G(2.6G)|43 img/s|36.5|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r50v1_fpn_1x.zip)|
-|Mask|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|6.7G|35 img/s|37.1(33.7)|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/mask_r50v1_fpn_1x.zip)|
+|Mask|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|5.7G(3.6G)|35 img/s|37.1(33.7)|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/mask_r50v1_fpn_1x.zip)|
 |Retina|R50v1-FPN|4Conv|1X|8X 1080Ti|2|no|4.7G(2.2G)|44 img/s|35.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/retina_r50v1_fpn_1x.zip)|
 |Trident|R50v2-C4|C5-128ROI|1X|8X 1080Ti|2|no|7.0G(5.3G)|20 img/s|37.1|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r50v2c4_c5_1x.zip)|
 |Faster|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|6.7G|25 img/s|37.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v2c4_c5_256roi_1x.zip)|
