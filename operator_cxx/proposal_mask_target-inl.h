@@ -45,7 +45,7 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
                       Tensor<cpu, 2, DType> &&bbox_targets,
                       Tensor<cpu, 2, DType> &&bbox_weights,
                       Tensor<cpu, 1, DType> &&match_gt_ious,
-                      Tensor<cpu, 4, DType> &&mask_targets);
+                      Tensor<cpu, 3, DType> &&mask_targets);
 
 template <typename DType>
 void BBoxOverlap(
@@ -231,8 +231,8 @@ class ProposalMaskTargetOp : public Operator {
     TensorContainer<cpu, 3, DType> cpu_bbox_targets(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 3, DType> cpu_bbox_weights(Shape3(num_image, image_rois, param_.num_classes * 4), 0.f);
     TensorContainer<cpu, 2, DType> cpu_match_gt_ious(Shape2(num_image, image_rois), 0.f);
-    TensorContainer<cpu, 5, DType> cpu_mask_targets(Shape5(num_image,  (index_t)(image_rois * param_.fg_fraction),
-                                                           param_.num_classes, param_.mask_size, param_.mask_size), -1.f);
+    TensorContainer<cpu, 4, DType> cpu_mask_targets(Shape4(num_image,  (index_t)(image_rois * param_.fg_fraction),
+                                                           param_.mask_size, param_.mask_size), -1.f);
 
     if (param_.ohem) {
         LOG(FATAL) << "OHEM not Implemented.";
@@ -310,7 +310,7 @@ class ProposalMaskTargetOp : public Operator {
                                              get_with_shape<xpu, 3, DType>(Shape3(num_image, image_rois, param_.num_classes * 4), s);
     Tensor<xpu, 2, DType> xpu_match_gt_ious = out_data[proposal_mask_target_enum::kMatch_gt_iou].
                                              get_with_shape<xpu, 2, DType>(Shape2(num_image, image_rois), s);
-    Tensor<xpu, 5, DType> xpu_mask_targets = out_data[proposal_mask_target_enum::kMaskTarget].get<xpu, 5, DType>(s);
+    Tensor<xpu, 4, DType> xpu_mask_targets = out_data[proposal_mask_target_enum::kMaskTarget].get<xpu, 4, DType>(s);
 
     Copy(xpu_output_rois, cpu_output_rois, s);
     Copy(xpu_labels, cpu_labels, s);
@@ -409,7 +409,7 @@ class ProposalMaskTargetProp : public OperatorProperty {
     auto bbox_target_shape = Shape3(dshape[0], image_rois, param_.num_classes * 4);
     auto bbox_weight_shape = Shape3(dshape[0], image_rois, param_.num_classes * 4);
     auto match_gt_iou_shape = Shape2(dshape[0], image_rois);
-    auto mask_target_shape = Shape5(dshape[0], (index_t)(image_rois * param_.fg_fraction), param_.num_classes, param_.mask_size, param_.mask_size);
+    auto mask_target_shape = Shape4(dshape[0], (index_t)(image_rois * param_.fg_fraction), param_.mask_size, param_.mask_size);
 
     out_shape->clear();
     out_shape->push_back(output_rois_shape);

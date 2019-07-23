@@ -102,6 +102,7 @@ def get_config(is_train):
         normalizer  = NormalizeParam.normalizer
         resolution  = 28
         dim_reduced = 256
+        num_fg_roi  = int(RpnParam.subsample_proposal.image_roi * RpnParam.subsample_proposal.fg_fraction)
 
 
     class RoiParam:
@@ -197,7 +198,7 @@ def get_config(is_train):
             prefix = "pretrain_model/resnet-v1-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
-            excluded_params = ["mask_fcn"]
+            excluded_param = ["mask_fcn"]
 
         def process_weight(sym, arg, aux):
             for stride in RpnParam.anchor_generate.stride:
