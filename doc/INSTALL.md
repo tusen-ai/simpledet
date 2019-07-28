@@ -86,6 +86,7 @@ echo "USE_CUDNN = 1" >> ./config.mk && \
 echo "USE_NCCL = 1" >> ./config.mk && \
 echo "USE_DIST_KVSTORE = 1" >> ./config.mk && \
 echo "CUDA_ARCH = -gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_70,code=sm_70" >> ./config.mk && \
+rm /tmp/mxnet/src/operator/nn/group_norm* && \
 make -j$((`nproc`-1)) && \
 cd python && \
 python3 setup.py install && \
