@@ -406,7 +406,7 @@ class FPNNeck(Neck):
         p = self.p
         if p.normalizer.__name__ == "fix_bn":
             pass
-        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn"]:
+        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn", "dummy"]:
             sym = p.normalizer(sym)
         else:
             raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
