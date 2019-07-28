@@ -99,6 +99,7 @@ def efficientnet_helper(data, norm, us, fos, fis, ss, ks, cs):
 
 
 def efficientnet_b4(data, norm, **kwargs):
+    # 1.5 GFLOPs
     us = [1, 2, 4, 4, 6, 6, 8, 2, 1]
     fos = [48, 24, 32, 56, 112, 160, 272, 448, 1792]
     fis = [0] + fos[:-1]
@@ -109,12 +110,35 @@ def efficientnet_b4(data, norm, **kwargs):
 
 
 def efficientnet_b5(data, norm, **kwargs):
+    # 2.3 GFLOPs
     us = [1, 3, 5, 5, 7, 7, 9, 3, 1]
     fos = [48, 24, 40, 64, 128, 172, 304, 512, 2048]
     fis = [0] + fos[:-1]
     ss = [2, 1, 2, 2, 2, 1, 2, 1, 1]
     ks = [3, 3, 3, 5, 3, 5, 5, 3, 1]
     # ks = [3, 5, 5, 5, 5, 5, 5, 5, 1]
+    cs = [convnormrelu, mbc1, mbc6, mbc6, mbc6, mbc6, mbc6, mbc6, convnormrelu]
+    return efficientnet_helper(data, norm, us, fos, fis, ss, ks, cs)
+
+
+def efficientnet_b6(data, norm, **kwargs):
+    # 3.3 GFLOPs
+    us = [1, 3, 6, 6, 8, 8, 11, 3, 1]
+    fos = [56, 32, 40, 72, 144, 200, 344, 576, 2304]
+    fis = [0] + fos[:-1]
+    ss = [2, 1, 2, 2, 2, 1, 2, 1, 1]
+    ks = [3, 3, 3, 5, 3, 5, 5, 3, 1]
+    cs = [convnormrelu, mbc1, mbc6, mbc6, mbc6, mbc6, mbc6, mbc6, convnormrelu]
+    return efficientnet_helper(data, norm, us, fos, fis, ss, ks, cs)
+
+
+def efficientnet_b7(data, norm, **kwargs):
+    # 5.1 GFLOPs
+    us = [1, 4, 7, 7, 10, 10, 13, 4, 1]
+    fos = [64, 32, 48, 80, 160, 224, 384, 640, 2560]
+    fis = [0] + fos[:-1]
+    ss = [2, 1, 2, 2, 2, 1, 2, 1, 1]
+    ks = [3, 3, 3, 5, 3, 5, 5, 3, 1]
     cs = [convnormrelu, mbc1, mbc6, mbc6, mbc6, mbc6, mbc6, mbc6, convnormrelu]
     return efficientnet_helper(data, norm, us, fos, fis, ss, ks, cs)
 
@@ -140,6 +164,8 @@ def efficientnet_fpn_builder(efficientnet):
 
 EfficientNetB4FPN = efficientnet_fpn_builder(efficientnet_b4)
 EfficientNetB5FPN = efficientnet_fpn_builder(efficientnet_b5)
+EfficientNetB6FPN = efficientnet_fpn_builder(efficientnet_b6)
+EfficientNetB7FPN = efficientnet_fpn_builder(efficientnet_b7)
 
 
 if __name__ == "__main__":
