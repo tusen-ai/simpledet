@@ -65,26 +65,6 @@ mbc6 = lambda input, prefix, kernel, f_in, f_out, stride, proj, norm, **kwargs: 
     mbconv(input, prefix, kernel, f_in, f_out, stride, proj, 6, norm, **kwargs)
 
 
-def efficientnet_b4(data, norm, **kwargs):
-    us = [1, 2, 4, 4, 6, 6, 8, 2, 1]
-    fos = [48, 24, 32, 56, 112, 160, 272, 448, 1792]
-    fis = [0] + fos[:-1]
-    ss = [2, 1, 2, 2, 2, 1, 2, 1, 1]
-    ks = [3, 3, 3, 5, 3, 5, 5, 3, 1]
-    cs = [convnormrelu, mbc1, mbc6, mbc6, mbc6, mbc6, mbc6, mbc6, convnormrelu]
-
-    stages = []
-    for i, (u, fo, fi, s, k, c) in enumerate(zip(us, fos, fis, ss, ks, cs), start=1):
-        for j in range(1, u + 1):
-            s = s if j == 1 else 1
-            proj = True if j == 1 else False
-            fi = fi if j == 1 else fo
-            data = c(data, prefix="stage%s_unit%s" % (i, j), f_in=fi, f_out=fo,
-                kernel=k, stride=s, proj=proj, norm=norm, **kwargs)
-        stages.append(data)
-    return stages
-
-
 def efficientnet_helper(data, norm, us, fos, fis, ss, ks, cs):
     stages = []
     for i, (u, fo, fi, s, k, c) in enumerate(zip(us, fos, fis, ss, ks, cs), start=1):
