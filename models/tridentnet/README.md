@@ -66,7 +66,7 @@ All config files are available in [config/resnet_v1b](../../config/resnet_v1b).
 @article{li2019scale,
   title={Scale-Aware Trident Networks for Object Detection},
   author={Li, Yanghao and Chen, Yuntao and Wang, Naiyan and Zhang, Zhaoxiang},
-  journal={arXiv preprint arXiv:1901.01892},
+  journal={ICCV 2019},
   year={2019}
 }
 ```
