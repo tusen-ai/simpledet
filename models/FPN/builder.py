@@ -286,7 +286,7 @@ class FPNRpnHead(RpnHead):
                 threshold=nms_thr,
                 iou_loss=False)
 
-            if p.nnvm_proposal and stride != rpn_stride[-1]:
+            if p.nnvm_proposal and stride < rpn_stride[-2]:
                 max_side = p.anchor_generate.max_side
                 assert max_side is not None, "nnvm proposal requires max_side of image"
 

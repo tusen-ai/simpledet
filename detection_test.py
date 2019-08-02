@@ -29,7 +29,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
+    # os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
 
     config, args = parse_args()
 

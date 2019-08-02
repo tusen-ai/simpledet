@@ -275,6 +275,7 @@ def get_config(is_train):
             ReadRoiRecord(None),
             Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
+            Pad2DImageBbox(PadParam),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)
         ]
