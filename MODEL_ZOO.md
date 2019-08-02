@@ -13,8 +13,8 @@ This file documents a large collection of baselines trained with SimpleDet.
 
 We provide the ImageNet pretrained models used by SimpleDet. Unless otherwise noted, these models are trained on the standard ImageNet-1k dataset.
 
-- [resnet-v1-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-50-0000.params): converted copy of MARA's original ResNet-50 model.
-- [resnet-v1-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-101-0000.params): converted copy of MARA's original ResNet-101 model.
+- [resnet-v1-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-50-0000.params): converted copy of MSRA's original ResNet-50 model.
+- [resnet-v1-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-101-0000.params): converted copy of MSRA's original ResNet-101 model.
 - [resnet-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-50-0000.params): ResNet-v2-50 model provided by MXNet Model Gallery.
 - [resnet-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-101-0000.params): ResNet-v2-101 model provided by MXNet Model Gallery.
 - [resnet50_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet50_v1b-0000.params):
@@ -23,6 +23,9 @@ converted from gluoncv.
 converted from gluoncv.
 - [resnet152_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet152_v1b-0000.params):
 converted from gluoncv.
+- [resnext-101-64x4d](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-101-64x4d-0000.params): converted copy of FB's original ResNeXt-101-64x4d model.
+- [resnext-101-32x8d](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-101-32x8d-0000.params): converted copy of FB's ResNeXt-101-32x8d model.
+- [resnext-152-32x8d-IN5k](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-152-32x8d-IN5k-0000.params): converted copy of FB's ResNeXt-152-32x8d-IN5k model **trained on ImageNet-5k**.
 
 ## ResNetV1b Baselines
 All config files can be found in config/resnet_v1b.
