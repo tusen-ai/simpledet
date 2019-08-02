@@ -1,6 +1,6 @@
 from symbol.builder import FasterRcnn as Detector
 from symbol.builder import add_anchor_to_arg
-from models.efficientnet.builder import EfficientNetB7FPN as Backbone
+from models.efficientnet.builder import EfficientNetB5FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -12,20 +12,20 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 1 if is_train else 1
+        batch_image = 8 if is_train else 1
         fp16 = True
-        loader_worker = 4
+        loader_worker = 8
 
 
     class KvstoreParam:
-        kvstore     = "local"
+        kvstore     = "nccl"
         batch_image = General.batch_image
         gpus        = [0, 1, 2, 3, 4, 5, 6, 7]
         fp16        = General.fp16
 
 
     class NormalizeParam:
-        normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
+        normalizer = normalizer_factory(type="localbn", ndev=len(KvstoreParam.gpus))
         # normalizer = normalizer_factory(type="gn")
 
 
@@ -47,11 +47,11 @@ def get_config(is_train):
         nnvm_rpn_target = False
 
         class anchor_generate:
-            scale = (8,)
+            scale = (4,)
             ratio = (0.5, 1.0, 2.0)
             stride = (4, 8, 16, 32, 64)
             image_anchor = 256
-            max_side = 1400
+            max_side = 700
 
         class anchor_assign:
             allowed_border = 0
@@ -113,8 +113,10 @@ def get_config(is_train):
     class DatasetParam:
         if is_train:
             image_set = ("coco_train2014", "coco_valminusminival2014")
+            total_image = 82783 + 35504
         else:
             image_set = ("coco_minival2014", )
+            total_image = 5000
 
     backbone = Backbone(BackboneParam)
     neck = Neck(NeckParam)
@@ -164,16 +166,24 @@ def get_config(is_train):
             clip_gradient = None
 
         class schedule:
-            mult = 2
+            mult = 9
             begin_epoch = 0
             end_epoch = 6 * mult
-            lr_iter = [60000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            if mult <= 2:
+                lr_iter = [60000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                           80000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            else:
+                # follow the setting in Rethinking ImageNet Pre-training
+                # reduce the lr in the last 60k and 20k iterations
+                lr_iter = [(DatasetParam.total_image * 2 // 16 * end_epoch - 60000) * 16 //
+                    (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                    (DatasetParam.total_image * 2 // 16 * end_epoch - 20000) * 16 //
+                    (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
             lr = 0
-            iter = 2000
+            iter = 500
 
 
     class TestParam:
@@ -202,13 +212,13 @@ def get_config(is_train):
 
     # data processing
     class ResizeParam:
-        short = 800
-        long = 1333
+        short = 400
+        long = 600
 
 
     class PadParam:
-        short = 800
-        long = 1333
+        short = 400
+        long = 600
         max_num_gt = 100
 
 
@@ -219,9 +229,9 @@ def get_config(is_train):
         class _generate:
             def __init__(self):
                 self.stride = (4, 8, 16, 32, 64)
-                self.short = (200, 100, 50, 25, 13)
-                self.long = (334, 167, 84, 42, 21)
-            scales = (8)
+                self.short = (100, 50, 25, 13, 7)
+                self.long = (150, 75, 38, 19, 10)
+            scales = (4)
             aspects = (0.5, 1.0, 2.0)
 
         class assign:
