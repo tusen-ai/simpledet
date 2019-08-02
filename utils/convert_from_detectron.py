@@ -10,7 +10,7 @@ Convert model from Detectron to SimpleDet
        The front elements have high priority for matching.
     3. Add new choice for model_type of arguments.
     4. Note that this script transposes weight of first convolution from RGB to BGR.
-
+    5. Update get_ignore_name_list to handle some unmatching name
 """
 
 import mxnet as mx
