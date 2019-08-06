@@ -4,40 +4,8 @@ import mxnet as mx
 import mxnext as X
 
 from symbol.builder import Backbone, RpnHead, BboxHead, Neck, RoiAlign
+from symbol.builder import Bbox2fcHead as FPNBbox2fcHead
 from models.FPN import assign_layer_fpn, get_top_proposal
-
-
-class FPNBbox2fcHead(BboxHead):
-    def __init__(self, pBbox):
-        super().__init__(pBbox)
-
-    def add_norm(self, sym):
-        p = self.p
-        if p.normalizer.__name__ == "fix_bn":
-            pass
-        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
-            sym = p.normalizer(sym)
-        else:
-            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
-        return sym
-
-    def _get_bbox_head_logit(self, conv_feat):
-        if self._head_feat is not None:
-            return self._head_feat
-
-        xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
-
-        flatten = X.flatten(conv_feat, name="bbox_feat_flatten")
-        fc1 = X.fc(flatten, filter=1024, name="bbox_fc1", init=xavier_init)
-        fc1 = self.add_norm(fc1)
-        fc1 = X.relu(fc1)
-        fc2 = X.fc(fc1, filter=1024, name="bbox_fc2", init=xavier_init)
-        fc2 = self.add_norm(fc2)
-        fc2 = X.relu(fc2)
-
-        self._head_feat = fc2
-
-        return self._head_feat
 
 
 class FPNBboxDualHeadSmall(BboxHead):
@@ -318,7 +286,7 @@ class FPNRpnHead(RpnHead):
                 threshold=nms_thr,
                 iou_loss=False)
 
-            if p.nnvm_proposal and stride != rpn_stride[-1]:
+            if p.nnvm_proposal and stride < rpn_stride[-2]:
                 max_side = p.anchor_generate.max_side
                 assert max_side is not None, "nnvm proposal requires max_side of image"
 
@@ -438,7 +406,7 @@ class FPNNeck(Neck):
         p = self.p
         if p.normalizer.__name__ == "fix_bn":
             pass
-        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn"]:
+        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn", "dummy"]:
             sym = p.normalizer(sym)
         else:
             raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))

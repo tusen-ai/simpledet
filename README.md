@@ -3,7 +3,7 @@
 ![](./doc/image/diagram.png)
 - FP16 training for memory saving and up to **2.5X** acceleration
 - Highly scalable distributed training available **out of box**
-- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, **[TridentNet](./models/tridentnet)** and **[NASFPN](./models/NASFPN)**
+- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, **[TridentNet](./models/tridentnet)**, **[NASFPN](./models/NASFPN)** and **[EfficientNet](./models/efficientnet)**
 - Extensive feature set including **large batch BN**, **loss synchronization**, **automatic BN fusion**, deformable convolution, soft NMS, multi-scale train/test
 - Modular design for coding-free exploration of new experiment settings
 
@@ -17,6 +17,7 @@
 - Automatic BN fusion for fixed BN training, saving up to 50% GPU memory (2019.07.04)
 - Speed up MaskRCNN by 80% (2019.07.23)
 - Update MaskRCNN baselines (2019.07.25)
+- Add EfficientNet and DCN (2019.08.06)
 
 ### Setup
 #### Install

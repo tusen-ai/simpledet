@@ -182,7 +182,7 @@ def train_net(config):
             logging.info(
                 'warmup lr {}, warmup step {}'.format(
                     pOpt.warmup.lr,
-                    pOpt.warmup.iter // kv.num_workers)
+                    pOpt.warmup.iter)
                 )
         if lr_mode == 'step':
             lr_scheduler = WarmupMultiFactorScheduler(
@@ -191,20 +191,20 @@ def train_net(config):
                 warmup=True,
                 warmup_type=pOpt.warmup.type,
                 warmup_lr=pOpt.warmup.lr,
-                warmup_step=pOpt.warmup.iter // kv.num_workers
+                warmup_step=pOpt.warmup.iter
             )
         elif lr_mode == 'cosine':
             warmup_lr_scheduler = AdvancedLRScheduler(
                 mode='linear',
                 base_lr=pOpt.warmup.lr,
                 target_lr=base_lr,
-                niters=pOpt.warmup.iter // kv.num_workers
+                niters=pOpt.warmup.iter
             )
             cosine_lr_scheduler = AdvancedLRScheduler(
                 mode='cosine',
                 base_lr=base_lr,
                 target_lr=0,
-                niters=(iter_per_epoch * (end_epoch - begin_epoch) - pOpt.warmup.iter) // kv.num_workers
+                niters=(iter_per_epoch * (end_epoch - begin_epoch)) // kv.num_workers - pOpt.warmup.iter
             )
             lr_scheduler = LRSequential([warmup_lr_scheduler, cosine_lr_scheduler])
         else:
