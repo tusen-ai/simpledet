@@ -73,6 +73,12 @@ All AP results are reported on minival2014 of the [COCO dataset](http://cocodata
 |Retina|R50v1-FPN|4Conv|1X|36.6|56.9|39.0|20.3|40.7|47.2|
 |Retina|R101v1-FPN|4Conv|1X|39.2|59.5|42.2|22.8|44.0|51.1|
 |Retina|R152v1-FPN|4Conv|1X|40.4|61.1|43.4|23.6|45.0|52.3|
+|Faster|R50v1b-C4-DCNv1|C5-512ROI|1X|38.8|60.0|41.3|20.6|43.3|53.2|
+|Faster|R101v1b-C4-DCNv1|C5-512ROI|1X|41.4|63.0|44.7|22.7|46.1|56.8|
+|Faster|R50v1b-C4-DCNv2|C5-512ROI|1X|39.6|60.8|42.7|20.8|43.9|54.2|
+|Faster|R50v1b-C4-DCNv2|C5-512ROI|2X|41.2|62.2|44.7|21.7|45.3|57.0|
+|Faster|R101v1b-C4-DCNv2|C5-512ROI|1X|41.7|63.0|44.7|22.8|46.1|57.3|
+|Faster|R101v1b-C4-DCNv2|C5-512ROI|2X|42.7|63.7|46.0|24.9|46.9|57.9|
 
 
 ## Box, and Mask Detection Baselines
