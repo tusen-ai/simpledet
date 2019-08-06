@@ -1,5 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
-from models.dynamic_routing.builder import DCNResNetC4 as Backbone
+from models.dcn.builder import DCNResNetC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
