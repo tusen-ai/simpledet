@@ -18,7 +18,7 @@ All AP results are reported on minival of the [COCO dataset](http://cocodataset.
 
 ### Reference
 ```
-@inproceedings{ghiasi2019fpn,
+@inproceedings{tan2019,
   title={EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks},
   author={Tan, Mingxing and Le, Quoc V},
   booktitle={ICML},
