@@ -1,5 +1,5 @@
 ## EfficientNet for object detection
-This repository implements [**EfficientNet**](https://arxiv.org/abs/1905.11946) in the SimpleDet framework.
+This repository implements [**EfficientNet**](https://arxiv.org/abs/1905.11946) in the SimpleDet framework. Efficient B5 achives the same mAP with **~1/10 FLOPs** compared with ResNet-50.
 
 ### Qucik Start
 ```bash
