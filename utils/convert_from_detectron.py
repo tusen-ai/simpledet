@@ -10,7 +10,7 @@ Convert model from Detectron to SimpleDet
        The front elements have high priority for matching.
     3. Add new choice for model_type of arguments.
     4. Note that this script transposes weight of first convolution from RGB to BGR.
-
+    5. Update get_ignore_name_list to handle some unmatching name
 """
 
 import mxnet as mx
@@ -348,6 +348,8 @@ def get_map_str_list(model_type):
     # candidates for map: [res, resbn, fpn, retnet, rpn_head, bbox_head, mask]
     if model_type == 'resnet':
         map_str_list = ['res', 'resbn']
+    elif model_type == 'resnext':
+        map_str_list = ['res', 'resbn']
     elif model_type == 'retina':
         map_str_list = ['res', 'resbn', 'fpn', 'retnet']
     elif model_type == 'fpn':
@@ -363,10 +365,22 @@ def get_map_str_list(model_type):
     return map_str_list
 
 
+def get_ignore_name_list():
+    ignore_name_list = [
+        'pred_w', 'pred_b',  # resnext-101-32x8d
+        'lr', 'weight_order'  # resnext-101-64x4d
+    ]
+
+    return ignore_name_list
+
+
 def main(args):
     data = pickle.load(open(args.detectron_model, 'rb'), encoding='latin1')
     if 'blobs' in data:
         data = data['blobs']
+
+    # get list of ignored names
+    ignore_name_list = get_ignore_name_list()
 
     # get map_str_list
     map_str_list = get_map_str_list(args.model_type)
@@ -408,6 +422,8 @@ def main(args):
 
         # raise error if not match to any regex
         if not regex_matched:
+            if item in ignore_name_list:
+                continue
             print(item)
             raise NotImplementedError
 
@@ -453,7 +469,7 @@ if __name__ == '__main__':
     parser.add_argument('--detectron_model',            help='path to detectron model',         required=True)
     parser.add_argument('--simpledet_model_prefix',     help='path to simpledet model prefix',  required=True)
     parser.add_argument('--model_type',                 help='model type to convert',           required=True,
-                        choices=['resnet', 'retina', 'fpn', 'mask'])
+                        choices=['resnet', 'resnext', 'retina', 'fpn', 'mask'])
     args = parser.parse_args()
 
     main(args)
