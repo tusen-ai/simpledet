@@ -158,7 +158,8 @@ def train_net(config):
     eval_metrics = mx.metric.CompositeEvalMetric(metric_list)
 
     # callback
-    batch_end_callback = callback.Speedometer(train_data.batch_size, frequent=pGen.log_frequency)
+    batch_end_callback = [callback.Speedometer(train_data.batch_size, frequent=pGen.log_frequency)]
+    batch_end_callback += pModel.batch_end_callbacks or []
     epoch_end_callback = callback.do_checkpoint(model_prefix)
     sym.save(model_prefix + ".json")
 

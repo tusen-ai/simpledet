@@ -89,3 +89,15 @@ def do_checkpoint(prefix):
     def _callback(iter_no, sym, arg, aux):
         mx.model.save_checkpoint(prefix, iter_no + 1, sym, arg, aux)
     return _callback
+
+
+def do_checkpoint_iter(prefix, checkpoint_iter):
+    def _callback(param):
+        if checkpoint_iter == param.locals["total_iter"]:
+            arg_params, aux_params = param.locals["self"].get_params()
+            save_dict = {('arg:%s' % k) : v.as_in_context(mx.cpu()) for k, v in arg_params.items()}
+            save_dict.update({('aux:%s' % k) : v.as_in_context(mx.cpu()) for k, v in aux_params.items()})
+            param_name = '%s-iter-%s.params' % (prefix, checkpoint_iter)
+            mx.nd.save(param_name, save_dict)
+            logging.info('Saved checkpoint to \"%s\"', param_name)
+    return _callback
