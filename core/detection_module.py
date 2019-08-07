@@ -982,6 +982,7 @@ class DetModule(BaseModule):
         ################################################################################
         # training loop
         ################################################################################
+        total_iter = 0
         for epoch in range(begin_epoch, num_epoch):
             tic = time.time()
             eval_metric.reset()
@@ -1028,6 +1029,7 @@ class DetModule(BaseModule):
                     for callback in _as_list(batch_end_callback):
                         callback(batch_end_params)
                 nbatch += 1
+                total_iter += 1
 
                 if profile is True and epoch == begin_epoch and nbatch == 10:
                     self.logger.info("Profiling ends")
