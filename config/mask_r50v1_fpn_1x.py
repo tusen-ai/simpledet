@@ -56,6 +56,13 @@ def get_config(is_train):
             image_anchor = 256
             max_side = 1400
 
+        class anchor_assign:
+            allowed_border = 0
+            pos_thr = 0.7
+            neg_thr = 0.3
+            min_pos_thr = 0.0
+            image_anchor = 256
+            pos_fraction = 0.5
 
         class head:
             conv_channel = 256
@@ -139,10 +146,11 @@ def get_config(is_train):
             clip_gradient = None
 
         class schedule:
+            mult = 1
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 6 * mult
+            lr_iter = [60000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       80000 * mult * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
@@ -159,7 +167,7 @@ def get_config(is_train):
 
         class model:
             prefix = "experiments/{}/checkpoint".format(General.name)
-            epoch = 6
+            epoch = OptimizeParam.schedule.end_epoch
 
         class nms:
             type = "nms"
@@ -272,11 +280,13 @@ def get_config(is_train):
             EncodeGtPoly(PadParam),
             Pad2DImageBboxMask(PadParam),
             ConvertImageFromHwcToChw(),
-            PyramidAnchorTarget2D(AnchorTarget2DParam()),
             RenameRecord(RenameParam.mapping)
         ]
-        data_name = ["data", "im_info", "gt_bbox", "gt_poly"]
-        label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
+        data_name = ["data"]
+        label_name = ["im_info", "gt_bbox", "gt_poly"]
+        if not RpnParam.nnvm_rpn_target:
+            transform.append(PyramidAnchorTarget2D(AnchorTarget2DParam()))
+            label_name += ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),
@@ -293,13 +303,13 @@ def get_config(is_train):
 
     rpn_acc_metric = metric.AccWithIgnore(
         "RpnAcc",
-        ["rpn_cls_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_cls_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     rpn_l1_metric = metric.L1(
         "RpnL1",
-        ["rpn_reg_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_reg_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     # for bbox, the label is generated in network so it is an output
     box_acc_metric = metric.AccWithIgnore(
