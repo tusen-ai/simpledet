@@ -73,7 +73,7 @@ python3 utils/generate_roidb.py --dataset coco --dataset-split test-dev2017
 1. setup mxnext, a wrapper of mxnet symbolic API
 ```bash
 cd $SIMPLEDET_DIR
-git clone https://github.com/RogerChern/mxnext
+pip install git+https://github.com/RogerChern/mxnext#egg=mxnext
 ```
 2. run make in simpledet directory to install cython extensions
 
