@@ -1,5 +1,5 @@
 from models.tridentnet.builder import TridentFasterRcnn as Detector
-from models.tridentnet.builder import TridentResNetV1bC4 as Backbone
+from models.tridentnet.builder_v2 import TridentResNetV1bC4 as Backbone
 from models.tridentnet.builder import TridentRpnHead as RpnHead
 from models.tridentnet.builder import process_branch_outputs, process_branch_rpn_outputs
 from symbol.builder import Neck
