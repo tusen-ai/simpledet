@@ -1,3 +1,19 @@
+## Setup Locally with Pre-built Wheel
+We provide pre-built wheel for python >= 3.4, Ubuntu >= 14.04 or CentOS >=7. The wheels are staticly linked so no dependency other than CUDA is required.
+
+[Downdload wheel for CUDA-9.0](http://simpledet.alarge.space:1234/?/mxnet_cu90-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
+
+[Downdload wheel for CUDA-10.0](http://simpledet.alarge.space:1234/?/mxnet_cu100-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
+
+[Downdload wheel for CUDA-10.1](http://simpledet.alarge.space:1234/?/mxnet_cu101-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
+
+Install the wheel as
+```bash
+pip3 install mxnet_cu101-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl --user
+```
+
+
+
 ## Setup with Docker
 We provide pre-built docker images for both cuda9.0 and cuda10.0.
 

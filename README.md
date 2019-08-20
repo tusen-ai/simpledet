@@ -18,6 +18,7 @@
 - Speed up MaskRCNN by 80% (2019.07.23)
 - Update MaskRCNN baselines (2019.07.25)
 - Add EfficientNet and DCN (2019.08.06)
+- Add python wheel for easy local installation (2019.08.20)
 
 ### Setup
 #### Install
