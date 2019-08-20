@@ -1,5 +1,5 @@
 ## Setup Locally with Pre-built Wheel
-We provide pre-built wheel for python >= 3.4, Ubuntu >= 14.04 or CentOS >=7
+We provide pre-built wheel for python >= 3.4, Ubuntu >= 14.04 or CentOS >=7. The wheels are staticly linked so no dependency other than CUDA is required.
 
 [Downdload wheel for CUDA-9.0](http://simpledet.alarge.space:1234/?/mxnet_cu90-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
 
