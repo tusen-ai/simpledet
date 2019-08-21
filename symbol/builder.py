@@ -3,8 +3,10 @@ from __future__ import print_function
 import mxnet as mx
 import mxnext as X
 from utils.patch_config import patch_config_as_nothrow
+from utils.deprecated import deprecated
 
 
+@deprecated("In favor of symbol.detector.Rpn")
 class RPN(object):
     _rpn_output = None
 
@@ -38,6 +40,7 @@ class RPN(object):
         return cls._rpn_output
 
 
+@deprecated("In favor of symbol.detector.FasterRcnn")
 class FasterRcnn(object):
     _rpn_output = None
 
