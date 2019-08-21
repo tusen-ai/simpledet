@@ -58,6 +58,8 @@ git clone --recursive --depth=1 https://github.com/apache/incubator-mxnet /work/
 ### Compile `libmxnet.so` with static dependancy
 ```
 cd /work/mxnet
+# remove sm_30
+sed -i 's/KNOWN_CUDA_ARCHS :=\+\n/KNOW_CUDA_ARCHS := 35 50 60 70\n/' Makefile
 tools/staticbuild/build.sh cu90/cu100/cu101 pip
 ```
 
