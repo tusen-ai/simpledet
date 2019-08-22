@@ -97,6 +97,7 @@ class FasterRcnn(object):
         return cls._rpn_output
 
 
+@deprecated("In favor of symbol.component.RpnHead")
 class RpnHead(object):
     def __init__(self, pRpn):
         self.p = patch_config_as_nothrow(pRpn)
@@ -161,7 +162,6 @@ class RpnHead(object):
         self._bbox_delta = bbox_delta
 
         return self._cls_logit, self._bbox_delta
-
 
     def get_loss(self, conv_feat, gt_bboxes, im_infos):
         p = self.p
@@ -329,6 +329,7 @@ class RpnHead(object):
         return bbox, label, bbox_target, bbox_weight
 
 
+@deprecated("In favor of symbol.component.BboxHead")
 class BboxHead(object):
     def __init__(self, pBbox):
         self.p = patch_config_as_nothrow(pBbox)
@@ -449,6 +450,7 @@ class BboxHead(object):
         return cls_loss, reg_loss, cls_label
 
 
+@deprecated("In favor of symbol.component.Bbox2fcHead")
 class Bbox2fcHead(BboxHead):
     def __init__(self, pBbox):
         super().__init__(pBbox)
