@@ -12,13 +12,14 @@ def se_resnet_v1b_unit(input, name, filter, stride, dilate, proj, norm, **kwargs
     bn1 = norm(conv1, name=name + "_bn1")
     relu1 = relu(bn1, name=name + "_relu1")
 
-    conv2 = conv(relu1, name=name + "_conv2", stride=stride, filter=filter, kernel=3)
+    conv2 = conv(relu1, name=name + "_conv2", stride=stride, filter=filter // 4, kernel=3)
     bn2 = norm(conv2, name=name + "_bn2")
     relu2 = relu(bn2, name=name + "_relu2")
-    relu2 = se(relu2, prefix=name + "_se2", f_down=filter//16, f_up=filter)
 
     conv3 = conv(relu2, name=name + "_conv3", filter=filter)
     bn3 = norm(conv3, name=name + "_bn3")
+    bn3 = se(bn3, prefix=name + "_se3", f_down=filter // 16, f_up=filter)
+
 
     if proj:
         shortcut = conv(input, name=name + "_sc", filter=filter, stride=stride)
