@@ -352,6 +352,7 @@ class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):
                 weight=weight,
                 name="mask_up{}".format(i)
                 )
+            mask_up = self.add_norm(mask_up)
             mask_up = X.relu(
                 mask_up,
                 name="mask_up{}_relu".format(i))
