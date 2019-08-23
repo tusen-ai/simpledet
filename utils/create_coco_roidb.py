@@ -17,7 +17,7 @@ dataset_split_mapping = {
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Generate SimpleDet GroundTruth Database')
+    parser = argparse.ArgumentParser(description='Generate SimpleDet GroundTruth Database for COCO-like dataset')
     parser.add_argument('--dataset', help='dataset name', type=str)
     parser.add_argument('--dataset-split', help='dataset split, e.g. train2017, minival2014', type=str)
 

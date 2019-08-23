@@ -28,22 +28,17 @@ SimpleDet contains a lot of C++ operators not in MXNet offical repo, so one has 
 
 #### Preparing Data
 SimpleDet requires groundtruth annotation organized as following format
-```
+```python
+# example.roidb is a pickle file of List[Dict].
 [
     {
         "gt_class": (nBox, ),
-        "gt_bbox": (nBox, 4),
+        "gt_bbox": (nBox, 4),  # in xyxy format
         "flipped": bool,
         "h": int,
         "w": int,
         "image_url": str,
-        "im_id": int,
-
-        # this fields are generated on the fly during test
-        "rec_id": int,
-        "resize_h": int,
-        "resize_w": int,
-        ...
+        "im_id": int
     },
     ...
 ]

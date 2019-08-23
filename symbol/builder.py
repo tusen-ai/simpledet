@@ -6,10 +6,10 @@ from utils.patch_config import patch_config_as_nothrow
 from utils.deprecated import deprecated
 
 
-@deprecated("In favor of symbol.detector.Rpn")
 class RPN(object):
     _rpn_output = None
 
+    @deprecated("In favor of symbol.detector.Rpn")
     def __init__(self):
         pass
 
@@ -40,10 +40,10 @@ class RPN(object):
         return cls._rpn_output
 
 
-@deprecated("In favor of symbol.detector.FasterRcnn")
 class FasterRcnn(object):
     _rpn_output = None
 
+    @deprecated("In favor of symbol.detector.FasterRcnn")
     def __init__(self):
         pass
 
@@ -97,8 +97,8 @@ class FasterRcnn(object):
         return cls._rpn_output
 
 
-@deprecated("In favor of symbol.component.RpnHead")
 class RpnHead(object):
+    @deprecated("In favor of symbol.component.RpnHead")
     def __init__(self, pRpn):
         self.p = patch_config_as_nothrow(pRpn)
 
@@ -329,8 +329,8 @@ class RpnHead(object):
         return bbox, label, bbox_target, bbox_weight
 
 
-@deprecated("In favor of symbol.component.BboxHead")
 class BboxHead(object):
+    @deprecated("In favor of symbol.component.BboxHead")
     def __init__(self, pBbox):
         self.p = patch_config_as_nothrow(pBbox)
 
@@ -450,8 +450,8 @@ class BboxHead(object):
         return cls_loss, reg_loss, cls_label
 
 
-@deprecated("In favor of symbol.component.Bbox2fcHead")
 class Bbox2fcHead(BboxHead):
+    @deprecated("In favor of symbol.component.Bbox2fcHead")
     def __init__(self, pBbox):
         super().__init__(pBbox)
 
