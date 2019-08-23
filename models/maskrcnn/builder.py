@@ -304,6 +304,16 @@ class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):
     def __init__(self, pBbox, pMask, pMaskRoi):
         super().__init__(pBbox, pMask, pMaskRoi)
 
+    def add_norm(self, sym):
+        p = self.pMask
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "gn"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
     def _get_mask_head_logit(self, conv_feat):
         if self._head_feat is not None:
             return self._head_feat
@@ -315,14 +325,16 @@ class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):
 
         current = conv_feat
         for i in range(4):
-            current = X.convrelu(
+            current = X.conv(
                 current,
-                name="mask_fcn_conv{}".format(i),
+                name="mask_fcn_conv{}".format(i + 1),
                 filter=dim_reduced,
                 kernel=3,
                 no_bias=False,
                 init=msra_init
             )
+            current = self.add_norm(current)
+            current = X.relu(current)
 
         mask_up = current
         for i in range(up_stride // 2):
