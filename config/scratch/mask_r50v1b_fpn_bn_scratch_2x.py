@@ -94,7 +94,7 @@ def get_config(is_train):
 
     class BboxParam:
         fp16 = General.fp16
-        normalizer = normalizer_factory(type="fixbn")
+        normalizer = NormalizeParam.normalizer
         num_class   = 1 + 80
         image_roi   = 512
         batch_image = General.batch_image
@@ -107,7 +107,7 @@ def get_config(is_train):
 
     class MaskParam:
         fp16        = General.fp16
-        normalizer  = NormalizeParam.normalizer
+        normalizer = normalizer_factory(type="fixbn")
         resolution  = 28
         dim_reduced = 256
         num_fg_roi  = int(RpnParam.subsample_proposal.image_roi * RpnParam.subsample_proposal.fg_fraction)
