@@ -36,10 +36,6 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         depth = 50
-        num_c2_block = 3
-        num_c3_block = 4
-        num_c4_block = 6
-        num_c5_block = 3
 
 
     class NeckParam:
@@ -98,7 +94,7 @@ def get_config(is_train):
 
     class BboxParam:
         fp16 = General.fp16
-        normalizer = NormalizeParam.normalizer
+        normalizer = normalizer_factory(type="fixbn")
         num_class   = 1 + 80
         image_roi   = 512
         batch_image = General.batch_image
