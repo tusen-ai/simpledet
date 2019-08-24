@@ -31,7 +31,7 @@ def create_roidb(data_dir, subset):
         h = int(root.find("size/height").text)
         w = int(root.find("size/width").text)
         image_url = os.path.abspath(filename.replace("Annotations", "JPEGImages").replace(".xml", ".jpg"))
-        im_id = i + 1
+        im_id = int(os.path.basename(image_url).replace(".jpg", ""))
         gt_class, gt_bbox = list(), list()
         for obj in root.findall("object"):
             gt_class.append(label_map[obj.find("name").text])
