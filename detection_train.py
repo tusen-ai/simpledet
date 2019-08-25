@@ -9,7 +9,7 @@ from functools import reduce
 from core.detection_module import DetModule
 from utils import callback
 from utils.memonger_v2 import search_plan_to_layer
-from utils.lr_scheduler import WarmupMultiFactorScheduler, LRSequential, AdvancedLRScheduler
+from utils.lr_scheduler import LRScheduler, WarmupMultiFactorScheduler, LRSequential, AdvancedLRScheduler
 from utils.load_model import load_checkpoint
 from utils.patch_config import patch_config_as_nothrow
 
@@ -223,7 +223,11 @@ def train_net(config):
             raise NotImplementedError
     else:
         if lr_mode == 'step':
-            lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(lr_iter_discount, lr_factor)
+            if len(lr_iter_discount) == 0:
+                lr_scheduler = mx.lr_scheduler.LRScheduler(base_lr=current_lr)
+            else:
+                lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(
+                    base_lr=current_lr, step=lr_iter_discount, factor=lr_factor)
         elif lr_mode == 'cosine':
             lr_scheduler = AdvancedLRScheduler(
                 mode='cosine',
