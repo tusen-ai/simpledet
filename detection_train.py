@@ -223,11 +223,7 @@ def train_net(config):
             raise NotImplementedError
     else:
         if lr_mode == 'step':
-            if len(lr_iter_discount) == 0:
-                lr_scheduler = mx.lr_scheduler.LRScheduler(base_lr=current_lr)
-            else:
-                lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(
-                    base_lr=current_lr, step=lr_iter_discount, factor=lr_factor)
+            lr_scheduler = WarmupMultiFactorScheduler(step=lr_iter_discount, factor=lr_factor)
         elif lr_mode == 'cosine':
             lr_scheduler = AdvancedLRScheduler(
                 mode='cosine',
