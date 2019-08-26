@@ -99,6 +99,7 @@ The `gt_class` and `gt_bbox` can be read from `<object>`. `gt_class` start with 
 `im_id` is set as a monotonic incresing sequence starting from 0. Note that the value of `im_id` shall not exceed 16M due to float32 overflow. `im_id` is used to uniquely identify images during test only. **Since combining several subset for testing is quite rare, so one may reuse the `im_id` across subsets.**
 
 ```json
+# example.json
 [
     {
         "gt_class": [1, 5],
@@ -112,21 +113,25 @@ The `gt_class` and `gt_bbox` can be read from `<object>`. `gt_class` start with 
     ...
 ]
 ```
-
 Refer to `utils/create_voc_roidb.py` for more details.
 
+After prepared the json file, you can use `utils/json_to_roidb.py` to convert it into a valid roidb file for SimpleDet
+```bash
+python3 utils/json_to_roidb.py --json path/to/your.json
+```
+
+
 ### Tune from COCO pretrain
-We first train a baseline FPN R50 detector as the baseline.
+We first train a FPN R50 detector as the baseline.
 ```
 python detection_train.py --config config/faster_r50v1_fpn_voc07_1x.py
 python detection_test.py --config config/faster_r50v1_fpn_voc07_1x.py
 ```
 This gives a mAP@50 of 76.3
 
-We then use the [MaskRCNN R50]() pretrained on COCO for initialization.
+We then use the MaskRCNN R50 pretrained on COCO for initialization.
 1. Download and rename the weight
 ```
-wget
 mv checkpoint-0006.params pretrain_model/r50v1-maskrcnn-coco-0000.params
 ```
 2. Remove the class-aware logit parameters.
@@ -140,13 +145,13 @@ del params["arg:bbox_reg_delta_bias"]
 mx.nd.save("r50v1-maskrcnn-coco-0000.params", params)
 ```
 
-3. Train the FPN R50 from MaskRCNN initialization. This gives a mAP@50 of 82.5, a 6.1 mAP gain compared with the ImageNet pretrain.
+3. Train the FPN R50 from MaskRCNN initialization. This gives a mAP@50 of 82.5, a 6.2 mAP gain compared with the ImageNet pretrain.
 ```
 python detection_train.py --config config/faster_r50v1_fpn_voc07_finetune_1x.py
 python detection_test.py --config config/faster_r50v1_fpn_voc07_finetune_1x.py
 ```
 
-From the diff we can see that the pretrain model is changed, the lr is divided by 10, no warmup is empolyed, and the training epochs is halved.
+From the diff we can see that the pretrain model is changed, the init lr is divided by 10 without stepping, no warmup is empolyed, and the training epochs is halved.
 
 ```bash
 $ diff config/finetune/faster_r50v1_fpn_voc07_1x.py config/finetune/faster_r50v1_fpn_voc07_finetune_1x.py
