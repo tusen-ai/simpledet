@@ -1,6 +1,10 @@
 ## Introduction
 
 ### Scripts
+- `detection_train.py`
+- `detection_test.py`
+- `rpn_test.py`
+- `mask_test.py`
 
 
 ### Top-level Singletons (Detectors)
@@ -82,6 +86,7 @@ class MaskRcnn(object):
         return FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 ```
 
+
 ### Components
 Components now include
 - Backbone
@@ -95,10 +100,27 @@ Components now include
     - FPNNeck
     - NASFPNNeck
 - RpnHead
+    - RpnHead
     - FPNRpnHead
     - MaskRpnHead
     - TridentRpnHead
 - RoIExtractor
     - RoIAlign
+    - FPNRoIAlign
 - BboxHead
-    -
+    - BboxResNetv1C5Head
+    - BboxResNetv2C5Head
+    - BboxResNeXtC5Head
+    - Bbox2fcHead
+    - BboxDualHead
+- MaskHead
+    - MaskHead
+
+
+### PipeLine
+metric ->
+optimizer ->
+kvstore ->
+optimizer ->
+roidb -> data loader ->
+components -> detector symbol ->
