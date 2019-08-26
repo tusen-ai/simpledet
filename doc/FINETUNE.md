@@ -115,4 +115,58 @@ The `gt_class` and `gt_bbox` can be read from `<object>`. `gt_class` start with 
 
 Refer to `utils/create_voc_roidb.py` for more details.
 
-###
+### Tune from COCO
+We first train a baseline FPN R50 detector as the baseline.
+```
+python detection_train.py --config config/faster_r50v1_fpn_voc07_1x.py
+```
+This gives a mAP@50 of 76.3
+
+We then use the [MaskRCNN R50]() pretrained on COCO for initialization.
+1. Download and rename the weight
+```
+wget
+mv checkpoint-0006.params pretrain_model/r50v1-maskrcnn-coco-0000.params
+```
+1. Remove the class-aware logit parameters.
+```python
+import mxnet as mx
+params = mx.nd.load("r50v1-maskrcnn-coco-0000.params")
+del params["arg:bbox_cls_logit_weight"]
+del params["arg:bbox_cls_logit_bias"]
+del params["arg:bbox_reg_delta_weight"]
+del params["arg:bbox_reg_delta_bias"]
+mx.nd.save("r50v1-maskrcnn-coco-0000.params", params)
+```
+
+2. Train the FPN R50 from MaskRCNN initialization
+```
+python detection_train.py --config config/faster_r50v1_fpn_voc07_finetune_1x.py
+```
+This gives a mAP@50 of 82.5, a 6.1 mAP gain compared with the ImageNet pretrain.
+
+```bash
+$ diff config/finetune/faster_r50v1_fpn_voc07_1x.py config/finetune/faster_r50v1_fpn_voc07_finetune_1x.py
+145c145
+<             prefix = "pretrain_model/resnet-v1-50"
+---
+>             prefix = "pretrain_model/r50v1-maskrcnn-coco"
+159c159
+<             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
+---
+>             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image / 10
+166,172c166,167
+<             end_epoch = 6
+<             lr_iter = [10000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+<
+<         class warmup:
+<             type = "gradual"
+<             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image / 3.0
+<             iter = 100
+---
+>             end_epoch = 3
+>             lr_iter = []
+
+```
+
+From the diff we can see that the pretrain model is changed, the lr is divided by 10, no warmup is empolyed, and the training epochs is halved.

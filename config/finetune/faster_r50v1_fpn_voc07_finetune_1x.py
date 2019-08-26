@@ -1,9 +1,10 @@
 from symbol.builder import FasterRcnn as Detector
-from symbol.builder import ResNet50V1 as Backbone
-from symbol.builder import Neck
-from symbol.builder import RpnHead
-from symbol.builder import RoiAlign as RoiExtractor
-from symbol.builder import BboxC5V1Head as BboxHead
+from symbol.builder import add_anchor_to_arg
+from models.FPN.builder import MSRAResNet50V1FPN as Backbone
+from models.FPN.builder import FPNNeck as Neck
+from models.FPN.builder import FPNRpnHead as RpnHead
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNBbox2fcHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
 
@@ -13,17 +14,17 @@ def get_config(is_train):
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
         fp16 = False
+        loader_worker = 8
 
 
     class KvstoreParam:
-        kvstore     = "local"
+        kvstore     = "nccl"
         batch_image = General.batch_image
         gpus        = [0, 1, 2, 3, 4, 5, 6, 7]
         fp16        = General.fp16
 
 
     class NormalizeParam:
-        # normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
         normalizer = normalizer_factory(type="fixbn")
 
 
@@ -41,49 +42,60 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        nnvm_proposal = True
+        nnvm_rpn_target = False
 
         class anchor_generate:
-            scale = (2, 4, 8, 16, 32)
+            scale = (8,)
             ratio = (0.5, 1.0, 2.0)
-            stride = 16
+            stride = (4, 8, 16, 32, 64)
             image_anchor = 256
+            max_side = 1400
+
+        class anchor_assign:
+            allowed_border = 0
+            pos_thr = 0.7
+            neg_thr = 0.3
+            min_pos_thr = 0.0
+            image_anchor = 256
+            pos_fraction = 0.5
 
         class head:
-            conv_channel = 512
+            conv_channel = 256
             mean = (0, 0, 0, 0)
             std = (1, 1, 1, 1)
 
         class proposal:
-            pre_nms_top_n = 12000 if is_train else 6000
+            pre_nms_top_n = 2000 if is_train else 1000
             post_nms_top_n = 2000 if is_train else 1000
             nms_thr = 0.7
             min_bbox_side = 0
 
         class subsample_proposal:
             proposal_wo_gt = False
-            image_roi = 128
+            image_roi = 512
             fg_fraction = 0.25
             fg_thr = 0.5
             bg_thr_hi = 0.5
             bg_thr_lo = 0.0
 
         class bbox_target:
-            num_reg_class = 2
-            class_agnostic = True
+            num_reg_class = 1 + 20
+            class_agnostic = False
             weight = (1.0, 1.0, 1.0, 1.0)
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
 
 
     class BboxParam:
-        fp16        = General.fp16
-        normalizer  = NormalizeParam.normalizer
+        fp16 = General.fp16
+        normalizer = NormalizeParam.normalizer
         num_class   = 1 + 20
-        image_roi   = 128
+        image_roi   = 512
         batch_image = General.batch_image
 
         class regress_target:
-            class_agnostic = True
+            class_agnostic = False
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
 
@@ -92,7 +104,9 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         out_size = 7
-        stride = 16
+        stride = (4, 8, 16, 32)
+        roi_canonical_scale = 224
+        roi_canonical_level = 4
 
 
     class DatasetParam:
@@ -128,28 +142,29 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-50"
+            prefix = "pretrain_model/r50v1-maskrcnn-coco"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        def process_weight(sym, arg, aux):
+            for stride in RpnParam.anchor_generate.stride:
+                add_anchor_to_arg(
+                    sym, arg, aux, RpnParam.anchor_generate.max_side,
+                    stride, RpnParam.anchor_generate.scale,
+                    RpnParam.anchor_generate.ratio)
 
     class OptimizeParam:
         class optimizer:
             type = "sgd"
-            lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image
+            lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image / 10
             momentum = 0.9
             wd = 0.0001
-            clip_gradient = 35
+            clip_gradient = None
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [10000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
-
-        class warmup:
-            type = "gradual"
-            lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image / 3.0
-            iter = 100
+            end_epoch = 3
+            lr_iter = []
 
 
     class TestParam:
@@ -176,7 +191,7 @@ def get_config(is_train):
         mean = (122.7717, 115.9465, 102.9801) # RGB order
         std = (1.0, 1.0, 1.0)
 
-
+    # data processing
     class ResizeParam:
         short = 608
         long = 992
@@ -189,11 +204,15 @@ def get_config(is_train):
 
 
     class AnchorTarget2DParam:
-        class generate:
-            short = 608 // 16
-            long = 992 // 16
-            stride = 16
-            scales = (2, 4, 8, 16, 32)
+        def __init__(self):
+            self.generate = self._generate()
+
+        class _generate:
+            def __init__(self):
+                self.stride = (4, 8, 16, 32, 64)
+                self.short = (152, 76, 38, 19, 10)
+                self.long = (248, 124, 62, 31, 16)
+            scales = (8)
             aspects = (0.5, 1.0, 2.0)
 
         class assign:
@@ -213,7 +232,9 @@ def get_config(is_train):
 
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord, AnchorTarget2D, Norm2DImage
+        RenameRecord, Norm2DImage
+
+    from models.FPN.input import PyramidAnchorTarget2D
 
     if is_train:
         transform = [
@@ -223,11 +244,13 @@ def get_config(is_train):
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
             ConvertImageFromHwcToChw(),
-            AnchorTarget2D(AnchorTarget2DParam),
             RenameRecord(RenameParam.mapping)
         ]
-        data_name = ["data", "im_info", "gt_bbox"]
-        label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
+        data_name = ["data"]
+        label_name = ["gt_bbox", "im_info"]
+        if not RpnParam.nnvm_rpn_target:
+            transform.append(PyramidAnchorTarget2D(AnchorTarget2DParam()))
+            label_name += ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),
@@ -243,13 +266,13 @@ def get_config(is_train):
 
     rpn_acc_metric = metric.AccWithIgnore(
         "RpnAcc",
-        ["rpn_cls_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_cls_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     rpn_l1_metric = metric.L1(
         "RpnL1",
-        ["rpn_reg_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_reg_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     # for bbox, the label is generated in network so it is an output
     box_acc_metric = metric.AccWithIgnore(
