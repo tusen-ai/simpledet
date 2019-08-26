@@ -1,5 +1,5 @@
 from symbol.builder import add_anchor_to_arg
-from models.se.builder import SEResNetV1bFPN as Backbone
+from models.se.builder import SEv2ResNetV1bFPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
 from models.FPN.builder import FPNBbox2fcHead as BboxHead
