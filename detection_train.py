@@ -180,12 +180,14 @@ def train_net(config):
     lr_factor = 0.1
 
     iter_per_epoch = len(train_data) // input_batch_size
+    total_iter = iter_per_epoch * (end_epoch - begin_epoch)
+    lr_iter = [total_iter + it if it < 0 else it for it in lr_iter]
     lr_iter = [it // kv.num_workers for it in lr_iter]
     lr_iter = [it - iter_per_epoch * begin_epoch for it in lr_iter]
     lr_iter_discount = [it for it in lr_iter if it > 0]
     current_lr = base_lr * (lr_factor ** (len(lr_iter) - len(lr_iter_discount)))
     if rank == 0:
-        logging.info('total iter {}'.format(iter_per_epoch * (end_epoch - begin_epoch)))
+        logging.info('total iter {}'.format(total_iter))
         logging.info('lr {}, lr_iters {}'.format(current_lr, lr_iter_discount))
         logging.info('lr mode: {}'.format(lr_mode))
 
