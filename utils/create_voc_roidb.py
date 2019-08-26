@@ -34,6 +34,9 @@ def create_roidb(data_dir, subset):
         im_id = int(os.path.basename(image_url).replace(".jpg", ""))
         gt_class, gt_bbox = list(), list()
         for obj in root.findall("object"):
+            # ignore difficult objects
+            if obj.find("difficult").text == 1:
+                continue
             gt_class.append(label_map[obj.find("name").text])
             x1 = float(obj.find("bndbox/xmin").text)
             y1 = float(obj.find("bndbox/ymin").text)

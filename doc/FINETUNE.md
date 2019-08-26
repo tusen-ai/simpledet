@@ -115,10 +115,11 @@ The `gt_class` and `gt_bbox` can be read from `<object>`. `gt_class` start with 
 
 Refer to `utils/create_voc_roidb.py` for more details.
 
-### Tune from COCO
+### Tune from COCO pretrain
 We first train a baseline FPN R50 detector as the baseline.
 ```
 python detection_train.py --config config/faster_r50v1_fpn_voc07_1x.py
+python detection_test.py --config config/faster_r50v1_fpn_voc07_1x.py
 ```
 This gives a mAP@50 of 76.3
 
@@ -128,7 +129,7 @@ We then use the [MaskRCNN R50]() pretrained on COCO for initialization.
 wget
 mv checkpoint-0006.params pretrain_model/r50v1-maskrcnn-coco-0000.params
 ```
-1. Remove the class-aware logit parameters.
+2. Remove the class-aware logit parameters.
 ```python
 import mxnet as mx
 params = mx.nd.load("r50v1-maskrcnn-coco-0000.params")
@@ -139,11 +140,13 @@ del params["arg:bbox_reg_delta_bias"]
 mx.nd.save("r50v1-maskrcnn-coco-0000.params", params)
 ```
 
-2. Train the FPN R50 from MaskRCNN initialization
+3. Train the FPN R50 from MaskRCNN initialization. This gives a mAP@50 of 82.5, a 6.1 mAP gain compared with the ImageNet pretrain.
 ```
 python detection_train.py --config config/faster_r50v1_fpn_voc07_finetune_1x.py
+python detection_test.py --config config/faster_r50v1_fpn_voc07_finetune_1x.py
 ```
-This gives a mAP@50 of 82.5, a 6.1 mAP gain compared with the ImageNet pretrain.
+
+From the diff we can see that the pretrain model is changed, the lr is divided by 10, no warmup is empolyed, and the training epochs is halved.
 
 ```bash
 $ diff config/finetune/faster_r50v1_fpn_voc07_1x.py config/finetune/faster_r50v1_fpn_voc07_finetune_1x.py
@@ -168,5 +171,3 @@ $ diff config/finetune/faster_r50v1_fpn_voc07_1x.py config/finetune/faster_r50v1
 >             lr_iter = []
 
 ```
-
-From the diff we can see that the pretrain model is changed, the lr is divided by 10, no warmup is empolyed, and the training epochs is halved.

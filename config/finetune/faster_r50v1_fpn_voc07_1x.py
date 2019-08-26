@@ -188,7 +188,7 @@ def get_config(is_train):
             thr = 0.5
 
         class coco:
-            annotation = "data/voc/annotations/pascal_test2007.json"
+            annotation = None
 
 
     # data processing
