@@ -13,9 +13,10 @@ By unique we mean that the detector has a pipeline that can not be easily adapte
 Detectors now include
 - RPN
 - RetinaNet
-- YOLOv3 (WIP)
+- KD RetinaNet
 - Fast R-CNN
 - Faster R-CNN
+- KD Faster R-CNN
 - Mask R-CNN
 - Cascade R-CNN
 
@@ -104,6 +105,7 @@ Components now include
     - FPNRpnHead
     - MaskRpnHead
     - TridentRpnHead
+    - RetinaNetHead
 - RoIExtractor
     - RoIAlign
     - FPNRoIAlign
@@ -112,14 +114,19 @@ Components now include
     - BboxResNetv2C5Head
     - BboxResNeXtC5Head
     - Bbox2fcHead
+    - Bbox4conv1fcHead
     - BboxDualHead
 - MaskHead
     - MaskHead
 
 
-### PipeLine
-metric ->
-optimizer ->
+### Configuration
+metric:
+    - LossWithIgnore
+    - FgLossWithIgnore
+
+optimizer:
+    - 
 kvstore ->
 optimizer ->
 roidb -> data loader ->
