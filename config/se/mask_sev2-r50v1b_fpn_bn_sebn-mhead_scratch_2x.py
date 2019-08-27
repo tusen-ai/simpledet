@@ -7,7 +7,7 @@ from mxnext.complicate import normalizer_factory
 
 from models.maskrcnn.builder import MaskFasterRcnn as Detector
 from models.maskrcnn.builder import MaskFPNRpnHead as RpnHead
-from models.maskrcnn.builder import MaskFasterRcnn4ConvHead as MaskHead
+from models.se.builder import MaskRcnnSe4convHead as MaskHead
 from models.maskrcnn.builder import BboxPostProcessor
 from models.maskrcnn.process_output import process_output
 
