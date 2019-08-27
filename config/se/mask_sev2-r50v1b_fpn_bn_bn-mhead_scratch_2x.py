@@ -111,7 +111,7 @@ def get_config(is_train):
 
     class MaskParam:
         fp16        = General.fp16
-        normalizer = NormalizeParam.normalizer
+        normalizer  = NormalizeParam.normalizer
         resolution  = 28
         dim_reduced = 256
         num_fg_roi  = int(RpnParam.subsample_proposal.image_roi * RpnParam.subsample_proposal.fg_fraction)

@@ -5,6 +5,7 @@ from mxnext.backbone.resnet_v1b_helper import resnet_unit
 from symbol.builder import Backbone
 from models.efficientnet.builder import se
 from models.dcn.builder import hybrid_resnet_fpn_builder
+from models.maskrcnn.builder import MaskFasterRcnnHead
 
 
 def se_resnet_v1b_unit(input, name, filter, stride, dilate, proj, norm, **kwargs):
@@ -117,3 +118,56 @@ SEResNetV1bFPN = hybrid_resnet_fpn_builder(se_resnet_v1b_unit)
 SEv2ResNetV1bFPN = hybrid_resnet_fpn_builder(se_v2_resnet_v1b_unit)
 SEv3ResNetV1bFPN = hybrid_resnet_fpn_builder(se_v3_resnet_v1b_unit)
 SEv4ResNetV1bFPN = hybrid_resnet_fpn_builder(se_v4_resnet_v1b_unit)
+
+
+class MaskRcnnSe4convHead(MaskFasterRcnnHead):
+    def __init__(self, pBbox, pMask, pMaskRoi):
+        super().__init__(pBbox, pMask, pMaskRoi)
+
+    def _get_mask_head_logit(self, conv_feat):
+        if self._head_feat is not None:
+            return self._head_feat
+
+        up_stride = int(self.pMask.resolution // self.pMaskRoi.out_size)
+        dim_reduced = self.pMask.dim_reduced
+
+        msra_init = mx.init.Xavier(rnd_type="gaussian", factor_type="out", magnitude=2)
+
+        current = conv_feat
+        for i in range(4):
+            current = X.conv(
+                current,
+                name="mask_fcn_conv{}".format(i + 1),
+                filter=dim_reduced,
+                kernel=3,
+                no_bias=False,
+                init=msra_init
+            )
+            current = self.add_norm(current)
+            current = X.relu(current)
+            current = se(current, "mask_fcn_se{}".format(i + 1), f_down=dim_reduced // 4, f_up=dim_reduced)
+
+        mask_up = current
+        for i in range(up_stride // 2):
+            weight = X.var(
+                name="mask_up{}_weight".format(i),
+                init=msra_init,
+                lr_mult=1,
+                wd_mult=1)
+            mask_up = mx.sym.Deconvolution(
+                mask_up,
+                kernel=(2, 2),
+                stride=(2, 2),
+                num_filter=dim_reduced,
+                no_bias=False,
+                weight=weight,
+                name="mask_up{}".format(i)
+                )
+            mask_up = X.relu(
+                mask_up,
+                name="mask_up{}_relu".format(i))
+
+        mask_up = X.to_fp32(mask_up, name='mask_up_to_fp32')
+        self._head_feat = mask_up
+
+        return self._head_feat

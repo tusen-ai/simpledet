@@ -227,6 +227,16 @@ class MaskFasterRcnnHead(object):
 
         self._head_feat = None
 
+    def add_norm(self, sym):
+        p = self.pMask
+        if p.normalizer.__name__ == "fix_bn":
+            pass
+        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn", "dummy"]:
+            sym = p.normalizer(sym)
+        else:
+            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
+        return sym
+
     def _get_mask_head_logit(self, conv_feat):
         raise NotImplementedError
 
@@ -303,16 +313,6 @@ class MaskFasterRcnnHead(object):
 class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):
     def __init__(self, pBbox, pMask, pMaskRoi):
         super().__init__(pBbox, pMask, pMaskRoi)
-
-    def add_norm(self, sym):
-        p = self.pMask
-        if p.normalizer.__name__ == "fix_bn":
-            pass
-        elif p.normalizer.__name__ in ["sync_bn", "local_bn", "gn", "dummy"]:
-            sym = p.normalizer(sym)
-        else:
-            raise NotImplementedError("Unsupported normalizer: {}".format(p.normalizer.__name__))
-        return sym
 
     def _get_mask_head_logit(self, conv_feat):
         if self._head_feat is not None:
