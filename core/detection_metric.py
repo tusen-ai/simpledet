@@ -151,3 +151,13 @@ class SigmoidCrossEntropy(mx.metric.EvalMetric):
 
         self.num_inst += 1
         self.sum_metric += l
+
+
+class ScalarLoss(mx.metric.EvalMetric):
+    def __init__(self, name, output_names, label_names):
+        super().__init__(name, output_names, label_names)
+
+    def update(self, labels, preds):
+
+        self.num_inst += 1
+        self.sum_metric += preds[0].asscalar()

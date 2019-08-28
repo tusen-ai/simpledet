@@ -152,8 +152,19 @@ def train_net(config):
     data_names = [k[0] for k in train_data.provide_data]
     label_names = [k[0] for k in train_data.provide_label]
 
-    mod = DetModule(sym, data_names=data_names, label_names=label_names,
-                    logger=logger, context=ctx, fixed_param=fixed_param, excluded_param=excluded_param)
+    if pModel.teacher_param:
+        from models.KD.utils import create_teacher_module
+        from models.KD.detection_module import KDDetModule
+        t_mod, t_label_name, t_label_shape = create_teacher_module(
+            pModel.teacher_param, worker_data_shape, input_batch_size, ctx, rank, logger)
+        mod = KDDetModule(sym, teacher_module=t_mod, teacher_label_names=t_label_name,
+                          teacher_label_shapes=t_label_shape,
+                          data_names=data_names, label_names=label_names,
+                          logger=logger, context=ctx, fixed_param=fixed_param,
+                          excluded_param=excluded_param)
+    else:
+        mod = DetModule(sym, data_names=data_names, label_names=label_names,
+                        logger=logger, context=ctx, fixed_param=fixed_param, excluded_param=excluded_param)
 
     eval_metrics = mx.metric.CompositeEvalMetric(metric_list)
 
