@@ -242,7 +242,7 @@ def train_net(config):
         wd=pOpt.optimizer.wd,
         learning_rate=current_lr,
         lr_scheduler=lr_scheduler,
-        rescale_grad=1.0 / (len(pKv.gpus) * kv.num_workers),
+        rescale_grad=1.0 / (len(ctx) * kv.num_workers),
         clip_gradient=pOpt.optimizer.clip_gradient
     )
 
