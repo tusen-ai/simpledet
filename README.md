@@ -20,6 +20,7 @@
 - Add EfficientNet and DCN (2019.08.06)
 - Add python wheel for easy local installation (2019.08.20)
 - Add FitNet based Knowledge Distill (2019.08.27)
+- Add SE and train from scratch (2019.08.30)
 
 ### Setup
 #### Install
