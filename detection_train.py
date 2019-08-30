@@ -177,7 +177,7 @@ def train_net(config):
     # decide learning rate
     lr_mode = pOpt.optimizer.lr_mode or 'step'
     base_lr = pOpt.optimizer.lr * kv.num_workers
-    lr_factor = pOpt.optimizer.schedule.lr_factor or 0.1
+    lr_factor = pOpt.schedule.lr_factor or 0.1
 
     iter_per_epoch = len(train_data) // input_batch_size
     total_iter = iter_per_epoch * (end_epoch - begin_epoch)
