@@ -93,8 +93,8 @@ def get_config(is_train):
 
 
     class BboxParam:
-        fp16 = General.fp16
-        normalizer = normalizer_factory(type="fixbn")
+        fp16        = General.fp16
+        normalizer  = NormalizeParam.normalizer
         num_class   = 1 + 80
         image_roi   = 512
         batch_image = General.batch_image
