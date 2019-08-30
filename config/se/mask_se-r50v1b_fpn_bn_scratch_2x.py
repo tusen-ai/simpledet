@@ -1,5 +1,5 @@
 from symbol.builder import add_anchor_to_arg
-from models.se.builder import SEResNetV1bFPN as Backbone
+from models.se.builder import SEv2ResNetV1bFPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
 from models.FPN.builder import FPNBbox2fcHead as BboxHead
@@ -7,7 +7,7 @@ from mxnext.complicate import normalizer_factory
 
 from models.maskrcnn.builder import MaskFasterRcnn as Detector
 from models.maskrcnn.builder import MaskFPNRpnHead as RpnHead
-from models.maskrcnn.builder import MaskFasterRcnn4ConvHead as MaskHead
+from models.se.builder import MaskRcnnSe4convHead as MaskHead
 from models.maskrcnn.builder import BboxPostProcessor
 from models.maskrcnn.process_output import process_output
 
@@ -111,7 +111,7 @@ def get_config(is_train):
 
     class MaskParam:
         fp16        = General.fp16
-        normalizer  = normalizer_factory(type="fixbn")
+        normalizer  = NormalizeParam.normalizer
         resolution  = 28
         dim_reduced = 256
         num_fg_roi  = int(RpnParam.subsample_proposal.image_roi * RpnParam.subsample_proposal.fg_fraction)
