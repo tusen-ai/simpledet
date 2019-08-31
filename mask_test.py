@@ -83,7 +83,7 @@ if __name__ == "__main__":
                         collector_queue_depth=2,
                         kv=None)
 
-        print(f"total number of images: {loader.total_record}")
+        print("total number of images: {}".format(loader.total_record))
 
         data_names = [k[0] for k in loader.provide_data]
 
