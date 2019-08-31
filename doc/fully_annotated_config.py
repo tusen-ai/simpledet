@@ -108,7 +108,7 @@ def get_config(is_train):
             mean = (0, 0, 0, 0)
             std = (1, 1, 1, 1)
 
-        # the proposal generation for rpn head
+        # the proposal generation for RCNN
         class proposal:
             # number of top-scored proposals to take before NMS
             pre_nms_top_n = 2000 if is_train else 1000
@@ -119,7 +119,7 @@ def get_config(is_train):
             # min proposal box to keep, 0 means keep all
             min_bbox_side = 0
 
-        # the proposal sampling for rpn head during training
+        # the proposal sampling for RCNN during training
         class subsample_proposal:
             # add gt to proposals
             proposal_wo_gt = False
@@ -135,7 +135,7 @@ def get_config(is_train):
             # set to non-zero value could remove some trivial background proposals
             bg_thr_lo = 0.0
 
-        # the learning target for bbox head
+        # the target encoding for RCNN bbox head
         class bbox_target:
             # 1(background) + num_class
             # could be num_class if using sigmoid activition instead of softmax one
