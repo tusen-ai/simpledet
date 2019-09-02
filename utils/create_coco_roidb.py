@@ -64,7 +64,7 @@ def generate_groundtruth_database(dataset_name, dataset_split):
             gt_poly[i] = 'segmentation' in inst and inst['segmentation'] or gt_poly[i]
 
         # split mapping is specific to coco as it uses annotation files to manage split
-        split = dataset_split in dataset_split_mapping and dataset_split_mapping[dataset_split] or split
+        split = dataset_split in dataset_split_mapping and dataset_split_mapping[dataset_split] or dataset_split
 
         image_url = 'data/%s/images/%s/%s' % (dataset_name, split, im_filename)
         assert os.path.exists(image_url)
