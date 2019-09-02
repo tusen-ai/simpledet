@@ -104,7 +104,7 @@ The `gt_class` and `gt_bbox` can be read from `<object>`. `gt_class` start with 
     {
         "gt_class": [1, 5],
         "gt_bbox": [[48, 240, 195, 371], [8, 12, 352, 498]],
-        "flipped": False,
+        "flipped": false,
         "h": 500,
         "w": 353,
         "image_url": "/absolute/path/to/VOCdevkit/VOC2007/JPEGImages/000001.jpg",
