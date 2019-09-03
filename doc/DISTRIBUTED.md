@@ -29,9 +29,7 @@ node2
 
 5. change the singulariy mounting point in `scripts/dist_worker.sh`
 
-6. change working directories in `scritps/train_hpc.sh`
-
 7. launch distributed training with scripts
 ```bash
-bash scritps/train_hpc.sh
+bash scritps/launch.sh config/mask_r50v1_fpn_1x.py node1,node2
 ```

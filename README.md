@@ -144,6 +144,9 @@ experiments/
 #### Models
 The `models` directory contains SOTA models implemented in SimpletDet.
 
+### Distributed Training
+Please refer to [DISTRIBUTED.md](./doc/DISTRIBUTED.md)
+
 #### How is Faster R-CNN built
 ![Faster R-CNN](doc/image/detector.png)
 
@@ -166,10 +169,6 @@ The flexibility of **simpledet** framework makes it easy to build different dete
   - In TridentNet, a new `TridentAnchorTarget2D` is implemented to generate anchors for multiple branches and filter anchors for scale-aware training scheme.
 - *Network Structure*. The new network structure could be constructed easily for a custom detector by modifying some required components as needed and
   - For TridentNet, we build trident blocks in the `Backbone` according to the descriptions in the paper. We also provide a `TridentRpnHead` to generate filtered proposals in RPN to implement the scale-aware scheme. Other components are shared the same with original Faster-RCNN.
-
-
-### Distributed Training
-Please refer to [DISTRIBUTED.md](./doc/DISTRIBUTED.md)
 
 
 ### Contributors
