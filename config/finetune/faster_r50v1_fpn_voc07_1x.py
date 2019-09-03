@@ -1,6 +1,6 @@
 from symbol.builder import FasterRcnn as Detector
 from symbol.builder import add_anchor_to_arg
-from models.FPN.builder import MSRAResNet101V1FPN as Backbone
+from models.FPN.builder import MSRAResNet50V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -80,7 +80,7 @@ def get_config(is_train):
             bg_thr_lo = 0.0
 
         class bbox_target:
-            num_reg_class = 81
+            num_reg_class = 1 + 20
             class_agnostic = False
             weight = (1.0, 1.0, 1.0, 1.0)
             mean = (0.0, 0.0, 0.0, 0.0)
@@ -90,7 +90,7 @@ def get_config(is_train):
     class BboxParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        num_class   = 1 + 80
+        num_class   = 1 + 20
         image_roi   = 512
         batch_image = General.batch_image
 
@@ -111,9 +111,9 @@ def get_config(is_train):
 
     class DatasetParam:
         if is_train:
-            image_set = ("coco_train2014", "coco_valminusminival2014")
+            image_set = ("voc2007_trainval", "voc2012_trainval")
         else:
-            image_set = ("coco_minival2014", )
+            image_set = ("voc2007_test", )
 
     backbone = Backbone(BackboneParam)
     neck = Neck(NeckParam)
@@ -142,7 +142,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-101"
+            prefix = "pretrain_model/resnet-v1-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -163,14 +163,13 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 12
-            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 6
+            lr_iter = [10000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"
             lr = 0.01 / 8 * len(KvstoreParam.gpus) * KvstoreParam.batch_image / 3.0
-            iter = 500
+            iter = 100
 
 
     class TestParam:
@@ -189,7 +188,7 @@ def get_config(is_train):
             thr = 0.5
 
         class coco:
-            annotation = "data/coco/annotations/instances_minival2014.json"
+            annotation = None
 
 
     # data processing
@@ -199,13 +198,13 @@ def get_config(is_train):
 
     # data processing
     class ResizeParam:
-        short = 800
-        long = 1333
+        short = 608
+        long = 992
 
 
     class PadParam:
-        short = 800
-        long = 1333
+        short = 608
+        long = 992
         max_num_gt = 100
 
 
@@ -216,8 +215,8 @@ def get_config(is_train):
         class _generate:
             def __init__(self):
                 self.stride = (4, 8, 16, 32, 64)
-                self.short = (200, 100, 50, 25, 13)
-                self.long = (334, 167, 84, 42, 21)
+                self.short = (152, 76, 38, 19, 10)
+                self.long = (248, 124, 62, 31, 16)
             scales = (8)
             aspects = (0.5, 1.0, 2.0)
 

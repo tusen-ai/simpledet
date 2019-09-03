@@ -114,7 +114,7 @@ def get_config(is_train):
 
     class DatasetParam:
         if is_train:
-            image_set = ("coco_train2014", "coco_valminusminival2014", "coco_minival2014")
+            image_set = ("coco_train2017", "coco_val2017")
         else:
             image_set = ("coco_test-dev2017", )
 

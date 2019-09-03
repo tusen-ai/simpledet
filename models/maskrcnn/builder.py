@@ -8,6 +8,7 @@ from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
 from utils.patch_config import patch_config_as_nothrow
+from utils.deprecated import deprecated
 
 
 class MaskFasterRcnn(object):

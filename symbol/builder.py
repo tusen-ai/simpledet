@@ -3,6 +3,7 @@ from __future__ import print_function
 import mxnet as mx
 import mxnext as X
 from utils.patch_config import patch_config_as_nothrow
+from utils.deprecated import deprecated
 
 
 class RPN(object):
@@ -158,7 +159,6 @@ class RpnHead(object):
         self._bbox_delta = bbox_delta
 
         return self._cls_logit, self._bbox_delta
-
 
     def get_loss(self, conv_feat, gt_bboxes, im_infos):
         p = self.p

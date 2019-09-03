@@ -132,9 +132,9 @@ def get_config(is_train):
 
     class DatasetParam:
         if is_train:
-            image_set = ("coco_train2014", "coco_valminusminival2014")
+            image_set = ("coco_train2017", )
         else:
-            image_set = ("coco_minival2014", )
+            image_set = ("coco_val2017", )
 
 
     class OptimizeParam:

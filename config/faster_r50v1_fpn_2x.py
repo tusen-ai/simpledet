@@ -1,6 +1,6 @@
 from symbol.builder import FasterRcnn as Detector
 from symbol.builder import add_anchor_to_arg
-from models.FPN.builder import MSRAResNet101V1FPN as Backbone
+from models.FPN.builder import MSRAResNet50V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
@@ -111,9 +111,9 @@ def get_config(is_train):
 
     class DatasetParam:
         if is_train:
-            image_set = ("coco_train2014", "coco_valminusminival2014")
+            image_set = ("coco_train2017", )
         else:
-            image_set = ("coco_minival2014", )
+            image_set = ("coco_val2017", )
 
     backbone = Backbone(BackboneParam)
     neck = Neck(NeckParam)
@@ -142,7 +142,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-101"
+            prefix = "pretrain_model/resnet-v1-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -163,9 +163,9 @@ def get_config(is_train):
 
         class schedule:
             begin_epoch = 0
-            end_epoch = 6
-            lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
-                       80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
+            end_epoch = 12
+            lr_iter = [120000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
+                       160000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
         class warmup:
             type = "gradual"

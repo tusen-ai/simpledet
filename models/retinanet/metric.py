@@ -1,10 +1,12 @@
 import numpy as np
 import mxnet as mx
 
+from core.detection_metric import EvalMetricWithSummary
 
-class FGAccMetric(mx.metric.EvalMetric):
-    def __init__(self, name, output_names, label_names, threshold=0):
-        super().__init__(name, output_names, label_names)
+
+class FGAccMetric(EvalMetricWithSummary):
+    def __init__(self, name, output_names, label_names, threshold=0, **kwargs):
+        super().__init__(name, output_names, label_names, **kwargs)
         self.thr = threshold
 
     def update(self, labels, preds):

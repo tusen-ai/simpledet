@@ -84,13 +84,17 @@ def trident_resnet_v1b_unit(input, name, id, filter, stride, dilate, proj, **kwa
         name=name + "_%s" % x + conv_postfix
     )
 
-    bn_params = lambda x: dict(
-        gamma=X.shared_var(name + "_%s_gamma" % x) if share_bn else None,
-        beta=X.shared_var(name + "_%s_beta" % x) if share_bn else None,
-        moving_mean=X.shared_var(name + "_%s_moving_mean" % x) if share_bn else None,
-        moving_var=X.shared_var(name + "_%s_moving_var" % x) if share_bn else None,
-        name=name + "_%s" % x + bn_postfix
-    )
+    def bn_params(x):
+        ret = dict(
+            gamma=X.shared_var(name + "_%s_gamma" % x) if share_bn else None,
+            beta=X.shared_var(name + "_%s_beta" % x) if share_bn else None,
+            moving_mean=X.shared_var(name + "_%s_moving_mean" % x) if share_bn else None,
+            moving_var=X.shared_var(name + "_%s_moving_var" % x) if share_bn else None,
+            name=name + "_%s" % x + bn_postfix
+        )
+        if norm.__name__ == "gn":
+            del ret["moving_mean"], ret["moving_var"]
+        return ret
 
     ######################### construct graph #########################
     conv1 = conv(input, filter=filter // 4, **conv_params("conv1"))

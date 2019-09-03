@@ -6,18 +6,14 @@ from pycocotools.coco import COCO
 
 
 dataset_split_mapping = {
-    "train2014": "train2014",
-    "val2014": "val2014",
     "valminusminival2014": "val2014",
     "minival2014": "val2014",
-    "train2017": "train2017",
-    "val2017": "val2017",
     "test-dev2017": "test2017"
 }
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Generate SimpleDet GroundTruth Database')
+    parser = argparse.ArgumentParser(description='Generate SimpleDet GroundTruth Database for COCO-like dataset')
     parser.add_argument('--dataset', help='dataset name', type=str)
     parser.add_argument('--dataset-split', help='dataset split, e.g. train2017, minival2014', type=str)
 
@@ -28,6 +24,7 @@ def parse_args():
 def generate_groundtruth_database(dataset_name, dataset_split):
     annotation_type = 'image_info' if 'test' in dataset_split else 'instances'
     annotation_path = "data/%s/annotations/%s_%s.json" % (dataset_name, annotation_type, dataset_split)
+    assert os.path.exists(annotation_path)
 
     dataset = COCO(annotation_path)
     img_ids = dataset.getImgIds()
@@ -64,11 +61,15 @@ def generate_groundtruth_database(dataset_name, dataset_split):
             cls = datasetid_to_trainid[inst['category_id']]
             gt_bbox[i, :] = inst['clean_bbox']
             gt_class[i] = cls
-            gt_poly[i] = inst['segmentation']
+            gt_poly[i] = 'segmentation' in inst and inst['segmentation'] or gt_poly[i]
 
-        split = dataset_split_mapping[dataset_split]
+        # split mapping is specific to coco as it uses annotation files to manage split
+        split = dataset_split in dataset_split_mapping and dataset_split_mapping[dataset_split] or dataset_split
+
+        image_url = 'data/%s/images/%s/%s' % (dataset_name, split, im_filename)
+        assert os.path.exists(image_url)
         roi_rec = {
-            'image_url': 'data/%s/images/%s/%s' % (dataset_name, split, im_filename),
+            'image_url': image_url,
             'im_id': img_id,
             'h': im_h,
             'w': im_w,

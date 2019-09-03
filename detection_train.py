@@ -9,7 +9,7 @@ from functools import reduce
 from core.detection_module import DetModule
 from utils import callback
 from utils.memonger_v2 import search_plan_to_layer
-from utils.lr_scheduler import WarmupMultiFactorScheduler, LRSequential, AdvancedLRScheduler
+from utils.lr_scheduler import LRScheduler, WarmupMultiFactorScheduler, LRSequential, AdvancedLRScheduler
 from utils.load_model import load_checkpoint
 from utils.patch_config import patch_config_as_nothrow
 
@@ -177,19 +177,21 @@ def train_net(config):
     # decide learning rate
     lr_mode = pOpt.optimizer.lr_mode or 'step'
     base_lr = pOpt.optimizer.lr * kv.num_workers
-    lr_factor = 0.1
+    lr_factor = pOpt.schedule.lr_factor or 0.1
 
     iter_per_epoch = len(train_data) // input_batch_size
+    total_iter = iter_per_epoch * (end_epoch - begin_epoch)
+    lr_iter = [total_iter + it if it < 0 else it for it in lr_iter]
     lr_iter = [it // kv.num_workers for it in lr_iter]
     lr_iter = [it - iter_per_epoch * begin_epoch for it in lr_iter]
     lr_iter_discount = [it for it in lr_iter if it > 0]
     current_lr = base_lr * (lr_factor ** (len(lr_iter) - len(lr_iter_discount)))
     if rank == 0:
-        logging.info('total iter {}'.format(iter_per_epoch * (end_epoch - begin_epoch)))
+        logging.info('total iter {}'.format(total_iter))
         logging.info('lr {}, lr_iters {}'.format(current_lr, lr_iter_discount))
         logging.info('lr mode: {}'.format(lr_mode))
 
-    if pOpt.warmup is not None and pOpt.schedule.begin_epoch == 0:
+    if pOpt.warmup and pOpt.schedule.begin_epoch == 0:
         if rank == 0:
             logging.info(
                 'warmup lr {}, warmup step {}'.format(
@@ -223,7 +225,7 @@ def train_net(config):
             raise NotImplementedError
     else:
         if lr_mode == 'step':
-            lr_scheduler = mx.lr_scheduler.MultiFactorScheduler(lr_iter_discount, lr_factor)
+            lr_scheduler = WarmupMultiFactorScheduler(step=lr_iter_discount, factor=lr_factor)
         elif lr_mode == 'cosine':
             lr_scheduler = AdvancedLRScheduler(
                 mode='cosine',
@@ -240,7 +242,7 @@ def train_net(config):
         wd=pOpt.optimizer.wd,
         learning_rate=current_lr,
         lr_scheduler=lr_scheduler,
-        rescale_grad=1.0 / (len(pKv.gpus) * kv.num_workers),
+        rescale_grad=1.0 / (len(ctx) * kv.num_workers),
         clip_gradient=pOpt.optimizer.clip_gradient
     )
 

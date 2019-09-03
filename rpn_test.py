@@ -52,7 +52,11 @@ if __name__ == "__main__":
 
     from pycocotools.coco import COCO
     from pycocotools.cocoeval import COCOeval
-    coco = COCO(pTest.coco.annotation)
+    from utils.roidb_to_coco import roidb_to_coco
+    if pTest.coco.annotation is not None:
+        coco = COCO(pTest.coco.annotation)
+    else:
+        coco = roidb_to_coco(roidbs_all)
 
     data_queue = Queue(100)
     result_queue = Queue()

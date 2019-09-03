@@ -55,7 +55,7 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
             if attrs["use_global_stats"] == "True" and node_op_map[e[0]][e[1]] == "Convolution":
                 if not symbol_only:
                     if (mmean_name) not in auxs:
-                        logging.info("Can not find {}, skipping".format(node_name + "_moving_mean"))
+                        logging.info("Can not find {}, merge the symbol only".format(node_name + "_moving_mean"))
                     else:
                         logging.info("Merging {}".format(node_name))
                         # modify beta before gamma since gamma is not depend on beta
