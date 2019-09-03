@@ -122,14 +122,14 @@ python3 utils/json_to_roidb.py --json path/to/your.json
 
 
 ### Tune from COCO pretrain
-We first train a FPN R50 detector as the baseline.
+We first train a Faster R-CNN FPN R-50 detector as the baseline.
 ```
 python detection_train.py --config config/faster_r50v1_fpn_voc07_1x.py
 python detection_test.py --config config/faster_r50v1_fpn_voc07_1x.py
 ```
 This gives a mAP@50 of 76.3
 
-We then use the MaskRCNN R50 pretrained on COCO for initialization.
+We then use the Mask R-CNN R-50 FPN pretrained on COCO for initialization.
 1. Download and rename the weight
 ```
 mv checkpoint-0006.params pretrain_model/r50v1-maskrcnn-coco-0000.params
