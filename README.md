@@ -30,7 +30,7 @@ We provide a local installation here for Debian/Ubuntu system. To use a pre-buil
 
 ```bash
 # install dependency
-sudo apt update && sudo apt install -y git wget make python3-dev libglib2.0-0 libsm6 libxext6 libxrender-dev
+sudo apt update && sudo apt install -y git wget make python3-dev libglib2.0-0 libsm6 libxext6 libxrender-dev unzip
 
 # install python dependency
 pip3 install 'matplotlib<3.1' opencv-python pytz --user
@@ -60,28 +60,28 @@ If the last line execute successfully, the average running speed of Faster R-CNN
 
 
 #### Preparing Data
-For experimenting on the COCO datatet, one should organize coco data in
-```
-simpledet/
-    data/
-        coco/
-            annotations/
-                instances_train2014.json
-                instances_valminusminival2014.json
-                instances_minival2014.json
-                image_info_test-dev2017.json
-            images/
-                train2014
-                val2014
-                test2017
-```
-
-and run the helper script to generate roidb
+We provide a step by step preparation for the COCO dataset below.
 ```bash
-python3 utils/generate_roidb.py --dataset coco --dataset-split train2014
-python3 utils/generate_roidb.py --dataset coco --dataset-split valminusminival2014
-python3 utils/generate_roidb.py --dataset coco --dataset-split minival2014
-python3 utils/generate_roidb.py --dataset coco --dataset-split test-dev2017
+cd simpledet
+mkdir -p data/coco/images data/src
+
+# skip this if you have the zip files
+wget http://images.cocodataset.org/zips/train2017.zip -O data/src/train2017.zip
+wget http://images.cocodataset.org/zips/val2017.zip -O data/src/val2017.zip
+wget http://images.cocodataset.org/zips/test2017.zip -O data/src/test2017.zip
+wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip -O data/src/annotations_trainval2017.zip
+wget http://images.cocodataset.org/annotations/image_info_test2017.zip -O data/src/image_info_test2017.zip
+
+unzip data/src/train2017.zip -d data/coco/images
+unzip data/src/val2017.zip -d data/coco/images
+unzip data/src/test2017.zip -d data/coco/images
+unzip data/src/annotations_trainval2017.zip -d data/coco
+unzip data/src/image_info_test2017.zip -d data/coco
+
+python3 utils/create_coco_roidb.py --dataset coco --dataset-split train2017
+python3 utils/create_coco_roidb.py --dataset coco --dataset-split val2017
+python3 utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
+
 ```
 
 For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) for more details.
