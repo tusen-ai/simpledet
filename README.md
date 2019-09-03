@@ -25,6 +25,9 @@
 - Add a lot of docs (2019.09.03)
 
 ### Setup
+#### All-in-one Script
+We provide a [setup script](./scripts/setup.sh) for install simpledet and preppare the coco dataset.
+
 #### Install
 We provide a local installation here for Debian/Ubuntu system. To use a pre-built docker or singularity images, please refer to [INSTALL.md](./doc/INSTALL.md) for more information.
 
@@ -63,14 +66,16 @@ If the last line execute successfully, the average running speed of Faster R-CNN
 We provide a step by step preparation for the COCO dataset below.
 ```bash
 cd simpledet
+
+# make data dir
 mkdir -p data/coco/images data/src
 
 # skip this if you have the zip files
-wget http://images.cocodataset.org/zips/train2017.zip -O data/src/train2017.zip
-wget http://images.cocodataset.org/zips/val2017.zip -O data/src/val2017.zip
-wget http://images.cocodataset.org/zips/test2017.zip -O data/src/test2017.zip
-wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip -O data/src/annotations_trainval2017.zip
-wget http://images.cocodataset.org/annotations/image_info_test2017.zip -O data/src/image_info_test2017.zip
+wget -c http://images.cocodataset.org/zips/train2017.zip -O data/src/train2017.zip
+wget -c http://images.cocodataset.org/zips/val2017.zip -O data/src/val2017.zip
+wget -c http://images.cocodataset.org/zips/test2017.zip -O data/src/test2017.zip
+wget -c http://images.cocodataset.org/annotations/annotations_trainval2017.zip -O data/src/annotations_trainval2017.zip
+wget -c http://images.cocodataset.org/annotations/image_info_test2017.zip -O data/src/image_info_test2017.zip
 
 unzip data/src/train2017.zip -d data/coco/images
 unzip data/src/val2017.zip -d data/coco/images
@@ -81,7 +86,6 @@ unzip data/src/image_info_test2017.zip -d data/coco
 python3 utils/create_coco_roidb.py --dataset coco --dataset-split train2017
 python3 utils/create_coco_roidb.py --dataset coco --dataset-split val2017
 python3 utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
-
 ```
 
 For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) for more details.
@@ -99,11 +103,13 @@ python3 detection_test.py --config config/faster_r50v1_fpn_1x.py
 #### Finetune
 Please check [FINTUNE.md](doc/FINETUNE.md)
 
-
-### Project Design
 #### Model Zoo
 Please refer to [MODEL_ZOO.md](./MODEL_ZOO.md) for available models
 
+### Distributed Training
+Please refer to [DISTRIBUTED.md](./doc/DISTRIBUTED.md)
+
+### Project Organization
 #### Code Structure
 ```
 detection_train.py
@@ -143,9 +149,6 @@ experiments/
 
 #### Models
 The `models` directory contains SOTA models implemented in SimpletDet.
-
-### Distributed Training
-Please refer to [DISTRIBUTED.md](./doc/DISTRIBUTED.md)
 
 #### How is Faster R-CNN built
 ![Faster R-CNN](doc/image/detector.png)
