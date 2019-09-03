@@ -26,7 +26,7 @@
 
 ### Setup
 #### All-in-one Script
-We provide a [setup script](./scripts/setup.sh) for install simpledet and preppare the coco dataset.
+We provide a [setup script](./scripts/setup.sh) for install simpledet and preppare the coco dataset. If you use this script, you can skip to the Quick Start.
 
 #### Install
 We provide a local installation here for Debian/Ubuntu system. To use a pre-built docker or singularity images, please refer to [INSTALL.md](./doc/INSTALL.md) for more information.
