@@ -1,4 +1,5 @@
 from symbol.builder import FasterRcnn as Detector
+from symbol.builder import add_anchor_to_arg
 from models.FPN.builder import MSRAResNet50V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
@@ -13,6 +14,7 @@ def get_config(is_train):
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
         fp16 = False
+        loader_worker = 8
 
 
     class KvstoreParam:
@@ -40,12 +42,23 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        nnvm_proposal = True
+        nnvm_rpn_target = False
 
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
             stride = (4, 8, 16, 32, 64)
             image_anchor = 256
+            max_side = 1400
+
+        class anchor_assign:
+            allowed_border = 0
+            pos_thr = 0.7
+            neg_thr = 0.3
+            min_pos_thr = 0.0
+            image_anchor = 256
+            pos_fraction = 0.5
 
         class head:
             conv_channel = 256
@@ -133,6 +146,12 @@ def get_config(is_train):
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        def process_weight(sym, arg, aux):
+            for stride in RpnParam.anchor_generate.stride:
+                add_anchor_to_arg(
+                    sym, arg, aux, RpnParam.anchor_generate.max_side,
+                    stride, RpnParam.anchor_generate.scale,
+                    RpnParam.anchor_generate.ratio)
 
     class OptimizeParam:
         class optimizer:
@@ -231,11 +250,13 @@ def get_config(is_train):
             Flip2DImageBbox(),
             Pad2DImageBbox(PadParam),
             ConvertImageFromHwcToChw(),
-            PyramidAnchorTarget2D(AnchorTarget2DParam()),
             RenameRecord(RenameParam.mapping)
         ]
-        data_name = ["data", "im_info", "gt_bbox"]
-        label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
+        data_name = ["data"]
+        label_name = ["gt_bbox", "im_info"]
+        if not RpnParam.nnvm_rpn_target:
+            transform.append(PyramidAnchorTarget2D(AnchorTarget2DParam()))
+            label_name += ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),
@@ -251,13 +272,13 @@ def get_config(is_train):
 
     rpn_acc_metric = metric.AccWithIgnore(
         "RpnAcc",
-        ["rpn_cls_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_cls_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     rpn_l1_metric = metric.L1(
         "RpnL1",
-        ["rpn_reg_loss_output"],
-        ["rpn_cls_label"]
+        ["rpn_reg_loss_output", "rpn_cls_label_blockgrad_output"],
+        []
     )
     # for bbox, the label is generated in network so it is an output
     box_acc_metric = metric.AccWithIgnore(
