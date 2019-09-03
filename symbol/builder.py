@@ -9,7 +9,6 @@ from utils.deprecated import deprecated
 class RPN(object):
     _rpn_output = None
 
-    @deprecated("In favor of symbol.detector.Rpn")
     def __init__(self):
         pass
 
@@ -43,7 +42,6 @@ class RPN(object):
 class FasterRcnn(object):
     _rpn_output = None
 
-    @deprecated("In favor of symbol.detector.FasterRcnn")
     def __init__(self):
         pass
 
@@ -98,7 +96,6 @@ class FasterRcnn(object):
 
 
 class RpnHead(object):
-    @deprecated("In favor of symbol.component.RpnHead")
     def __init__(self, pRpn):
         self.p = patch_config_as_nothrow(pRpn)
 
@@ -330,7 +327,6 @@ class RpnHead(object):
 
 
 class BboxHead(object):
-    @deprecated("In favor of symbol.component.BboxHead")
     def __init__(self, pBbox):
         self.p = patch_config_as_nothrow(pBbox)
 
@@ -451,7 +447,6 @@ class BboxHead(object):
 
 
 class Bbox2fcHead(BboxHead):
-    @deprecated("In favor of symbol.component.Bbox2fcHead")
     def __init__(self, pBbox):
         super().__init__(pBbox)
 

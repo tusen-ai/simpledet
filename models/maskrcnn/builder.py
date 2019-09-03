@@ -12,7 +12,6 @@ from utils.deprecated import deprecated
 
 
 class MaskFasterRcnn(object):
-    @deprecated("In favor of maskrcnn.detector.MaskRcnn")
     def __init__(self):
         pass
 
