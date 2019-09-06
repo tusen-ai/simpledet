@@ -156,7 +156,7 @@ class FPNRpnHead(RpnHead):
     def get_loss(self, conv_fpn_feat, gt_bbox, im_info):
         p = self.p
         batch_image = p.batch_image
-        image_anchor = p.anchor_generate.image_anchor
+        image_anchor = p.anchor_assign.image_anchor
         rpn_stride = p.anchor_generate.stride
         anchor_scale = p.anchor_generate.scale
         anchor_ratio = p.anchor_generate.ratio

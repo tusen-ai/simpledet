@@ -307,7 +307,7 @@ class TridentRpnHead(RpnHead):
     def get_loss(self, conv_feat, cls_label, bbox_target, bbox_weight):
         p = self.p
         batch_image = p.batch_image
-        image_anchor = p.anchor_generate.image_anchor
+        image_anchor = p.anchor_assign.image_anchor
 
         cls_logit, bbox_delta = self.get_output(conv_feat)
 
