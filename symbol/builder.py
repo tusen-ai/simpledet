@@ -163,7 +163,7 @@ class RpnHead(object):
     def get_loss(self, conv_feat, gt_bboxes, im_infos):
         p = self.p
         batch_image = p.batch_image
-        image_anchor = p.anchor_assign.image_anchor
+        image_anchor = p.anchor_generate.image_anchor
 
         cls_logit, bbox_delta = self.get_output(conv_feat)
 
