@@ -27,6 +27,8 @@ def get_config(is_train):
         # this term affects both the CPU utilization and the MEM usage
         # lower this if you are training on Desktop
         loader_worker = 8
+        # switch the built in profile to find the bottleneck of network
+        profile = False
 
 
     class KvstoreParam:
@@ -78,6 +80,8 @@ def get_config(is_train):
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
             stride = (4, 8, 16, 32, 64)
+            # number of anchors per image
+            image_anchor = 256
             # to avoid generate the same anchor grid more than once
             # we cache an anchor grid in the arg_params
             # max_side specify the max side of resized input image
