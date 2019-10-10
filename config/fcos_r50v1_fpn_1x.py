@@ -17,6 +17,7 @@ def get_config(is_train):
         fp16 = False
         loader_worker = 2
         loader_collector = 1
+        profile = True
 
 
     class KvstoreParam:
@@ -174,7 +175,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "/home/kfxw/Development/data/simpledet_fcos_refactor/resnet-v1-50"###
+            prefix = "./resnet-v1-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 

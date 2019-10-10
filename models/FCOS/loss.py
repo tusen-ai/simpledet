@@ -1,14 +1,8 @@
 import mxnet as mx
 import mxnext as X
 
-class SigmoidFocalLoss(mx.operator.CustomOp):
-    def __init__(self, gamma, alpha):
-        self.gamma = float(gamma)
-        self.alpha = float(alpha)
-        self.storage = []
-        super(SigmoidFocalLoss, self).__init__()
-
-    """def forward(self, is_train, req, in_data, out_data, aux):
+    """ ---Sigmoid Focal Loss---
+    def forward(self, is_train, req, in_data, out_data, aux):
         logits = in_data[0]
         labels = in_data[1]
         nonignore_mask = in_data[2]
@@ -52,40 +46,30 @@ class SigmoidFocalLoss(mx.operator.CustomOp):
 
         self.assign(in_grad[0], req[0], grad)"""
 
+class ComputeSigmoidFocalLoss(mx.operator.CustomOp):
+    def __init__(self, gamma, alpha):
+        self.gamma = float(gamma)
+        self.alpha = float(alpha)
+        self.storage = []
+        super(ComputeSigmoidFocalLoss, self).__init__()
 
     def forward(self, is_train, req, in_data, out_data, aux):
-        logits = in_data[0]
-        labels = in_data[1]
-        nonignore_mask = in_data[2]
-
-        p = 1 / (1 + mx.nd.exp(-logits))
-        mask_logits_GE_zero = mx.nd.broadcast_greater_equal(lhs=logits, rhs=mx.nd.zeros((1,1)))
-        minus_logits_mask = -1. * logits * mask_logits_GE_zero
-        negative_abs_logits = logits - 2*logits*mask_logits_GE_zero
-        log_one_exp_minus_abs = mx.nd.log(1. + mx.nd.exp(negative_abs_logits))
-        minus_log = minus_logits_mask - log_one_exp_minus_abs
-
-        alpha_one_p_gamma_labels = self.alpha * (1-p)**self.gamma * labels
-        log_p_clip = mx.nd.log(mx.nd.clip(p, a_min=1e-5, a_max=1)) 
-        one_alpha_p_gamma_one_labels = (1 - self.alpha) * p**self.gamma * (1 - labels)
+        nonignore_mask = in_data[1]
+        p, alpha_one_p_gamma_labels, log_p_clip, one_alpha_p_gamma_one_labels, minus_log, norm = in_data[2:]
+        norm = norm + p.shape[0]		# number of pix within bbox + batch size to avoid zero
 
         term1 = alpha_one_p_gamma_labels * log_p_clip
         term2 = one_alpha_p_gamma_one_labels * minus_log
 
-        norm =  (labels*nonignore_mask).sum() + labels.shape[0]		# number of pix within bbox + batch size to avoid zero
         loss = -1 * (term1 + term2) * nonignore_mask / norm
         loss = mx.nd.sum(loss)
 
         self.assign(out_data[0], req[0], loss)
-        self.storage = [p, alpha_one_p_gamma_labels, log_p_clip, one_alpha_p_gamma_one_labels, minus_log, norm]	# avoid twice computation
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        logits = in_data[0]
-        labels = in_data[1]
-        nonignore_mask = in_data[2]
-
-        p, alpha_one_p_gamma_labels, log_p_clip, one_alpha_p_gamma_one_labels, minus_log, norm = self.storage
-        self.storage = []
+        nonignore_mask = in_data[1]
+        p, alpha_one_p_gamma_labels, log_p_clip, one_alpha_p_gamma_one_labels, minus_log, norm = in_data[2:]
+        norm = norm + p.shape[0]		# number of pix within bbox + batch size to avoid zero
 
         term1 = alpha_one_p_gamma_labels * ( 1 - p - p * self.gamma * log_p_clip )
         term2 = one_alpha_p_gamma_one_labels * (minus_log  * (1 - p) * self.gamma - p)
@@ -94,15 +78,15 @@ class SigmoidFocalLoss(mx.operator.CustomOp):
 
         self.assign(in_grad[0], req[0], grad)
 
-@mx.operator.register("sigmoid_focal_loss")
-class SigmoidFocalLossProp(mx.operator.CustomOpProp):
+@mx.operator.register("compute_focal_loss")
+class ComputeSigmoidFocalLossProp(mx.operator.CustomOpProp):
     def __init__(self, gamma, alpha):
-        self.gamma = gamma
-        self.alpha = alpha
-        super(SigmoidFocalLossProp, self).__init__(need_top_grad=True)
+        self.gamma = float(gamma)
+        self.alpha = float(alpha)
+        super(ComputeSigmoidFocalLossProp, self).__init__(need_top_grad=True)
 
     def list_arguments(self):
-        return ['logits', 'labels', 'nonignore_mask']
+        return ['logits', 'nonignore_mask', 'p', 'alpha_one_p_gamma_labels', 'log_p_clip', 'one_alpha_p_gamma_one_labels', 'minus_log', 'norm']
 
     def list_outputs(self):
         return ['focal_loss']
@@ -114,7 +98,34 @@ class SigmoidFocalLossProp(mx.operator.CustomOpProp):
         return in_type, [in_type[0]], []
 
     def create_operator(self, ctx, shapes, dtypes):
-        return SigmoidFocalLoss(self.gamma, self.alpha)
+        return ComputeSigmoidFocalLoss(self.gamma, self.alpha)
+
+
+def make_sigmoid_focal_loss(gamma, alpha, logits, labels, nonignore_mask):
+    # conduct most of calculations using symbol and control gradient flow with custom op
+    p = 1 / (1 + mx.sym.exp(-logits))						# sigmoid
+    p = X.block_grad(p)
+    mask_logits_GE_zero = mx.sym.broadcast_greater_equal(lhs=logits, rhs=mx.sym.zeros((1,1)))
+    mask_logits_GE_zero = X.block_grad(mask_logits_GE_zero)			# logits>=0
+    minus_logits_mask = -1. * logits * mask_logits_GE_zero			# -1 * logits * [logits>=0]
+    minus_logits_mask = X.block_grad(minus_logits_mask)
+    negative_abs_logits = logits - 2*logits*mask_logits_GE_zero			# logtis - 2 * logits * [logits>=0]
+    negative_abs_logits = X.block_grad(negative_abs_logits)
+    log_one_exp_minus_abs = mx.sym.log(1. + mx.sym.exp(negative_abs_logits))
+    log_one_exp_minus_abs = X.block_grad(log_one_exp_minus_abs)
+    minus_log = minus_logits_mask - log_one_exp_minus_abs
+
+    alpha_one_p_gamma_labels = alpha * (1-p)**gamma * labels
+    log_p_clip = mx.sym.log(mx.sym.clip(p, a_min=1e-5, a_max=1)) 
+    one_alpha_p_gamma_one_labels = (1 - alpha) * p**gamma * (1 - labels)
+    norm = mx.sym.sum(labels*nonignore_mask)
+
+    loss = mx.sym.Custom(gamma=gamma, alpha=alpha,
+                         logits=logits, nonignore_mask=nonignore_mask,
+                         p=p, alpha_one_p_gamma_labels=alpha_one_p_gamma_labels, log_p_clip=log_p_clip,
+                         one_alpha_p_gamma_one_labels=one_alpha_p_gamma_one_labels, minus_log=minus_log, norm=norm,
+                         op_type='compute_focal_loss', name='focal_loss')
+    return loss
 
 
 

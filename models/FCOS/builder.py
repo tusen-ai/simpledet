@@ -6,9 +6,9 @@ import mxnext as X
 from utils.patch_config import patch_config_as_nothrow
 
 from symbol.builder import Backbone, RpnHead, Neck
-from models.FCOS.loss import IoULoss, SigmoidBCELossProp, SigmoidFocalLossProp
+from models.FCOS.loss import IoULoss, SigmoidBCELossProp, make_sigmoid_focal_loss
 from models.FCOS.utils import GetProposalSingleStageProp, GetBatchProposalProp
-from models.FCOS.input import MakeFCOSGTProp
+from models.FCOS.input import make_fcos_gt
 
 class FCOSFPNRpnHead():
     def __init__(self, pRpn):
@@ -190,7 +190,12 @@ class FCOSFPNRpnHead():
         # prepare gt
         ignore_label = X.block_grad(X.var('ignore_label', init=X.constant(p.loss_setting.ignore_label), shape=(1,1)))
         ignore_offset = X.block_grad(X.var('ignore_offset', init=X.constant(p.loss_setting.ignore_offset), shape=(1,1,1)))
-        centerness_labels, cls_labels, offset_labels = mx.sym.Custom(gt_bbox=X.var('gt_bbox'), im_info=X.var('im_info'), op_type='make_fcos_gt', name='fcos_gt')
+        gt_bbox = X.var('gt_bbox')
+        im_info = X.var('im_info')
+        centerness_labels, cls_labels, offset_labels = make_fcos_gt(gt_bbox, im_info, p.loss_setting.ignore_offset, p.loss_setting.ignore_label)
+        centerness_labels = X.block_grad(centerness_labels)
+        cls_labels = X.block_grad(cls_labels)
+        offset_labels = X.block_grad(offset_labels)
 
         # gather output logits
         cls_logit_dict_list = []
@@ -208,9 +213,8 @@ class FCOSFPNRpnHead():
         # make losses
         nonignore_mask = mx.sym.broadcast_not_equal(lhs=cls_labels, rhs=ignore_label)
         nonignore_mask = X.block_grad(nonignore_mask)
-        cls_loss = mx.sym.Custom(gamma=p.loss_setting.focal_loss_gamma, alpha=p.loss_setting.focal_loss_alpha,
-                                     logits=cls_logits, labels=cls_labels, nonignore_mask=nonignore_mask,
-                                     op_type='sigmoid_focal_loss', name='cls_loss')
+        cls_loss = make_sigmoid_focal_loss(gamma=p.loss_setting.focal_loss_gamma, alpha=p.loss_setting.focal_loss_alpha,
+                                           logits=cls_logits, labels=cls_labels, nonignore_mask=nonignore_mask)
         cls_loss = X.loss(cls_loss, grad_scale=1)
 
         nonignore_mask = mx.sym.broadcast_logical_and(lhs=mx.sym.broadcast_not_equal( lhs=X.block_grad(centerness_labels), rhs=ignore_label ),
