@@ -52,7 +52,7 @@ class PreMakeFCOSgt(mx.operator.CustomOp):
 
     def forward(self, is_train, req, in_data, out_data, aux):
         context = in_data[0].context
-        if self.loc_x.context != context:
+        if self.loc_x.context != context:		# execute only once
             self.loc_x = self.loc_x.as_in_context(context)
             self.loc_y = self.loc_y.as_in_context(context)
             self.loc_x_T = self.loc_x_T.as_in_context(context)
@@ -60,7 +60,7 @@ class PreMakeFCOSgt(mx.operator.CustomOp):
             self.stage_lowerbound = self.stage_lowerbound.as_in_context(context)
             self.stage_upperbound = self.stage_upperbound.as_in_context(context)
 
-        ori_h = in_data[1][0,0]		# aspect_ratio_grouping ensures all aspect ratios within a batch are sames
+        ori_h = in_data[1][0,0]				# aspect_ratio_grouping ensures all aspect ratios within a batch are same
         ori_w = in_data[1][0,1]
 
         if ori_h < ori_w:
@@ -120,35 +120,38 @@ class MakeFCOS_cls_gt(mx.operator.CustomOp):
         self.p = fcos_gt_setting
         self.batch_idx = None
         self.spatial_idx = None
+        self.N = None
+        self.HW = None
 
     def forward(self, is_train, req, in_data, out_data, aux):
         bboxes = in_data[0]
         smallest_box_id = in_data[1]
-        in_box_area = in_data[2]
-        N = bboxes.shape[0]
-        HW = smallest_box_id.shape[-1]
+
+        if self.N is None:									# compute only once
+            self.N = bboxes.shape[0]
+            self.HW = smallest_box_id.shape[-1]
 
         # cls
         bbox_cls = []
-        for n in range(N):
+        for n in range(self.N):
             bbox_cls.append(bboxes[n,:,4].flatten()[smallest_box_id[n,0,:].astype(int)].astype(int))
-										# (HW)
+												# [(HW) * N]
         bbox_cls = mx.nd.concat(*bbox_cls, dim=0).reshape(-1)
         bbox_cls = bbox_cls - 1
 
-        if self.spatial_idx is None:
+        if self.spatial_idx is None:								# compute only once
             batch_idx = []
             spatial_idx = []
-            HW_arange = mx.nd.arange(HW, dtype=int)
-            for n in range(N):
-                batch_idx.append(mx.nd.full(HW, n, dtype=int))
+            HW_arange = mx.nd.arange(self.HW, dtype=int)
+            for n in range(self.N):
+                batch_idx.append(mx.nd.full(self.HW, n, dtype=int))
                 spatial_idx.append(HW_arange)
             self.batch_idx = mx.nd.concat(*batch_idx, dim=0)
             self.spatial_idx = mx.nd.concat(*spatial_idx, dim=0)
 
-        cls_gt = mx.nd.zeros((N, self.p.num_classifier, HW), dtype=np.float32)	# (N, 80 for COCO, HW), one-hot matrix
+        cls_gt = mx.nd.zeros((self.N, self.p.num_classifier, self.HW), dtype=np.float32)	# (N, 80 for COCO, HW), one-hot matrix
         cls_gt[self.batch_idx, bbox_cls, self.spatial_idx] = 1
-        cls_gt = mx.nd.broadcast_mul(lhs=cls_gt, rhs=mx.nd.expand_dims(in_box_area[:,0,:], axis=1))
+        #cls_gt = mx.nd.broadcast_mul(lhs=cls_gt, rhs=mx.nd.expand_dims(in_box_area[:,0,:], axis=1))# moved outside
         self.assign(out_data[0], req[0], cls_gt)
 
         return
@@ -166,7 +169,7 @@ class MakeFCOS_CLS_GTProp(mx.operator.CustomOpProp):
         self.data_size = self.p.data_size
 
     def list_arguments(self):
-        return ['gt_bbox', 'smallest_box_id', 'in_box_area']
+        return ['gt_bbox', 'smallest_box_id']
 
     def list_outputs(self):
         return ['cls_gt']
@@ -248,7 +251,8 @@ def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label):
 										# (N, HW), centerness_gt*in_box_area[:,0,:]
 
     # cls
-    cls_gt = mx.sym.Custom(gt_bbox=gt_bbox, smallest_box_id=smallest_box_id, in_box_area=in_box_area, op_type='make_fcos_cls_gt', name='fcos_cls_gt')
+    cls_gt = mx.sym.Custom(gt_bbox=gt_bbox, smallest_box_id=smallest_box_id, op_type='make_fcos_cls_gt', name='fcos_cls_gt')
+    cls_gt = mx.sym.broadcast_mul( lhs=cls_gt, rhs=mx.sym.slice(in_box_area, begin=(None,0,None), end=(None,1,None)) )
         
     # ignore label
     nonignore_area = mx.sym.reshape(nonignore_area, shape=(1,-1))

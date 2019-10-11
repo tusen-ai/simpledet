@@ -15,8 +15,8 @@ def get_config(is_train):
         name = __name__.rsplit("/")[-1].rsplit(".")[-1] + '_FCOS'
         batch_image = 2 if is_train else 1
         fp16 = False
-        loader_worker = 2
-        loader_collector = 1
+        loader_worker = 4
+        loader_collector = 2
         profile = True
 
 

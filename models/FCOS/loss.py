@@ -1,7 +1,7 @@
 import mxnet as mx
 import mxnext as X
 
-    """ ---Sigmoid Focal Loss---
+""" ---Sigmoid Focal Loss---
     def forward(self, is_train, req, in_data, out_data, aux):
         logits = in_data[0]
         labels = in_data[1]
@@ -100,7 +100,6 @@ class ComputeSigmoidFocalLossProp(mx.operator.CustomOpProp):
     def create_operator(self, ctx, shapes, dtypes):
         return ComputeSigmoidFocalLoss(self.gamma, self.alpha)
 
-
 def make_sigmoid_focal_loss(gamma, alpha, logits, labels, nonignore_mask):
     # conduct most of calculations using symbol and control gradient flow with custom op
     p = 1 / (1 + mx.sym.exp(-logits))						# sigmoid
@@ -129,43 +128,26 @@ def make_sigmoid_focal_loss(gamma, alpha, logits, labels, nonignore_mask):
 
 
 
-class SigmoidBCELoss(mx.operator.CustomOp):
+class ComputeBCELoss(mx.operator.CustomOp):
     def __init__(self):
         self.storage = []
-        super(SigmoidBCELoss, self).__init__()
+        super(ComputeBCELoss, self).__init__()
 
     def forward(self, is_train, req, in_data, out_data, aux):
-        logits = in_data[0]
-        labels = in_data[1]
-        nonignore_mask = in_data[2]
-
-        p = 1 / (1 + mx.nd.exp(-logits))
-
-        self.storage = [p]
-        
-        loss = -labels * mx.nd.log(mx.nd.clip(p, a_min=1e-5, a_max=1)) - (1 - labels) * mx.nd.log(mx.nd.clip(1 - p, a_min=1e-5, a_max=1))
-        loss = mx.nd.sum(loss * nonignore_mask) / (mx.nd.sum(nonignore_mask) + 1e-30)
-
+        loss = in_data[1]
         self.assign(out_data[0], req[0], loss)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        labels = in_data[1]
-        nonignore_mask = in_data[2]
-
-        p = self.storage[0]
-        self.storage = []
-
-        grad = (p - labels) * nonignore_mask / (mx.nd.sum(nonignore_mask) + 1e-30)
-
+        grad = in_data[2]
         self.assign(in_grad[0], req[0], grad)
 
-@mx.operator.register("sigmoid_bceloss")
-class SigmoidBCELossProp(mx.operator.CustomOpProp):
+@mx.operator.register("compute_bce_loss")
+class ComputeBCELossProp(mx.operator.CustomOpProp):
     def __init__(self):
-        super(SigmoidBCELossProp, self).__init__(need_top_grad=True)
+        super(ComputeBCELossProp, self).__init__(need_top_grad=True)
 
     def list_arguments(self):
-        return ['logits', 'labels', 'nonignore_mask']
+        return ['logits', 'loss', 'grad']
 
     def list_outputs(self):
         return ['bce_loss']
@@ -177,7 +159,18 @@ class SigmoidBCELossProp(mx.operator.CustomOpProp):
         return in_type, [in_type[0]], []
 
     def create_operator(self, ctx, shapes, dtypes):
-        return SigmoidBCELoss()
+        return ComputeBCELoss()
+
+def make_binary_cross_entropy_loss(logits, labels, nonignore_mask):
+    p = 1 / (1 + mx.sym.exp(-logits))
+    loss = -labels * mx.sym.log(mx.sym.clip(p, a_min=1e-5, a_max=1)) - (1 - labels) * mx.sym.log(mx.sym.clip(1 - p, a_min=1e-5, a_max=1))
+    loss = mx.sym.sum(loss * nonignore_mask) / (mx.sym.sum(nonignore_mask) + 1e-30)
+    grad = mx.sym.broadcast_div( lhs=(p - labels) * nonignore_mask, rhs=mx.sym.sum(nonignore_mask) + 1e-30 )
+
+    loss = X.block_grad(loss)
+    grad = X.block_grad(grad)
+
+    return mx.sym.Custom(logits=logits, loss=loss, grad=grad, op_type='compute_bce_loss', name='sigmoid_bce_loss')
 
 
 

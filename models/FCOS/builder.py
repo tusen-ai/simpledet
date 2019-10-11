@@ -6,7 +6,7 @@ import mxnext as X
 from utils.patch_config import patch_config_as_nothrow
 
 from symbol.builder import Backbone, RpnHead, Neck
-from models.FCOS.loss import IoULoss, SigmoidBCELossProp, make_sigmoid_focal_loss
+from models.FCOS.loss import IoULoss, make_sigmoid_focal_loss, make_binary_cross_entropy_loss
 from models.FCOS.utils import GetProposalSingleStageProp, GetBatchProposalProp
 from models.FCOS.input import make_fcos_gt
 
@@ -218,11 +218,10 @@ class FCOSFPNRpnHead():
         cls_loss = X.loss(cls_loss, grad_scale=1)
 
         nonignore_mask = mx.sym.broadcast_logical_and(lhs=mx.sym.broadcast_not_equal( lhs=X.block_grad(centerness_labels), rhs=ignore_label ),
-                                                  rhs=mx.sym.broadcast_greater( lhs=centerness_labels, rhs=mx.sym.full((1,1), 0) )
-                                                 )
+                                                      rhs=mx.sym.broadcast_greater( lhs=centerness_labels, rhs=mx.sym.full((1,1), 0) )
+                                                     )
         nonignore_mask = X.block_grad(nonignore_mask)
-        centerness_loss = mx.sym.Custom(logits=centerness_logits, labels=centerness_labels, nonignore_mask=nonignore_mask,
-                                        op_type='sigmoid_bceloss', name='centerness_loss')
+        centerness_loss = make_binary_cross_entropy_loss(centerness_logits, centerness_labels, nonignore_mask)
         centerness_loss = X.loss(centerness_loss, grad_scale=1)
 
         offset_loss = IoULoss(offset_logits, offset_labels, ignore_offset, centerness_labels, name='offset_loss')
