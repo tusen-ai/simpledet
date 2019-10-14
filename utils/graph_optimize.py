@@ -110,8 +110,8 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
     base_quant_attrs["is_weight_perchannel"] = "False"
     base_quant_attrs["quant_mode"] = "minmax"
 
-    data_quant_attrs = base_quant_attrs
-    weight_quant_attrs = base_quant_attrs
+    data_quant_attrs = base_quant_attrs.copy()
+    weight_quant_attrs = base_quant_attrs.copy()
     weight_quant_attrs["is_weight"] = "True"
 
     jgraph = json.loads(symbol.tojson())
@@ -138,12 +138,10 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
             node_op_map[nid] = ["Variable"]
         elif op_name in quantized_op:
             if op_name in ["Convolution", "FullyConnected", "Deconvolution"]:
-                if attrs["no_bias"] == "True":
-                    assert len(children) == 2, "{} inputs must be 2, if no bias".format(op_name)
+                if len(children) == 2:
                     datavar, weightvar = children
                     biasvar = None
                 else:
-                    assert len(children) == 3, "{} inputs must be 3, if no_bias is False or None".format(op_name)
                     datavar, weightvar, biasvar = children
                 data_name, weight_name = datavar.name, weightvar.name
                 if data_name in quantized_node_map.keys():
