@@ -14,6 +14,26 @@ def get_config(is_train):
         batch_image = 2 if is_train else 1
         fp16 = False
 
+        # for quantize int8 training
+        quantize_flag = True
+        '''
+        delya_quant: after delay_quant iters, the quantization working actually.
+        ema_decay:  the hyperparameter for activation threshold update.
+        grad_mode:  the mode for gradients pass. there are two mode: ste or clip. 
+                    ste mean straightforward pass the out gradients to data,
+                    clip mean only pass the gradients whose value of data in the range of [-threshold, threshold],
+                              the gradients of outer is settting to 0.
+        workspace:  the temporary space used in grad_mode=clip
+        '''
+        base_quant_attrs = {
+            "delay_quant": "0", 
+            "ema_decay": "0.99",
+            "grad_mode": "ste",
+            "workspace": "1024"
+        }
+        # quantized_op = ["Convolution", "FullyConnected", "Deconvolution","Concat", "Pooling", "add_n", "elemwise_add"]
+        quantized_op = ["Convolution", "FullyConnected", "Deconvolution"]
+
 
     class KvstoreParam:
         kvstore     = "local"

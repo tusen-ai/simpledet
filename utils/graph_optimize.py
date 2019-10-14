@@ -97,7 +97,111 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
     outputs = outputs[0] if len(outputs) == 1 else mx.sym.Group(outputs)
     return outputs, args, auxs
 
+def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=["Convolution", "FullyConnected", "Deconvolution"]):
+    """
+    Adapted from https://github.com/dmlc/tvm/blob/master/python/tvm/relay/frontend/mxnet.py
+    Instead of translating nnvm graph into TVM relay graph, we adapt the script to translate
+    it back to mxnet graph.
+    """
+    assert symbol is not None
+    assert base_quant_attrs is not None
+    # currently only support quant_mode = "minmax" and weight per tensor quantization method
+    base_quant_attrs["is_weight"] = "False"
+    base_quant_attrs["is_weight_perchannel"] = "False"
+    base_quant_attrs["quant_mode"] = "minmax"
+
+    data_quant_attrs = base_quant_attrs
+    weight_quant_attrs = base_quant_attrs
+    weight_quant_attrs["is_weight"] = "True"
+
+    jgraph = json.loads(symbol.tojson())
+    jnodes = jgraph["nodes"]
+    node_map = {}
+    node_op_map = {}
+    quantized_node_map = {}
+
+
+    for nid, node in enumerate(jnodes):
+        # edges are [which_node, which_output, type(? not sure)]
+        # mx.symbol has an attribute of __getitem__. sym[1] gives the second output
+        children = [node_map[e[0]][e[1]] for e in node["inputs"]]
+        attrs = node.get("attrs", {})
+        node_name = node["name"]
+        op_name = node["op"]
+        if op_name == "null":
+            attrs = dict({k:v for k, v in attrs.items() if k.startswith("__")})
+            assert node_name in out_shape_dict.keys(), "{} Variable is not in shape_dict".format(node_name)
+            if "__shape__" not in attrs.keys():
+                attrs["__shape__"] = out_shape_dict[node_name]
+                attrs["__dtype__"] = 0  # "float32"
+            node_map[nid] = mx.sym.var(node_name, **attrs)
+            node_op_map[nid] = ["Variable"]
+        elif op_name in quantized_op:
+            if op_name in ["Convolution", "FullyConnected", "Deconvolution"]:
+                if attrs["no_bias"] == "True":
+                    assert len(children) == 2, "{} inputs must be 2, if no bias".format(op_name)
+                    datavar, weightvar = children
+                    biasvar = None
+                else:
+                    assert len(children) == 3, "{} inputs must be 3, if no_bias is False or None".format(op_name)
+                    datavar, weightvar, biasvar = children
+                data_name, weight_name = datavar.name, weightvar.name
+                if data_name in quantized_node_map.keys():
+                    print("{} has attached quantized node".format(data_name))
+                    data_quanted = quantized_node_map[data_name]
+                else:
+                    data_quanted = mx.sym.contrib.Quantization_int8(datavar, **data_quant_attrs, name=data_name)
+                    quantized_node_map[data_name] = data_quanted
+                if weight_name in quantized_node_map.keys():
+                    print("{} has attached quantized node".format(weight_name))
+                    weight_quanted = quantized_node_map[weight_name]
+                else:
+                    weight_quanted = mx.sym.contrib.Quantization_int8(weightvar, **weight_quant_attrs, name=weight_name)
+                    quantized_node_map[weight_name] = weight_quanted
+                print("attach quantize node for {} inputs:{}, {}".format(op_name, data_name, weight_name))
+                quanted_children = [data_quanted, weight_quanted, biasvar]
+            elif op_name in ["Concat", "Pooling", "add_n", "elemwise_add"]:
+                quant_names = [var.name for var in children]
+                print("attach quantize node for {} inputs:{}".format(op_name, quant_names))
+                quanted_children = [None] * len(children)
+                for i, var in enumerate(children):
+                    if var.name in quantized_node_map.keys():
+                        print("{} has attached quantized node".format(var.name))
+                        quanted_children[i] = quantized_node_map[var.name]
+                    else:
+                        quanted_var = mx.sym.contrib.Quantization_int8(var, **data_quant_attrs, name=var.name)
+                        quantized_node_map[var.name] = quanted_var
+                        quanted_children[i] = quantized_node_map[var.name]
+            operator = eval("mx.sym." + op_name)
+            res = operator(*quanted_children, **attrs, name=node_name)
+            node_map[nid] = res
+            node_op_map[nid] = [op_name]
+        else:
+            if op_name.startswith("_contrib_"):
+                op_name = op_name.replace("_contrib_", "")
+                operator = eval("mx.sym.contrib." + op_name)
+            elif op_name.startswith("_"):
+                operator = eval("mx.sym._internal." + op_name)
+            else:
+                operator = eval("mx.sym." + op_name)
+            res = operator(*children, **attrs, name=node_name)
+            node_map[nid] = res
+            node_op_map[nid] = [op_name]
+
+    outputs = [node_map[e[0]][e[1]] for e in jgraph["heads"]]
+    outputs = outputs[0] if len(outputs) == 1 else mx.sym.Group(outputs)
+    return outputs
+
+
 if __name__ == "__main__":
-    sym = mx.sym.load("experiments/faster_r50v1_2fc_1x/checkpoint.json")
-    sym1, _, _ = merge_bn(sym, None, None, True)
-    print(sym1.tojson())
+    sym = mx.sym.load("source.json")
+    # sym1, _, _ = merge_bn(sym, None, None, True)
+    quantized_op = ["Convolution", "FullyConnected", "Deconvolution"]
+    base_quant_attrs = {
+            "delay_quant": "0", 
+            "ema_decay": "0.99", 
+            "grad_mode": "ste", 
+            "workspace": "1024"
+        }
+    sym1 = attach_quantize_node(sym, None, base_quant_attrs, quantized_op=quantized_op)
+    sym1.save("attached_quant.json")
