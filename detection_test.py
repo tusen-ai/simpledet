@@ -96,11 +96,6 @@ if __name__ == "__main__":
             if pModel.process_weight is not None:
                 pModel.process_weight(sym, arg_params, aux_params)
 
-            # merge batch normalization to speedup test
-            from utils.graph_optimize import merge_bn
-            sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
-            sym.save(pTest.model.prefix + "_test.json")
-
             # infer shape
             worker_data_shape = dict(loader.provide_data + loader.provide_label)
             for key in worker_data_shape:
@@ -116,6 +111,25 @@ if __name__ == "__main__":
             print(pprint.pformat([i for i in out_shape_dict if i[0].endswith('output')]))
             print('terminal output shape')
             print(pprint.pformat([i for i in terminal_out_shape_dict]))
+
+            '''
+            there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py 
+            when mergebn ahead of attach_quantized_node
+            such as `Symbol.ComposeKeyword`
+            '''
+            if pModel.QuantizeTrainingParam is not None and pModel.QuantizeTrainingParam.quantize_flag:
+                pQuant = pModel.QuantizeTrainingParam
+                assert pGen.fp16 == False, "current quantize training only support fp32 mode."
+                from utils.graph_optimize import attach_quantize_node
+                _, out_shape, _ = sym.get_internals().infer_shape(**worker_data_shape)
+                out_shape_dictoinary = dict(zip(sym.get_internals().list_outputs(), out_shape))
+                sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam, 
+                                        pQuant.ActQuantizeParam, pQuant.quantized_op)
+
+            # merge batch normalization to speedup test
+            from utils.graph_optimize import merge_bn
+            sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
+            sym.save(pTest.model.prefix + "_test.json")
 
             for i in pKv.gpus:
                 ctx = mx.gpu(i)

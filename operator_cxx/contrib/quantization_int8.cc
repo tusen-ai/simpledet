@@ -18,10 +18,10 @@
  */
 
 /*!
- * Copyright (c) 2015 by Contributors
+ * Copyright (c) 2019 by Contributors
  * \file Quantization_int8.cc
  * \brief
- * \author Xiaotao Chen
+ * \author Xiaotao Chen, Jingqiu Zhou, Ruize Hou
 */
 
 #include "./quantization_int8-inl.h"
@@ -56,18 +56,6 @@ MXNET_REGISTER_OP_PROPERTY(_contrib_Quantization_int8, Quantization_int8Prop)
 .add_argument("data", "NDArray-or-Symbol", "Input data to activation function.")
 .add_argument("minmax", "NDArray-or-Symbol", "minmax array")
 .add_arguments(Quantization_int8Para::__FIELDS__());
-
-// NNVM_REGISTER_OP(_contrib_Quantization_int8)
-// .add_argument("data", "NDArray-or-Symbol", "Input data to quantize")
-// .add_argument("minmax", "NDArray-or-Symbol", "minmax array")
-// .add_arguments(Quantization_int8Para::__FIELDS__())
-// .set_attr<nnvm::FSetInputVarAttrOnCompose>("FSetInputVarAttrOnCompose",
-//     [](const nnvm::NodeAttrs& attrs, nnvm::NodePtr var, const int index) {
-//       if (var->attrs.dict.find("__init__") != var->attrs.dict.end()) return;
-//       if (index == 1) {
-//         var->attrs.dict["__init__"] = "[\"zero\", {}]";
-//       }
-//     });
 
 }  // namespace op
 }  // namespace mxnet

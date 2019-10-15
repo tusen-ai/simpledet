@@ -19,6 +19,15 @@ import json
 import logging
 import mxnet as mx
 
+FLOAT32_DTYPE = 0
+
+def convert_class_to_dict(obj):
+    pr = {}
+    for name in dir(obj):
+        value = getattr(obj, name)
+        if not name.startswith('__') and not callable(value):
+            pr[name] = str(value)
+    return pr
 
 def merge_bn(symbol, args, auxs, symbol_only=False):
     """
@@ -97,22 +106,18 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
     outputs = outputs[0] if len(outputs) == 1 else mx.sym.Group(outputs)
     return outputs, args, auxs
 
-def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=["Convolution", "FullyConnected", "Deconvolution"]):
+def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_attrs, quantized_op=("Convolution", "FullyConnected", "Deconvolution")):
     """
     Adapted from https://github.com/dmlc/tvm/blob/master/python/tvm/relay/frontend/mxnet.py
     Instead of translating nnvm graph into TVM relay graph, we adapt the script to translate
     it back to mxnet graph.
     """
     assert symbol is not None
-    assert base_quant_attrs is not None
-    # currently only support quant_mode = "minmax" and weight per tensor quantization method
-    base_quant_attrs["is_weight"] = "False"
-    base_quant_attrs["is_weight_perchannel"] = "False"
-    base_quant_attrs["quant_mode"] = "minmax"
+    assert weight_quant_attrs is not None
+    assert act_quant_attrs is not None
 
-    data_quant_attrs = base_quant_attrs.copy()
-    weight_quant_attrs = base_quant_attrs.copy()
-    weight_quant_attrs["is_weight"] = "True"
+    weight_quant_attrs = convert_class_to_dict(weight_quant_attrs)
+    act_quant_attrs = convert_class_to_dict(act_quant_attrs)    
 
     jgraph = json.loads(symbol.tojson())
     jnodes = jgraph["nodes"]
@@ -133,7 +138,7 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
             assert node_name in out_shape_dict.keys(), "{} Variable is not in shape_dict".format(node_name)
             if "__shape__" not in attrs.keys():
                 attrs["__shape__"] = out_shape_dict[node_name]
-                attrs["__dtype__"] = 0  # "float32"
+                attrs["__dtype__"] = FLOAT32_DTYPE
             node_map[nid] = mx.sym.var(node_name, **attrs)
             node_op_map[nid] = ["Variable"]
         elif op_name in quantized_op:
@@ -148,7 +153,7 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
                     print("{} has attached quantized node".format(data_name))
                     data_quanted = quantized_node_map[data_name]
                 else:
-                    data_quanted = mx.sym.contrib.Quantization_int8(datavar, **data_quant_attrs, name=data_name)
+                    data_quanted = mx.sym.contrib.Quantization_int8(datavar, **act_quant_attrs, name=data_name)
                     quantized_node_map[data_name] = data_quanted
                 if weight_name in quantized_node_map.keys():
                     print("{} has attached quantized node".format(weight_name))
@@ -158,7 +163,7 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
                     quantized_node_map[weight_name] = weight_quanted
                 print("attach quantize node for {} inputs:{}, {}".format(op_name, data_name, weight_name))
                 quanted_children = [data_quanted, weight_quanted, biasvar]
-            elif op_name in ["Concat", "Pooling", "add_n", "elemwise_add"]:
+            elif op_name in ["Concat", "concat", "Pooling", "add_n", "elemwise_add"]:
                 quant_names = [var.name for var in children]
                 print("attach quantize node for {} inputs:{}".format(op_name, quant_names))
                 quanted_children = [None] * len(children)
@@ -167,9 +172,12 @@ def attach_quantize_node(symbol, out_shape_dict, base_quant_attrs, quantized_op=
                         print("{} has attached quantized node".format(var.name))
                         quanted_children[i] = quantized_node_map[var.name]
                     else:
-                        quanted_var = mx.sym.contrib.Quantization_int8(var, **data_quant_attrs, name=var.name)
+                        quanted_var = mx.sym.contrib.Quantization_int8(var, **act_quant_attrs, name=var.name)
                         quantized_node_map[var.name] = quanted_var
                         quanted_children[i] = quantized_node_map[var.name]
+            else:
+                print("Warning {} don't support quantization training currently.".format(op_name))
+                quanted_children = children
             operator = eval("mx.sym." + op_name)
             res = operator(*quanted_children, **attrs, name=node_name)
             node_map[nid] = res

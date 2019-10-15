@@ -14,6 +14,7 @@ def get_config(is_train):
         batch_image = 2 if is_train else 1
         fp16 = False
 
+
     class KvstoreParam:
         kvstore     = "local"
         batch_image = General.batch_image
@@ -130,6 +131,29 @@ def get_config(is_train):
             prefix = "pretrain_model/resnet-v1-50"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
+
+        class QuantizeTrainingParam:
+            quantize_flag = True
+            # quantized_op = ("Convolution", "FullyConnected", "Deconvolution","Concat", "Pooling", "add_n", "elemwise_add")
+            quantized_op = ("Convolution", "FullyConnected", "Deconvolution")
+
+            class WeightQuantizeParam:
+                delay_quant = 0
+                ema_decay = 0.99
+                grad_mode = "ste"
+                workspace = 1024
+                is_weight = True
+                is_weight_perchannel = False
+                quant_mode = "minmax"
+
+            class ActQuantizeParam:
+                delay_quant = 0
+                ema_decay = 0.99
+                grad_mode = "ste"
+                workspace = 1024
+                is_weight = False
+                is_weight_perchannel = False
+                quant_mode = "minmax"
 
 
     class OptimizeParam:

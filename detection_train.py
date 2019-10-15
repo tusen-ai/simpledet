@@ -139,13 +139,14 @@ def train_net(config):
     when mergebn ahead of attach_quantized_node
     such as `Symbol.ComposeKeyword`
     '''
-    if pGen.quantize_flag:
+    if pModel.QuantizeTrainingParam is not None and pModel.QuantizeTrainingParam.quantize_flag:
+        pQuant = pModel.QuantizeTrainingParam
         assert pGen.fp16 == False, "current quantize training only support fp32 mode."
         from utils.graph_optimize import attach_quantize_node
         _, out_shape, _ = sym.get_internals().infer_shape(**worker_data_shape)
         out_shape_dictoinary = dict(zip(sym.get_internals().list_outputs(), out_shape))
-        sym = attach_quantize_node(sym, out_shape_dictoinary, pGen.base_quant_attrs, pGen.quantized_op)
-    
+        sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam, 
+                                   pQuant.ActQuantizeParam, pQuant.quantized_op)
     # merge batch normalization to save memory in fix bn training
     from utils.graph_optimize import merge_bn
     sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)

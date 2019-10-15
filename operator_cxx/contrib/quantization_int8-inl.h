@@ -18,11 +18,14 @@
  */
 
 /*!
- * Copyright (c) 2015 by Contributors
+ * Copyright (c) 2019 by Contributors
  * \file quantization_int8-inl.h
  * \brief
- * \author Xiaotao Chen
+* \author Xiaotao Chen, Jingqiu Zhou, Ruize Hou
 */
+
+// paper link: https://arxiv.org/abs/1712.05877
+
 #ifndef MXNET_OPERATOR_QUANTIZATION_INT8_INL_H_
 #define MXNET_OPERATOR_QUANTIZATION_INT8_INL_H_
 
@@ -49,9 +52,32 @@ enum Quantization_int8OpAuxiliary {kMinmax};
 enum Quantization_int8OpResource {kTempSpace};
 }  // namespace quantization_int8_enum
 
+template<typename DType>
+struct find_maxabs {
+  MSHADOW_XINLINE static void Map(int i, DType *imin_range, DType* imax_range) {
+    if (i < 1){
+      *imax_range = MaxAbs(*imin_range, *imax_range);
+    }
+  }
+};
+
+template<typename xpu, typename DType>
+void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s, 
+              mshadow::Tensor<xpu, 1, char> &temp_reduce_space, TBlob &in_min_t, TBlob &in_max_t,
+              const mxnet::TShape &src_shape, const mxnet::TShape &dst_shape){
+    using namespace mshadow;
+    using namespace mshadow::expr;
+    broadcast::Reduce<red::minimum, 2, DType, mshadow::op::identity>(
+        s, in_min_t.reshape(dst_shape), kWriteTo, temp_reduce_space, data.reshape(src_shape));
+    broadcast::Reduce<red::maximum, 2, DType, mshadow::op::identity>(
+        s, in_max_t.reshape(dst_shape), kWriteTo, temp_reduce_space, data.reshape(src_shape));
+
+    // the maxabs value is save in in_max_t
+    mxnet_op::Kernel<find_maxabs<DType>, xpu>::Launch(s, 1, in_min_t.dptr<DType>(), in_max_t.dptr<DType>());
+}
+
 struct Quantization_int8Para : public dmlc::Parameter<Quantization_int8Para> {
   std::string quant_mode; 
-  // int quant_mode; // to int : 0: minmax; 1: power2;
   bool is_weight;
   bool is_weight_perchannel;
   int delay_quant;
@@ -80,53 +106,6 @@ struct Quantization_int8Para : public dmlc::Parameter<Quantization_int8Para> {
   }
 };
 
-
-template <typename DType>
-void print_device(DType* data, int num, std::string flag) {
-    DType* temp;
-    temp = (DType*) malloc(sizeof(DType) * num);
-    cudaMemcpy(temp, data, sizeof(DType) * num, cudaMemcpyDeviceToHost);
-    printf("--------------------------- %s ---------------------------\n", flag.c_str());
-    for (int i=0; i< num; i++) {
-        printf("%f ",temp[i]);
-    }
-    printf("\n");
-    free(temp);
-}
-
-template <typename DType>
-void print_host(DType* data, int num, std::string flag) {
-    printf("--------------------------- %s ---------------------------\n", flag.c_str());
-    for (int i=0; i< num; i++) {
-        printf("%f ",data[i]);
-    }
-    printf("\n");
-}
-
-template <typename DType, typename xpu>
-void print_data(mshadow::Tensor<xpu, 4, DType> data, mshadow::Stream<xpu> *s, const OpContext &ctx, std::string flag) {
-    mshadow::Stream<cpu> *s_cpu = ctx.get_stream<cpu>();
-    DType* temp;
-    temp = (DType*) malloc(data.shape_.Size() * sizeof(DType));
-    mshadow::Tensor<cpu, 4, DType> temp_tensor(temp, data.shape_, s_cpu);
-    mshadow::Copy(temp_tensor, data, s);
-    printf("--------------------------- %s ---------------------------\n", flag.c_str());
-    for (int i=0; i< temp_tensor.size(0); i++) {
-     for (int j=0; j< temp_tensor.size(1); j++) {
-       for (int k=0; k< temp_tensor.size(2); k++) {
-         for (int q=0; q< temp_tensor.size(3); q++) {
-           printf("%f ", temp_tensor[i][j][k][q]);
-         }
-         printf("\n");
-       }
-       printf("\n");
-     } 
-     printf("\n");
-    }
-    printf("\n");
-    free(temp);
-}
-
 template<typename xpu, typename DType>
 class Quantization_int8Op : public Operator {
  public:
@@ -134,31 +113,8 @@ class Quantization_int8Op : public Operator {
     this->param_ = param;
     quant_countdown = param.delay_quant;
     init=true;
-    // QUANT_LEVEL = 127;
-    QUANT_LEVEL = 15;
+    QUANT_LEVEL = 127;
   }
-
-struct find_maxabs {
-  MSHADOW_XINLINE static void Map(int i, real_t *imin_range, real_t* imax_range) {
-    if (i < 1){
-      *imax_range = MaxAbs(*imin_range, *imax_range);
-    }
-  }
-};
-
-void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s, 
-              mshadow::Tensor<xpu, 1, char> &temp_reduce_space, TBlob &in_min_t, TBlob &in_max_t,
-              const mxnet::TShape &src_shape, const mxnet::TShape &dst_shape){
-    using namespace mshadow;
-    using namespace mshadow::expr;
-    broadcast::Reduce<red::minimum, 2, real_t, mshadow::op::identity>(
-        s, in_min_t.reshape(dst_shape), kWriteTo, temp_reduce_space, data.reshape(src_shape));
-    broadcast::Reduce<red::maximum, 2, real_t, mshadow::op::identity>(
-        s, in_max_t.reshape(dst_shape), kWriteTo, temp_reduce_space, data.reshape(src_shape));
-
-    // the maxabs value is save in in_max_t
-    mxnet_op::Kernel<find_maxabs, xpu>::Launch(s, 1, in_min_t.dptr<real_t>(), in_max_t.dptr<real_t>());
-}
 
   virtual void Forward(const OpContext &ctx,
                        const std::vector<TBlob> &in_data,
@@ -191,39 +147,31 @@ void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s,
     for all per channel, OIHW the axis should be the I dimension, currently this is not considered
     transpose conv weight is also not considered
     */
-    // print_host(data.dptr_, data.shape_.Size(), "in_data");
     if (ctx.is_train > 0 && quant_countdown > 0) {
       mshadow::Copy(out, data, s);
-      // Assign(out, req[Quantization_int8_enum::kOut], data);
       quant_countdown = quant_countdown - 1;
     }
     else {
       if (param_.quant_mode == std::string("minmax")) {
-        // if (param_.quant_mode == 0) {
-        // Assign(out, req[Quantization_int8_enum::kOut], data);
-        // mshadow::Copy(out, data, s);  
-        uint64_t WORKSPACE_LIMIT = 1024 * 1024; // allocate 1MB
+        mxnet::TShape src_shape, dst_shape;
+        const size_t temp_reduce_size = ConfigReduce<xpu, DType>(
+            s, data.shape_, mxnet::TShape(1, 1), &src_shape, &dst_shape);
+
         Tensor<xpu, 1, uint8_t> workspace = ctx.requested[Quantization_int8_enum::kTempSpace]
-          .get_space_typed<xpu, 1, uint8_t>(Shape1(WORKSPACE_LIMIT), s);
+          .get_space_typed<xpu, 1, uint8_t>(Shape1(temp_reduce_size + 2 * sizeof(DType)), s);
         uint64_t allocated_bytes = 0ULL;
 
-        mxnet::TShape src_shape, dst_shape;
-        const size_t temp_reduce_size = ConfigReduce<xpu, real_t>(
-            s, data.shape_, mxnet::TShape(1, 1), &src_shape, &dst_shape);
         Tensor<xpu, 1, char> temp_reduce_space(reinterpret_cast<char*>(workspace.dptr_ + allocated_bytes), 
                                        Shape1(temp_reduce_size), s);
         allocated_bytes += temp_reduce_size;
         const int dev_id = ctx.run_ctx.ctx.dev_id;
-        TBlob in_min_t(reinterpret_cast<real_t *>(workspace.dptr_ + allocated_bytes), Shape1(1), xpu::kDevMask,
+        TBlob in_min_t(reinterpret_cast<DType *>(workspace.dptr_ + allocated_bytes), Shape1(1), xpu::kDevMask,
                       dev_id);
-        allocated_bytes += sizeof(real_t);
-        TBlob in_max_t(reinterpret_cast<real_t *>(workspace.dptr_ + allocated_bytes), Shape1(1), xpu::kDevMask,
+        allocated_bytes += sizeof(DType);
+        TBlob in_max_t(reinterpret_cast<DType *>(workspace.dptr_ + allocated_bytes), Shape1(1), xpu::kDevMask,
                       dev_id);
-        allocated_bytes += sizeof(real_t);
+        allocated_bytes += sizeof(DType);
 
-        CHECK_LE(allocated_bytes, WORKSPACE_LIMIT) << " in forward";
-
-        // Tensor<xpu, 1, DType> min_val = in_min_t.get<xpu, 1, DType>(s);
         Tensor<xpu, 1, DType> max_val = in_max_t.get<xpu, 1, DType>(s);
         
         DType threshold = DType(0.0f);
@@ -233,7 +181,7 @@ void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s,
 
         if (param_.is_weight) {
           if (ctx.is_train > 0 && param_.fix_act_scale == false) {
-            find_max(ctx, in_data[0], s, temp_reduce_space, in_min_t, in_max_t, src_shape, dst_shape);
+            find_max<xpu, DType>(ctx, in_data[0], s, temp_reduce_space, in_min_t, in_max_t, src_shape, dst_shape);
             mshadow::Copy(aux, max_val, s);
           }
           // DType quant_unit = aux[0] / QUANT_LEVEL;
@@ -250,7 +198,7 @@ void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s,
         } 
         else {
           if (ctx.is_train > 0 && param_.fix_act_scale == false) {
-            find_max(ctx, in_data[0], s, temp_reduce_space, in_min_t, in_max_t, src_shape, dst_shape);
+            find_max<xpu, DType>(ctx, in_data[0], s, temp_reduce_space, in_min_t, in_max_t, src_shape, dst_shape);
             // upate act threshold with ema
             if (init) {
                 // check the value of minmax in aux is  equal to 0, so this should be initialized. otherwise, the value of
@@ -345,7 +293,6 @@ void find_max(const OpContext &ctx, const TBlob &data, mshadow::Stream<xpu> *s,
       Tensor<cpu, 1, DType> threshold_tensor(&threshold, Shape1(1), s_cpu);
       Tensor<xpu, 1, DType> aux = aux_states[Quantization_int8_enum::kMinmax].get<xpu, 1, DType>(s);
       mshadow::Copy(threshold_tensor, aux, s);
-      threshold = DType(0.02f);
       const ScalarExp<DType> min_expr(-threshold);
       const ScalarExp<DType> max_expr(threshold);
       clip_condition = F<mshadow_op::ge>(data, min_expr) * F<mshadow_op::le>(data, max_expr);
@@ -440,21 +387,6 @@ class Quantization_int8Prop : public OperatorProperty {
             in_data[Quantization_int8_enum::kData], 
             out_data[Quantization_int8_enum::kOut]};
   }
-
-  // std::vector<std::pair<int, void*> > BackwardInplaceOption(
-  //   const std::vector<int> &out_grad,
-  //   const std::vector<int> &in_data,
-  //   const std::vector<int> &out_data,
-  //   const std::vector<void*> &in_grad) const override {
-  //   return {{out_grad[Quantization_int8_enum::kOut], in_grad[Quantization_int8_enum::kData]}};
-  // }
-
-  // std::vector<std::pair<int, void*> > ForwardInplaceOption(
-  //   const std::vector<int> &in_data,
-  //   const std::vector<void*> &out_data) const override {
-
-  //   return {{in_data[Quantization_int8_enum::kData], out_data[Quantization_int8_enum::kOut]}};
-  // }
 
   std::vector<std::string> ListArguments() const override {
     return {"data"};

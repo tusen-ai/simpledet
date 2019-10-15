@@ -21,7 +21,7 @@
  * Copyright (c) 2019 by Contributors
  * \file Quantization_int8.cu
  * \brief
- * \author Xiaotao Chen
+* \author Xiaotao Chen, Jingqiu Zhou, Ruize Hou
 */
 #include "./quantization_int8-inl.h"
 
