@@ -20,11 +20,9 @@
 /*!
  * Copyright (c) 2019 by Contributors
  * \file quantization_int8-inl.h
- * \brief
+ * paper link: https://arxiv.org/abs/1712.05877
 * \author Xiaotao Chen, Jingqiu Zhou, Ruize Hou
 */
-
-// paper link: https://arxiv.org/abs/1712.05877
 
 #ifndef MXNET_OPERATOR_QUANTIZATION_INT8_INL_H_
 #define MXNET_OPERATOR_QUANTIZATION_INT8_INL_H_
@@ -83,7 +81,6 @@ struct Quantization_int8Para : public dmlc::Parameter<Quantization_int8Para> {
   int delay_quant;
   float ema_decay;
   std::string grad_mode;
-  uint64_t workspace;
   bool fix_act_scale;
   DMLC_DECLARE_PARAMETER(Quantization_int8Para) {
     DMLC_DECLARE_FIELD(quant_mode).set_default("minmax")
@@ -98,9 +95,6 @@ struct Quantization_int8Para : public dmlc::Parameter<Quantization_int8Para> {
     .describe("the rate at which quantization range decay in ema");
     DMLC_DECLARE_FIELD(grad_mode).set_default("ste")
     .describe("select gradient pass mode");
-    DMLC_DECLARE_FIELD(workspace).set_default(512)
-    .describe("workspace for the clipping gradient backward of quantization int8 in MB, \
-               the space should be double size of in_data. default to 512");
     DMLC_DECLARE_FIELD(fix_act_scale).set_default(false)
     .describe("fix the minmax value of activation or not. defalut is False");
   }
@@ -270,9 +264,8 @@ class Quantization_int8Op : public Operator {
       mshadow::Copy(data_grad, out_data_grad, s);
     }
     else if (param_.grad_mode == std::string("clip")) {
-      uint64_t WORKSPACE_LIMIT = 1024 * 1024 * param_.workspace; // the in_data shape is large
       Tensor<xpu, 1, uint8_t> workspace = ctx.requested[Quantization_int8_enum::kTempSpace]
-        .get_space_typed<xpu, 1, uint8_t>(Shape1(WORKSPACE_LIMIT), s);
+        .get_space_typed<xpu, 1, uint8_t>(Shape1(2 * data.shape_.Size() * sizeof(DType)), s);
       uint64_t allocated_bytes = 0ULL;
       Tensor<xpu, 4, DType> clip_condition(reinterpret_cast<DType*>(workspace.dptr_ + allocated_bytes), data.shape_, s);
       allocated_bytes += clip_condition.shape_.Size() * sizeof(DType);
@@ -281,8 +274,6 @@ class Quantization_int8Op : public Operator {
       
       Tensor<xpu, 1, DType> temp(reinterpret_cast<DType*>(workspace.dptr_ + allocated_bytes), Shape1(1), s);
       allocated_bytes += temp.shape_.Size() * sizeof(DType);
-      
-      CHECK_LE(allocated_bytes, WORKSPACE_LIMIT) << " in backward";
 
       temp =  ScalarExp<DType>(0.0f);
       zero_bc = broadcast_scalar(temp, zero_bc.shape_);

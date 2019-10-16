@@ -20,6 +20,8 @@ import logging
 import mxnet as mx
 
 FLOAT32_DTYPE = 0
+INIT_ZERO = '[\"zero\", {}]'
+MINMAX_SUFFIX = "_minmax"
 
 def convert_class_to_dict(obj):
     pr = {}
@@ -77,8 +79,8 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
                             auxs[mmean_name] = auxs[mmean_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
                             auxs[mvar_name] = auxs[mvar_name].expand_dims(axis=0).expand_dims(axis=-1).expand_dims(axis=-1)
                         # set mmean and mvar to identity to avoid fusing more than once in weight sharing
-                        auxs[mmean_name][:] = 0.0
-                        auxs[mvar_name][:] = 1.0
+                        auxs[mmean_name][:] = mx.nd.zeros_like(auxs[mmean_name])
+                        auxs[mvar_name][:] = mx.nd.ones_like(auxs[mvar_name])
                         # copy shared gamma and beta for each BN
                         args[node_name + "_gamma"] = args[gamma_name]
                         args[node_name + "_beta"] = args[beta_name]
@@ -153,13 +155,15 @@ def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_a
                     print("{} has attached quantized node".format(data_name))
                     data_quanted = quantized_node_map[data_name]
                 else:
-                    data_quanted = mx.sym.contrib.Quantization_int8(datavar, **act_quant_attrs, name=data_name)
+                    minmax_var = mx.sym.var(name = data_name + MINMAX_SUFFIX, init=INIT_ZERO)
+                    data_quanted = mx.sym.contrib.Quantization_int8(data=datavar, minmax=minmax_var, **act_quant_attrs, name=data_name)
                     quantized_node_map[data_name] = data_quanted
                 if weight_name in quantized_node_map.keys():
                     print("{} has attached quantized node".format(weight_name))
                     weight_quanted = quantized_node_map[weight_name]
                 else:
-                    weight_quanted = mx.sym.contrib.Quantization_int8(weightvar, **weight_quant_attrs, name=weight_name)
+                    minmax_var = mx.sym.var(name = weight_name + MINMAX_SUFFIX, init=INIT_ZERO)
+                    weight_quanted = mx.sym.contrib.Quantization_int8(data=weightvar, minmax=minmax_var, **weight_quant_attrs, name=weight_name)
                     quantized_node_map[weight_name] = weight_quanted
                 print("attach quantize node for {} inputs:{}, {}".format(op_name, data_name, weight_name))
                 quanted_children = [data_quanted, weight_quanted, biasvar]
@@ -201,13 +205,4 @@ def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_a
 
 if __name__ == "__main__":
     sym = mx.sym.load("source.json")
-    # sym1, _, _ = merge_bn(sym, None, None, True)
-    quantized_op = ["Convolution", "FullyConnected", "Deconvolution"]
-    base_quant_attrs = {
-            "delay_quant": "0", 
-            "ema_decay": "0.99", 
-            "grad_mode": "ste", 
-            "workspace": "1024"
-        }
-    sym1 = attach_quantize_node(sym, None, base_quant_attrs, quantized_op=quantized_op)
-    sym1.save("attached_quant.json")
+    sym1, _, _ = merge_bn(sym, None, None, True)
