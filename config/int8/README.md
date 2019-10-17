@@ -38,7 +38,7 @@ the quantization config is in the `ModelParam.QuantizeTrainingParam` class.
 
 | model                        | fp32  | int8 training(quantize conv and fc) |
 | ---------------------------- | ----- | ----------------------------------- |
-| faster_r50v1bc4_c5_512roi_1x | 0.357 | 0.357                               |
+| faster_r50v1bc4_c5_512roi_1x | 0.357 | 0.358                               |
 
 #### how to Recurring result
 
