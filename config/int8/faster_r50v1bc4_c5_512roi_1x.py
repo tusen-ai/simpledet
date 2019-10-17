@@ -145,7 +145,7 @@ def get_config(is_train):
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
         class QuantizeTrainingParam:
-            quantize_flag = False
+            quantize_flag = True
             # quantized_op = ("Convolution", "FullyConnected", "Deconvolution","Concat", "Pooling", "add_n", "elemwise_add")
             quantized_op = ("Convolution", "FullyConnected", "Deconvolution")
 

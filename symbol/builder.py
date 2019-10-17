@@ -893,7 +893,7 @@ class RoiAlign(RoiExtractor):
         if p.fp16:
             roi_feat = X.to_fp16(roi_feat, "roi_feat_to_fp16")
 
-        roi_feat = X.reshape(roi_feat, (-3, -2))
+        roi_feat = X.reshape(roi_feat, (-3, -2), name = "roi_align_reshape")
 
         return roi_feat
 
