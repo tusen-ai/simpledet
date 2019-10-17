@@ -9,8 +9,8 @@ import numpy as np
 def parse_argument():
     parser = argparse.ArgumentParser("Convert json gt to roidb")
     parser.add_argument("--json", type=str, required=True)
-    parser.parse_args()
-    return parser.json
+    args = parser.parse_args()
+    return args.json
 
 
 def json_to_roidb(json_path):
