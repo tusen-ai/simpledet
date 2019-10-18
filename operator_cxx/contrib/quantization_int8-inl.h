@@ -204,12 +204,9 @@ class Quantization_int8Op : public Operator {
                 init = false;
             }
             else {
-              DType old_aux = DType(0.0f);
-              Tensor<cpu, 1, DType> old_aux_tensor(&old_aux, Shape1(1), s_cpu);
-              mshadow::Copy(old_aux_tensor, aux, s);
-              mshadow::Copy(threshold_tensor, max_val, s);
-              old_aux = param_.ema_decay * old_aux + (1 - param_.ema_decay) * threshold;
-              mshadow::Copy(aux, old_aux_tensor, s);
+              const ScalarExp<DType> ema_scalar(param_.ema_decay);
+              const ScalarExp<DType> ema_minus_scalar(1 - param_.ema_decay);
+              aux = ema_scalar * aux + ema_minus_scalar * max_val;
             }
           }
           // DType quant_unit = aux[0] / QUANT_LEVEL;
@@ -265,7 +262,7 @@ class Quantization_int8Op : public Operator {
     }
     else if (param_.grad_mode == std::string("clip")) {
       Tensor<xpu, 1, uint8_t> workspace = ctx.requested[Quantization_int8_enum::kTempSpace]
-        .get_space_typed<xpu, 1, uint8_t>(Shape1(2 * data.shape_.Size() * sizeof(DType)), s);
+        .get_space_typed<xpu, 1, uint8_t>(Shape1(2 * data.shape_.Size() * sizeof(DType) + sizeof(DType)), s);
       uint64_t allocated_bytes = 0ULL;
       Tensor<xpu, 4, DType> clip_condition(reinterpret_cast<DType*>(workspace.dptr_ + allocated_bytes), data.shape_, s);
       allocated_bytes += clip_condition.shape_.Size() * sizeof(DType);
