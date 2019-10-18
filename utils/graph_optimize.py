@@ -108,7 +108,7 @@ def merge_bn(symbol, args, auxs, symbol_only=False):
     outputs = outputs[0] if len(outputs) == 1 else mx.sym.Group(outputs)
     return outputs, args, auxs
 
-def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_attrs, quantized_op=("Convolution", "FullyConnected", "Deconvolution")):
+def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_attrs, quantized_op=None):
     """
     Adapted from https://github.com/dmlc/tvm/blob/master/python/tvm/relay/frontend/mxnet.py
     Instead of translating nnvm graph into TVM relay graph, we adapt the script to translate
@@ -117,6 +117,9 @@ def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_a
     assert symbol is not None
     assert weight_quant_attrs is not None
     assert act_quant_attrs is not None
+
+    quantized_op = quantized_op or ("Convolution", "FullyConnected", "Deconvolution",
+                                    "Concat", "concat", "Pooling", "add_n", "elemwise_add")
 
     weight_quant_attrs = convert_class_to_dict(weight_quant_attrs)
     act_quant_attrs = convert_class_to_dict(act_quant_attrs)    
@@ -187,6 +190,7 @@ def attach_quantize_node(symbol, out_shape_dict, weight_quant_attrs, act_quant_a
             node_map[nid] = res
             node_op_map[nid] = [op_name]
         else:
+            print("Warning {} don't support quantization training currently.".format(op_name))
             if op_name.startswith("_contrib_"):
                 op_name = op_name.replace("_contrib_", "")
                 operator = eval("mx.sym.contrib." + op_name)
