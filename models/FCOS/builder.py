@@ -10,7 +10,7 @@ from models.FCOS.loss import IoULoss, make_sigmoid_focal_loss, make_binary_cross
 from models.FCOS.utils import GetProposalSingleStageProp, GetBatchProposalProp
 from models.FCOS.input import make_fcos_gt
 
-class FCOSFPNRpnHead():
+class FCOSFPNHead():
     def __init__(self, pRpn):
         self.p = patch_config_as_nothrow(pRpn)
 
@@ -53,7 +53,7 @@ class FCOSFPNRpnHead():
         offset_conv5_b = X.var(name="offset_conv5_3x3_bias", init=X.zero_init(), lr_mult=2, wd_mult=0)
 
 
-        for stride in p.anchor_generate.stride:
+        for stride in p.FCOSParam.stride:
             # centerness & cls shared layer
             shared_conv1 = X.conv(
                            conv_fpn_feat['stride%s' % stride],
@@ -105,7 +105,7 @@ class FCOSFPNRpnHead():
             cls_logit = X.conv(
                           shared_relu4,
                           kernel=3,
-                          filter=p.bbox_target.num_reg_class - 1,	# remove bg channel
+                          filter=p.FCOSParam.num_classifier,		# remove bg channel
                           name="cls_conv_3x3_%s" % stride,
                           no_bias=False,
                           weight=cls_conv_w,
@@ -192,7 +192,10 @@ class FCOSFPNRpnHead():
         ignore_offset = X.block_grad(X.var('ignore_offset', init=X.constant(p.loss_setting.ignore_offset), shape=(1,1,1)))
         gt_bbox = X.var('gt_bbox')
         im_info = X.var('im_info')
-        centerness_labels, cls_labels, offset_labels = make_fcos_gt(gt_bbox, im_info, p.loss_setting.ignore_offset, p.loss_setting.ignore_label)
+        centerness_labels, cls_labels, offset_labels = make_fcos_gt(gt_bbox, im_info,
+                                                                    p.loss_setting.ignore_offset,
+                                                                    p.loss_setting.ignore_label,
+                                                                    p.FCOSParam.num_classifier)
         centerness_labels = X.block_grad(centerness_labels)
         cls_labels = X.block_grad(cls_labels)
         offset_labels = X.block_grad(offset_labels)
@@ -201,7 +204,7 @@ class FCOSFPNRpnHead():
         cls_logit_dict_list = []
         centerness_logit_dict_list = []
         offset_logit_dict_list = []
-        for idx, stride in enumerate(p.anchor_generate.stride):
+        for idx, stride in enumerate(p.FCOSParam.stride):
             # (c,H1,W1), (c,H2,W2), ..., (c,H5,W5) -> (H1W1+H2W2+...+H5W5), ...c..., (H1W1+H2W2+...+H5W5)
             cls_logit_dict_list.append(mx.sym.reshape(cls_logit_dict[stride], shape=(0,0,-1)))
             centerness_logit_dict_list.append(mx.sym.reshape(centerness_logit_dict[stride], shape=(0,0,-1)))
@@ -234,7 +237,7 @@ class FCOSFPNRpnHead():
         all_stage_bboxes = []
 
         # iterate over all stages
-        for stride in p.anchor_generate.stride:
+        for stride in p.FCOSParam.stride:
 
             centerness_logit = mx.sym.sigmoid(centerness_logit_dict[stride])
             cls_logit = mx.sym.sigmoid(cls_logit_dict[stride])

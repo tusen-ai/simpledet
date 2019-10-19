@@ -113,85 +113,7 @@ class PreMakeFCOSGTProp(mx.operator.CustomOpProp):
         return PreMakeFCOSgt(self.p)
 
 
-class MakeFCOS_cls_gt(mx.operator.CustomOp):
-
-    def __init__(self, fcos_gt_setting):
-        super(MakeFCOS_cls_gt, self).__init__()
-        self.p = fcos_gt_setting
-        self.batch_idx = None
-        self.spatial_idx = None
-        self.N = None
-        self.HW = None
-
-    def forward(self, is_train, req, in_data, out_data, aux):
-        bboxes = in_data[0]
-        smallest_box_id = in_data[1]
-
-        if self.N is None:									# compute only once
-            self.N = bboxes.shape[0]
-            self.HW = smallest_box_id.shape[-1]
-
-        # cls
-        bbox_cls = []
-        for n in range(self.N):
-            bbox_cls.append(bboxes[n,:,4].flatten()[smallest_box_id[n,0,:].astype(int)].astype(int))
-												# [(HW) * N]
-        bbox_cls = mx.nd.concat(*bbox_cls, dim=0).reshape(-1)
-        bbox_cls = bbox_cls - 1
-
-        if self.spatial_idx is None:								# compute only once
-            batch_idx = []
-            spatial_idx = []
-            HW_arange = mx.nd.arange(self.HW, dtype=int)
-            for n in range(self.N):
-                batch_idx.append(mx.nd.full(self.HW, n, dtype=int))
-                spatial_idx.append(HW_arange)
-            self.batch_idx = mx.nd.concat(*batch_idx, dim=0)
-            self.spatial_idx = mx.nd.concat(*spatial_idx, dim=0)
-
-        cls_gt = mx.nd.zeros((self.N, self.p.num_classifier, self.HW), dtype=np.float32)	# (N, 80 for COCO, HW), one-hot matrix
-        cls_gt[self.batch_idx, bbox_cls, self.spatial_idx] = 1
-        #cls_gt = mx.nd.broadcast_mul(lhs=cls_gt, rhs=mx.nd.expand_dims(in_box_area[:,0,:], axis=1))# moved outside
-        self.assign(out_data[0], req[0], cls_gt)
-
-        return
-
-    def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        pass
-
-@mx.operator.register("make_fcos_cls_gt")
-class MakeFCOS_CLS_GTProp(mx.operator.CustomOpProp):
-    def __init__(self):
-        super(MakeFCOS_CLS_GTProp, self).__init__(need_top_grad=False)
-        from config.fcos_r50v1_fpn_1x import throwout_param
-        self.p = throwout_param
-        self.stride = self.p.stride
-        self.data_size = self.p.data_size
-
-    def list_arguments(self):
-        return ['gt_bbox', 'smallest_box_id']
-
-    def list_outputs(self):
-        return ['cls_gt']
-
-    def infer_shape(self, in_shape):
-        n = in_shape[0][0]
-        h, w = self.data_size
-        hw = 0
-        for stride in self.stride:
-            width = len(range(0,w,stride))
-            height = len(range(0,h,stride))
-            hw += height * width
-        return in_shape, [[n,self.p.num_classifier,hw]], []
-
-    def infer_type(self, in_type):
-        return in_type, [in_type[0]], []
-
-    def create_operator(self, ctx, shapes, dtypes):
-        return MakeFCOS_cls_gt(self.p)
-
-
-def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label):
+def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label, num_classifier):
     loc_x, loc_y, stage_lowerbound, stage_upperbound, nonignore_area = mx.sym.Custom(gt_bbox=gt_bbox, im_info=im_info, op_type='make_fcos_gt_preparation', name='pre_fcos_gt')
 
     bboxes = gt_bbox
@@ -227,8 +149,8 @@ def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label):
                                      rhs=(1 - stage_assign_mask) * 1e10
                                    )						# box[!stage_assign_mask] = MAX_BBOX_SIZE
     smallest_box_id = mx.sym.argmin(box_size, axis=2)				# (N, 1, HW)
-    smallest_box_id = mx.sym.tile(smallest_box_id, reps=(1,4,1))		# (N, 4, HW)
-    offset_gt = mx.sym.reshape_like( mx.sym.pick(offset_gt, smallest_box_id, axis=2), smallest_box_id )
+    smallest_box_ids = mx.sym.tile(smallest_box_id, reps=(1,4,1))		# (N, 4, HW)
+    offset_gt = mx.sym.reshape_like( mx.sym.pick(offset_gt, smallest_box_ids, axis=2), smallest_box_ids )
                                                                                 # (N, 4, HW)
 
     in_box_area = offset_gt != ignore_offset
@@ -251,7 +173,9 @@ def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label):
 										# (N, HW), centerness_gt*in_box_area[:,0,:]
 
     # cls
-    cls_gt = mx.sym.Custom(gt_bbox=gt_bbox, smallest_box_id=smallest_box_id, op_type='make_fcos_cls_gt', name='fcos_cls_gt')
+    smallest_box_id = smallest_box_id.reshape((0,-1))				# (N, HW)
+    cls_gt = mx.sym.one_hot(smallest_box_id, num_classifier)			# (N, HW, num_cls)
+    cls_gt = mx.sym.transpose(cls_gt, axes=(0,2,1))				# (N, num_cls, HW)
     cls_gt = mx.sym.broadcast_mul( lhs=cls_gt, rhs=mx.sym.slice(in_box_area, begin=(None,0,None), end=(None,1,None)) )
         
     # ignore label

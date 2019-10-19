@@ -1,7 +1,7 @@
 from symbol.builder import RPN as Detector
 from models.FCOS.builder import MSRAResNet50V1FPN as Backbone
 from models.FCOS.builder import FCOSFPNNeck as Neck
-from models.FCOS.builder import FCOSFPNRpnHead as RpnHead
+from models.FCOS.builder import FCOSFPNHead as RpnHead
 from mxnext.complicate import normalizer_factory
 
 INF=1e10
@@ -11,13 +11,12 @@ throwout_param = None
 def get_config(is_train):
     class General:
         log_frequency = 20
-        from datetime import datetime
-        name = __name__.rsplit("/")[-1].rsplit(".")[-1] + '_FCOS'
+        name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
         fp16 = False
         loader_worker = 4
         loader_collector = 2
-        profile = True
+        profile = False
 
 
     class KvstoreParam:
@@ -32,33 +31,17 @@ def get_config(is_train):
 
 
     class BboxParam:
-        fp16 = General.fp16
-        normalizer = NormalizeParam.normalizer
-        num_class   = 1 + 80
-        image_roi   = 512
-        batch_image = General.batch_image
-
-        class regress_target:
-            class_agnostic = False
-            mean = (0.0, 0.0, 0.0, 0.0)
-            std = (0.1, 0.1, 0.2, 0.2)
+        pass
 
 
     class RoiParam:
-        fp16 = General.fp16
-        normalizer = NormalizeParam.normalizer
+        pass
 
 
     class RpnParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
-
-        class anchor_generate:
-            scale = (8,)
-            ratio = (0.5, 1.0, 2.0)
-            stride = (8, 16, 32, 64, 128)
-            image_anchor = 256
 
         class head:
             conv_channel = 256
@@ -81,18 +64,15 @@ def get_config(is_train):
             bg_thr_hi = 0.5
             bg_thr_lo = 0.0
 
-        class bbox_target:
-            num_reg_class = 81
-            class_agnostic = False
-            weight = (1.0, 1.0, 1.0, 1.0)
-            mean = (0.0, 0.0, 0.0, 0.0)
-            std = (0.1, 0.1, 0.2, 0.2)
-
         class loss_setting:
             focal_loss_alpha = 0.25
             focal_loss_gamma = 2.0
             ignore_label = -1
             ignore_offset = -1
+
+        class FCOSParam:
+            num_classifier = 81 - 1			# COCO: 80 object + 1 background
+            stride = (8, 16, 32, 64, 128)
 
 
     # data processing
@@ -120,8 +100,8 @@ def get_config(is_train):
                   [256, 512],
                   [512, INF],
                  ]
-        stride = RpnParam.anchor_generate.stride
-        num_classifier = BboxParam.num_class - 1
+        stride = (8, 16, 32, 64, 128)
+        num_classifier = 81 - 1			# COCO: 80 object + 1 background
         ignore_label = RpnParam.loss_setting.ignore_label
         ignore_offset = RpnParam.loss_setting.ignore_offset
         data_size = [PadParam.short, PadParam.long]
@@ -147,6 +127,7 @@ def get_config(is_train):
             image_set = ("coco_minival2014", )
 
 
+    # throw out param used as custom op's input
     global throwout_param
     throwout_param = FCOSFPNAssignParam		# This line MUST be in front of rpn_head = RpnHead(RpnParam)
 
@@ -175,7 +156,7 @@ def get_config(is_train):
         memonger_until = "stage3_unit21_plus"
 
         class pretrain:
-            prefix = "./resnet-v1-50"
+            prefix = "pretrain_model/resnet-101"
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
@@ -208,7 +189,7 @@ def get_config(is_train):
         process_output = lambda x, y: x
 
         class model:
-            prefix = 'experiments/fcos_r50v1_fpn_1x_FCOS/checkpoint'
+            prefix = "experiments/{}/checkpoint".format(General.name)
             epoch = OptimizeParam.schedule.end_epoch
 
         class nms:
@@ -248,9 +229,9 @@ def get_config(is_train):
 
     import models.FCOS.metric as metric
 
-    centerness_loss_metric = metric.LossMeter(RpnParam.anchor_generate.stride, pred_id_start=0, pred_id_end=1, name='centernessloss_meter')
-    cls_loss_metric = metric.LossMeter(RpnParam.anchor_generate.stride, pred_id_start=1, pred_id_end=2, name='clsloss_meter')
-    reg_loss_metric = metric.LossMeter(RpnParam.anchor_generate.stride, pred_id_start=2, pred_id_end=3, name='offsetloss_meter')
+    centerness_loss_metric = metric.LossMeter(RpnParam.FCOSParam.stride, pred_id_start=0, pred_id_end=1, name='centernessloss_meter')
+    cls_loss_metric = metric.LossMeter(RpnParam.FCOSParam.stride, pred_id_start=1, pred_id_end=2, name='clsloss_meter')
+    reg_loss_metric = metric.LossMeter(RpnParam.FCOSParam.stride, pred_id_start=2, pred_id_end=3, name='offsetloss_meter')
 
     metric_list = [centerness_loss_metric, cls_loss_metric, reg_loss_metric]
 
