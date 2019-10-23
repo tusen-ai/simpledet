@@ -304,8 +304,9 @@ class Pad2DImageBbox(DetectionAugmentation):
         image = input_record["image"]
         gt_bbox = input_record["gt_bbox"]
 
+        origin_h, origin_w = input_record["h"], input_record["w"]
         h, w = image.shape[:2]
-        shape = (p.long, p.short, 3) if h >= w \
+        shape = (p.long, p.short, 3) if origin_h >= origin_w \
             else (p.short, p.long, 3)
 
         padded_image = np.zeros(shape, dtype=np.float32)
@@ -334,8 +335,9 @@ class Pad2DImage(DetectionAugmentation):
 
         image = input_record["image"]
 
+        origin_h, origin_w = input_record["h"], input_record["w"]
         h, w = image.shape[:2]
-        shape = (p.long, p.short, 3) if h >= w \
+        shape = (p.long, p.short, 3) if origin_h >= origin_w \
             else (p.short, p.long, 3)
 
         padded_image = np.zeros(shape, dtype=np.float32)
