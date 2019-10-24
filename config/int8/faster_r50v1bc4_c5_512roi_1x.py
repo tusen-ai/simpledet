@@ -1,9 +1,10 @@
 from symbol.builder import FasterRcnn as Detector
-from symbol.builder import ResNet50V1 as Backbone
+from symbol.builder import ResNetV1bC4 as Backbone
 from symbol.builder import Neck
 from symbol.builder import RpnHead
 from symbol.builder import RoiAlign as RoiExtractor
 from symbol.builder import BboxC5V1Head as BboxHead
+from symbol.builder import add_anchor_to_arg
 from mxnext.complicate import normalizer_factory
 
 
@@ -13,6 +14,9 @@ def get_config(is_train):
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
         batch_image = 2 if is_train else 1
         fp16 = False
+        long_side = 1200
+        short_side = 800
+
 
     class KvstoreParam:
         kvstore     = "local"
@@ -29,6 +33,7 @@ def get_config(is_train):
     class BackboneParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
+        depth = 50
 
 
     class NeckParam:
@@ -40,11 +45,13 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        use_symbolic_proposal = None
 
         class anchor_generate:
             scale = (2, 4, 8, 16, 32)
             ratio = (0.5, 1.0, 2.0)
             stride = 16
+            max_side = General.long_side
             image_anchor = 256
 
         class head:
@@ -96,9 +103,9 @@ def get_config(is_train):
 
     class DatasetParam:
         if is_train:
-            image_set = ("coco_train2017", )
+            image_set = ("coco_train2014", "coco_valminusminival2014")
         else:
-            image_set = ("coco_val2017", )
+            image_set = ("coco_minival2014", )
 
     backbone = Backbone(BackboneParam)
     neck = Neck(NeckParam)
@@ -126,11 +133,37 @@ def get_config(is_train):
         memonger = False
         memonger_until = "stage3_unit21_plus"
 
+        process_weight = lambda sym, arg, aux: \
+            add_anchor_to_arg(
+                sym, arg, aux, RpnParam.anchor_generate.max_side,
+                RpnParam.anchor_generate.stride,RpnParam.anchor_generate.scale,
+                RpnParam.anchor_generate.ratio)
+
         class pretrain:
-            prefix = "pretrain_model/resnet-v1-50"
+            prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        class QuantizeTrainingParam:
+            quantize_flag = True
+            # quantized_op = ("Convolution", "FullyConnected", "Deconvolution","Concat", "Pooling", "add_n", "elemwise_add")
+            quantized_op = ("Convolution", "FullyConnected", "Deconvolution")
+
+            class WeightQuantizeParam:
+                delay_quant = 0
+                ema_decay = 0.99
+                grad_mode = "ste"
+                is_weight = True
+                is_weight_perchannel = False
+                quant_mode = "minmax"
+
+            class ActQuantizeParam:
+                delay_quant = 0
+                ema_decay = 0.99
+                grad_mode = "ste"
+                is_weight = False
+                is_weight_perchannel = False
+                quant_mode = "minmax"
 
     class OptimizeParam:
         class optimizer:
@@ -141,8 +174,8 @@ def get_config(is_train):
             clip_gradient = 35
 
         class schedule:
-            begin_epoch = 0
-            end_epoch = 6
+            begin_epoch = 6
+            end_epoch = 12
             lr_iter = [60000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image),
                        80000 * 16 // (len(KvstoreParam.gpus) * KvstoreParam.batch_image)]
 
@@ -172,28 +205,28 @@ def get_config(is_train):
 
     # data processing
     class NormParam:
-        mean = (122.7717, 115.9465, 102.9801) # RGB order
-        std = (1.0, 1.0, 1.0)
+        mean = tuple(i * 255 for i in (0.485, 0.456, 0.406)) # RGB order
+        std = tuple(i * 255 for i in (0.229, 0.224, 0.225))
 
 
     class ResizeParam:
-        short = 800
-        long = 1200 if is_train else 2000
+        short = General.short_side
+        long = General.long_side
 
 
     class PadParam:
-        short = 800
-        long = 1200
+        short = ResizeParam.short
+        long = ResizeParam.long
         max_num_gt = 100
 
 
     class AnchorTarget2DParam:
         class generate:
-            short = 800 // 16
-            long = 1200 // 16
-            stride = 16
-            scales = (2, 4, 8, 16, 32)
-            aspects = (0.5, 1.0, 2.0)
+            short = ResizeParam.short // RpnParam.anchor_generate.stride
+            long = ResizeParam.long // RpnParam.anchor_generate.stride
+            stride = RpnParam.anchor_generate.stride
+            scales = RpnParam.anchor_generate.scale
+            aspects = RpnParam.anchor_generate.ratio
 
         class assign:
             allowed_border = 0
@@ -202,7 +235,7 @@ def get_config(is_train):
             min_pos_thr = 0.0
 
         class sample:
-            image_anchor = 256
+            image_anchor = RpnParam.anchor_generate.image_anchor
             pos_fraction = 0.5
 
 
@@ -212,7 +245,7 @@ def get_config(is_train):
 
     from core.detection_input import ReadRoiRecord, Resize2DImageBbox, \
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
-        RenameRecord, AnchorTarget2D, Norm2DImage
+        RenameRecord, AnchorTarget2D, Norm2DImage, Pad2DImage
 
     if is_train:
         transform = [
@@ -232,6 +265,7 @@ def get_config(is_train):
             ReadRoiRecord(None),
             Norm2DImage(NormParam),
             Resize2DImageBbox(ResizeParam),
+            Pad2DImage(PadParam),
             ConvertImageFromHwcToChw(),
             RenameRecord(RenameParam.mapping)
         ]

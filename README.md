@@ -23,6 +23,7 @@
 - Add FitNet based Knowledge Distill (2019.08.27)
 - Add SE and train from scratch (2019.08.30)
 - Add a lot of docs (2019.09.03)
+- Add support for INT8 training (2019.10.24)
 
 ### Setup
 #### All-in-one Script
