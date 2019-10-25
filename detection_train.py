@@ -232,7 +232,7 @@ def train_net(config):
                 mode='cosine',
                 base_lr=base_lr,
                 target_lr=0,
-                niters=(iter_per_epoch * (end_epoch - begin_epoch)) // kv.num_workers - pOpt.warmup.iter
+                niters=(iter_per_epoch * (end_epoch - begin_epoch)) - pOpt.warmup.iter
             )
             lr_scheduler = LRSequential([warmup_lr_scheduler, cosine_lr_scheduler])
         else:
@@ -245,7 +245,7 @@ def train_net(config):
                 mode='cosine',
                 base_lr=base_lr,
                 target_lr=0,
-                niters=iter_per_epoch * (end_epoch - begin_epoch) // kv.num_workers
+                niters=iter_per_epoch * (end_epoch - begin_epoch)
             )
         else:
             lr_scheduler = None
