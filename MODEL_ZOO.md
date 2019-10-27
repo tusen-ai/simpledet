@@ -13,19 +13,19 @@ This file documents a large collection of baselines trained with SimpleDet.
 
 We provide the ImageNet pretrained models used by SimpleDet. Unless otherwise noted, these models are trained on the standard ImageNet-1k dataset.
 
-- [resnet-v1-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-50-0000.params): converted copy of MSRA's original ResNet-50 model.
-- [resnet-v1-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-v1-101-0000.params): converted copy of MSRA's original ResNet-101 model.
-- [resnet-50](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-50-0000.params): ResNet-v2-50 model provided by MXNet Model Gallery.
-- [resnet-101](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet-101-0000.params): ResNet-v2-101 model provided by MXNet Model Gallery.
-- [resnet50_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet50_v1b-0000.params):
+- [resnet-v1-50](https://1dv.alarge.space/resnet-v1-50-0000.params): converted copy of MSRA's original ResNet-50 model.
+- [resnet-v1-101](https://1dv.alarge.space/resnet-v1-101-0000.params): converted copy of MSRA's original ResNet-101 model.
+- [resnet-50](https://1dv.alarge.space/resnet-50-0000.params): ResNet-v2-50 model provided by MXNet Model Gallery.
+- [resnet-101](https://1dv.alarge.space/resnet-101-0000.params): ResNet-v2-101 model provided by MXNet Model Gallery.
+- [resnet50_v1b](https://1dv.alarge.space/resnet50_v1b-0000.params):
 converted from gluoncv.
-- [resnet101_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet101_v1b-0000.params):
+- [resnet101_v1b](https://1dv.alarge.space/resnet101_v1b-0000.params):
 converted from gluoncv.
-- [resnet152_v1b](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnet152_v1b-0000.params):
+- [resnet152_v1b](https://1dv.alarge.space/resnet152_v1b-0000.params):
 converted from gluoncv.
-- [resnext-101-64x4d](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-101-64x4d-0000.params): converted copy of FB's original ResNeXt-101-64x4d model.
-- [resnext-101-32x8d](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-101-32x8d-0000.params): converted copy of FB's ResNeXt-101-32x8d model.
-- [resnext-152-32x8d-IN5k](https://simpledet-model.oss-cn-beijing.aliyuncs.com/resnext-152-32x8d-IN5k-0000.params): converted copy of FB's ResNeXt-152-32x8d-IN5k model **trained on ImageNet-5k**.
+- [resnext-101-64x4d](https://1dv.alarge.space/resnext-101-64x4d-0000.params): converted copy of FB's original ResNeXt-101-64x4d model.
+- [resnext-101-32x8d](https://1dv.alarge.space/resnext-101-32x8d-0000.params): converted copy of FB's ResNeXt-101-32x8d model.
+- [resnext-152-32x8d-IN5k](https://1dv.alarge.space/resnext-152-32x8d-IN5k-0000.params): converted copy of FB's ResNeXt-152-32x8d-IN5k model **trained on ImageNet-5k**.
 
 ## ResNetV1b Baselines
 All config files can be found in config/resnet_v1b.
@@ -91,25 +91,25 @@ All AP results are reported on minival2014 of the [COCO dataset](http://cocodata
 
 |Model|Backbone|Head|Train Schedule|GPU|Image/GPU|FP16|Train MEM|Train Speed|Box AP(Mask AP)|Link|
 |-----|--------|----|--------------|---|---------|----|---------|-----------|---------------|----|
-|Faster|R50v1-C4|C5-512ROI|1X|8X 1080Ti|2|no|5.9G(4.5G)|20 img/s|34.2|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r50v1c4_c5_512roi_1x.zip)|
-|Faster|R50v1-C4|C5-512ROI|1X|8X TitanV|2|yes|6.1G|49 img/s|34.4|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r50v1c4_c5_512roi_1x_fp16.zip)|
-|Faster|R50v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|5.1G|33 img/s|32.8|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r50v2c4_c5_256roi_1x.zip)|
-|Cascade|R50v2-C5|2MLP|1X|8X 1080Ti|2|no|5.9G|25 img/s|38.8|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r50v2_c5_red_1x.zip)|
-|Cascade|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|6.6G|21 img/s|40.3|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r50v1_fpn_1x.zip)|
-|Faster|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|4.2G(2.6G)|43 img/s|36.5|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r50v1_fpn_1x.zip)|
-|Mask|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|5.7G(3.6G)|35 img/s|37.1(33.7)|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/mask_r50v1_fpn_1x.zip)|
-|Retina|R50v1-FPN|4Conv|1X|8X 1080Ti|2|no|4.7G(2.2G)|44 img/s|35.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/retina_r50v1_fpn_1x.zip)|
-|Trident|R50v2-C4|C5-128ROI|1X|8X 1080Ti|2|no|7.0G(5.3G)|20 img/s|37.1|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r50v2c4_c5_1x.zip)|
-|Faster|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|6.7G|25 img/s|37.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v2c4_c5_256roi_1x.zip)|
-|Faster-SyncBN|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|7.8G|17 img/s|38.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v2c4_c5_256roi_syncbn_1x.zip)|
-|Faster|R101v1-C4|C5-512ROI|1X|8X 1080Ti|2|no|10.2G|16 img/s|38.3|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v1c4_c5_512roi_1x.zip)|
-|Faster|R101v1-C4|C5-512ROI|1X|8X TitanV|2|yes|7.0G|35 img/s|38.1|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v1c4_c5_512roi_1x_fp16.zip)|
-|Faster|R101v1-FPN|2MLP|1X|8X 1080Ti|2|no|5.3G(3.4G)|31 img/s|38.7|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v1_fpn_1x.zip)|
-|Cascade|R101v2-C5|2MLP|1X|8X 1080Ti|2|no|7.6G|22 img/s|41.0|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r101v2_c5_red_1x.zip)|
-|Cascade|R101v1-FPN|2MLP|1X|8X 1080Ti|2|no|8.7G|19 img/s|42.3|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/cascade_r101v1_fpn_1x.zip)|
-|Trident|R101v2-C4|C5-128ROI|1X|8X 1080Ti|1|no|6.6G|9 img/s|40.6|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_1x.zip)|
-|Trident-Fast|R101v2-C4|C5-128ROI|1X|8X 1080Ti|1|no|6.6G|9 img/s|39.9|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_fastapprox_1x.zip)|
-|Retina|R101v1-FPN|4Conv|1X|8X 1080Ti|2|no|5.9G(3.0G)|31 img/s|37.8|[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/retina_r101v1_fpn_1x.zip)|
+|Faster|R50v1-C4|C5-512ROI|1X|8X 1080Ti|2|no|5.9G(4.5G)|20 img/s|34.2|[model](https://1dv.alarge.space/faster_r50v1c4_c5_512roi_1x.zip)|
+|Faster|R50v1-C4|C5-512ROI|1X|8X TitanV|2|yes|6.1G|49 img/s|34.4|[model](https://1dv.alarge.space/faster_r50v1c4_c5_512roi_1x_fp16.zip)|
+|Faster|R50v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|5.1G|33 img/s|32.8|[model](https://1dv.alarge.space/faster_r50v2c4_c5_256roi_1x.zip)|
+|Cascade|R50v2-C5|2MLP|1X|8X 1080Ti|2|no|5.9G|25 img/s|38.8|[model](https://1dv.alarge.space/cascade_r50v2_c5_red_1x.zip)|
+|Cascade|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|6.6G|21 img/s|40.3|[model](https://1dv.alarge.space/cascade_r50v1_fpn_1x.zip)|
+|Faster|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|4.2G(2.6G)|43 img/s|36.5|[model](https://1dv.alarge.space/faster_r50v1_fpn_1x.zip)|
+|Mask|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|5.7G(3.6G)|35 img/s|37.1(33.7)|[model](https://1dv.alarge.space/mask_r50v1_fpn_1x.zip)|
+|Retina|R50v1-FPN|4Conv|1X|8X 1080Ti|2|no|4.7G(2.2G)|44 img/s|35.6|[model](https://1dv.alarge.space/retina_r50v1_fpn_1x.zip)|
+|Trident|R50v2-C4|C5-128ROI|1X|8X 1080Ti|2|no|7.0G(5.3G)|20 img/s|37.1|[model](https://1dv.alarge.space/tridentnet_r50v2c4_c5_1x.zip)|
+|Faster|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|6.7G|25 img/s|37.6|[model](https://1dv.alarge.space/faster_r101v2c4_c5_256roi_1x.zip)|
+|Faster-SyncBN|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|7.8G|17 img/s|38.6|[model](https://1dv.alarge.space/faster_r101v2c4_c5_256roi_syncbn_1x.zip)|
+|Faster|R101v1-C4|C5-512ROI|1X|8X 1080Ti|2|no|10.2G|16 img/s|38.3|[model](https://1dv.alarge.space/faster_r101v1c4_c5_512roi_1x.zip)|
+|Faster|R101v1-C4|C5-512ROI|1X|8X TitanV|2|yes|7.0G|35 img/s|38.1|[model](https://1dv.alarge.space/faster_r101v1c4_c5_512roi_1x_fp16.zip)|
+|Faster|R101v1-FPN|2MLP|1X|8X 1080Ti|2|no|5.3G(3.4G)|31 img/s|38.7|[model](https://1dv.alarge.space/faster_r101v1_fpn_1x.zip)|
+|Cascade|R101v2-C5|2MLP|1X|8X 1080Ti|2|no|7.6G|22 img/s|41.0|[model](https://1dv.alarge.space/cascade_r101v2_c5_red_1x.zip)|
+|Cascade|R101v1-FPN|2MLP|1X|8X 1080Ti|2|no|8.7G|19 img/s|42.3|[model](https://1dv.alarge.space/cascade_r101v1_fpn_1x.zip)|
+|Trident|R101v2-C4|C5-128ROI|1X|8X 1080Ti|1|no|6.6G|9 img/s|40.6|[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_1x.zip)|
+|Trident-Fast|R101v2-C4|C5-128ROI|1X|8X 1080Ti|1|no|6.6G|9 img/s|39.9|[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_fastapprox_1x.zip)|
+|Retina|R101v1-FPN|4Conv|1X|8X 1080Ti|2|no|5.9G(3.0G)|31 img/s|37.8|[model](https://1dv.alarge.space/retina_r101v1_fpn_1x.zip)|
 
 ## FP16 Speed Benchmark
 Here we provide the FP16 speeed benchmark results of several models.
