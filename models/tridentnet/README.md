@@ -27,11 +27,11 @@ Please setup SimpleDet following [README](../../README.md) and [INSTALL](../../d
 
 |                             | Backbone   | Test data | mAP@[0.5:0.95] | Link |
 | --------------------------- | ---------- | --------- | :------------: | -----|
-| Faster R-CNN, 1x            | ResNet-101 | minival   |      37.6      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/faster_r101v2c4_c5_256roi_1x.zip)|
-| TridentNet, 1x              | ResNet-101 | minival   |      40.6      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_1x.zip)|
-| TridentNet, 1x, Fast Approx | ResNet-101 | minival   |      39.9      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_fastapprox_1x.zip)|
-| TridentNet, 2x              | ResNet-101 | test-dev  |      42.8      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_addminival_2x.zip)|
-| TridentNet*, 3x             | ResNet-101 | test-dev  |      48.4      |[model](https://simpledet-model.oss-cn-beijing.aliyuncs.com/tridentnet_r101v2c4_c5_multiscale_addminival_3x_fp16.zip)|
+| Faster R-CNN, 1x            | ResNet-101 | minival   |      37.6      |[model](https://1dv.alarge.space/faster_r101v2c4_c5_256roi_1x.zip)|
+| TridentNet, 1x              | ResNet-101 | minival   |      40.6      |[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_1x.zip)|
+| TridentNet, 1x, Fast Approx | ResNet-101 | minival   |      39.9      |[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_fastapprox_1x.zip)|
+| TridentNet, 2x              | ResNet-101 | test-dev  |      42.8      |[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_addminival_2x.zip)|
+| TridentNet*, 3x             | ResNet-101 | test-dev  |      48.4      |[model](https://1dv.alarge.space/tridentnet_r101v2c4_c5_multiscale_addminival_3x_fp16.zip)|
 
 Note: 
 1. These models are not trained in SimpleDet. Re-training these models in SimpleDet gives a slightly better result.
