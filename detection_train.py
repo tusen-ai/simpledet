@@ -129,6 +129,9 @@ def train_net(config):
     elif pModel.from_scratch:
         arg_params, aux_params = dict(), dict()
     else:
+        if not os.path.exists("%s-%04d.params" % (pretrain_prefix, pretrain_epoch)):
+            from utils.download_pretrain import download
+            download(pretrain_prefix, pretrain_epoch)
         arg_params, aux_params = load_checkpoint(pretrain_prefix, pretrain_epoch)
 
     if pModel.process_weight is not None:
