@@ -30,25 +30,30 @@
 We provide a [setup script](./scripts/setup.sh) for install simpledet and preppare the coco dataset. If you use this script, you can skip to the Quick Start.
 
 #### Install
-We provide a local installation here for Debian/Ubuntu system. To use a pre-built docker or singularity images, please refer to [INSTALL.md](./doc/INSTALL.md) for more information.
+We provide a conda installation here for Debian/Ubuntu system. To use a pre-built docker or singularity images, please refer to [INSTALL.md](./doc/INSTALL.md) for more information.
 
 ```bash
 # install dependency
 sudo apt update && sudo apt install -y git wget make python3-dev libglib2.0-0 libsm6 libxext6 libxrender-dev unzip
 
-# install python dependency
-pip3 install 'matplotlib<3.1' opencv-python pytz --user
+# create conda env
+conda create -n simpledet python=3.7
+conda activate simpledet
 
-# download and intall pre-built wheel for CUDA 10.0
-# check INSTALL.md for wheels for other CUDA version
-wget https://bit.ly/2jRGqdc -O mxnet_cu100-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl
-pip3 install mxnet_cu100-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl --user
+# fetch CUDA environment
+conda install cudatoolkit=10.1
+
+# install python dependency
+pip install 'matplotlib<3.1' opencv-python pytz
+
+# download and intall pre-built wheel for CUDA 10.1
+pip install https://1dv.alarge.space/mxnet_cu101-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl
 
 # install pycocotools
-pip3 install 'git+https://github.com/RogerChern/cocoapi.git#subdirectory=PythonAPI' --user
+pip install 'git+https://github.com/RogerChern/cocoapi.git#subdirectory=PythonAPI'
 
 # install mxnext, a wrapper around MXNet symbolic API
-pip3 install 'git+https://github.com/RogerChern/mxnext#egg=mxnext' --user
+pip install 'git+https://github.com/RogerChern/mxnext#egg=mxnext'
 
 # get simpledet
 git clone https://github.com/tusimple/simpledet
@@ -57,7 +62,7 @@ make
 
 # test simpledet installation
 mkdir -p experiments/faster_r50v1_fpn_1x
-python3 detection_infer_speed.py --config config/faster_r50v1_fpn_1x.py --shape 800 1333
+python detection_infer_speed.py --config config/faster_r50v1_fpn_1x.py --shape 800 1333
 ```
 
 If the last line execute successfully, the average running speed of Faster R-CNN R-50 FPN will be reported. And you have successfuly setup SimpleDet. Now you can head up to the next section to prepare your dataset.
@@ -84,9 +89,9 @@ unzip data/src/test2017.zip -d data/coco/images
 unzip data/src/annotations_trainval2017.zip -d data/coco
 unzip data/src/image_info_test2017.zip -d data/coco
 
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split train2017
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split val2017
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split train2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split val2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
 ```
 
 For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) for more details.
@@ -95,10 +100,10 @@ For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) f
 
 ```bash
 # train
-python3 detection_train.py --config config/faster_r50v1_fpn_1x.py
+python detection_train.py --config config/faster_r50v1_fpn_1x.py
 
 # test
-python3 detection_test.py --config config/faster_r50v1_fpn_1x.py
+python detection_test.py --config config/faster_r50v1_fpn_1x.py
 ```
 
 #### Finetune
