@@ -37,7 +37,8 @@ We provide a conda installation here for Debian/Ubuntu system. To use a pre-buil
 sudo apt update && sudo apt install -y git wget make python3-dev libglib2.0-0 libsm6 libxext6 libxrender-dev unzip
 
 # create conda env
-conda create -n simpledet
+conda create -n simpledet python=3.7
+conda activate simpledet
 
 # fetch CUDA environment
 conda install cudatoolkit=10.1
@@ -61,7 +62,7 @@ make
 
 # test simpledet installation
 mkdir -p experiments/faster_r50v1_fpn_1x
-python3 detection_infer_speed.py --config config/faster_r50v1_fpn_1x.py --shape 800 1333
+python detection_infer_speed.py --config config/faster_r50v1_fpn_1x.py --shape 800 1333
 ```
 
 If the last line execute successfully, the average running speed of Faster R-CNN R-50 FPN will be reported. And you have successfuly setup SimpleDet. Now you can head up to the next section to prepare your dataset.
@@ -88,9 +89,9 @@ unzip data/src/test2017.zip -d data/coco/images
 unzip data/src/annotations_trainval2017.zip -d data/coco
 unzip data/src/image_info_test2017.zip -d data/coco
 
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split train2017
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split val2017
-python3 utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split train2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split val2017
+python utils/create_coco_roidb.py --dataset coco --dataset-split test-dev2017
 ```
 
 For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) for more details.
@@ -99,10 +100,10 @@ For other datasets or your own data, please check [DATASET.md](doc/DATASET.md) f
 
 ```bash
 # train
-python3 detection_train.py --config config/faster_r50v1_fpn_1x.py
+python detection_train.py --config config/faster_r50v1_fpn_1x.py
 
 # test
-python3 detection_test.py --config config/faster_r50v1_fpn_1x.py
+python detection_test.py --config config/faster_r50v1_fpn_1x.py
 ```
 
 #### Finetune
