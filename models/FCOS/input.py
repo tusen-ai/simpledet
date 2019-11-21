@@ -112,6 +112,59 @@ class PreMakeFCOSGTProp(mx.operator.CustomOpProp):
     def create_operator(self, ctx, shapes, dtypes):
         return PreMakeFCOSgt(self.p)
 
+class PrepareFCOS_cls_gt(mx.operator.CustomOp):
+
+    def __init__(self, fcos_gt_setting):
+        super(PrepareFCOS_cls_gt, self).__init__()
+        self.p = fcos_gt_setting
+        self.batch_idx = None
+        self.spatial_idx = None
+
+    def forward(self, is_train, req, in_data, out_data, aux):
+        bboxes = in_data[0]
+        N = bboxes.shape[0]
+        HW = in_data[1].shape[-1]
+        
+        if self.batch_idx is None:
+            self.batch_idx = mx.nd.arange(N).reshape((-1,1)).tile((1,HW))
+
+        self.assign(out_data[0], req[0], bboxes[:,:,4])
+        self.assign(out_data[1], req[1], self.batch_idx)
+        return
+
+    def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
+        pass
+
+@mx.operator.register("prepare_fcos_cls_gt")
+class PrepareFCOS_CLS_GTProp(mx.operator.CustomOpProp):
+    def __init__(self):
+        super(PrepareFCOS_CLS_GTProp, self).__init__(need_top_grad=False)
+        from config.fcos_r50v1_fpn_1x import throwout_param
+        self.p = throwout_param
+        self.stride = self.p.stride
+        self.data_size = self.p.data_size
+
+    def list_arguments(self):
+        return ['gt_bbox', 'smallest_box_id']
+
+    def list_outputs(self):
+        return ['bbox_cls', 'cls_gt']
+
+    def infer_shape(self, in_shape):
+        n = in_shape[0][0]
+        h, w = self.data_size
+        hw = 0
+        for stride in self.stride:
+            width = len(range(0,w,stride))
+            height = len(range(0,h,stride))
+            hw += height * width
+        return in_shape, [in_shape[0][:2], [n,hw]], []
+
+    def infer_type(self, in_type):
+        return in_type, [in_type[0], in_type[0]], []
+
+    def create_operator(self, ctx, shapes, dtypes):
+        return PrepareFCOS_cls_gt(self.p)
 
 def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label, num_classifier):
     loc_x, loc_y, stage_lowerbound, stage_upperbound, nonignore_area = mx.sym.Custom(gt_bbox=gt_bbox, im_info=im_info, op_type='make_fcos_gt_preparation', name='pre_fcos_gt')
@@ -174,9 +227,15 @@ def make_fcos_gt(gt_bbox, im_info, ignore_offset, ignore_label, num_classifier):
 
     # cls
     smallest_box_id = smallest_box_id.reshape((0,-1))				# (N, HW)
-    cls_gt = mx.sym.one_hot(smallest_box_id, num_classifier)			# (N, HW, num_cls)
+    bbox_cls, cls_batch_idx = mx.sym.Custom(gt_bbox=gt_bbox, smallest_box_id=smallest_box_ids, op_type='prepare_fcos_cls_gt', name='fcos_cls_gt')
+    										# bbox_cls = gt_bbox[:,:,4], cls_batch_idx = [[0,0,...,0],[1,1,...,1]]
+    cls_id = mx.sym.stack(cls_batch_idx, smallest_box_id, axis=0)
+    cls_gt = mx.sym.gather_nd(bbox_cls, cls_id)					# cls_gt = bbox_cls[cls_id], (N, HW)
+    cls_gt = cls_gt - 1
+    cls_gt = mx.sym.one_hot(cls_gt, num_classifier)				# (N, HW, num_cls)
     cls_gt = mx.sym.transpose(cls_gt, axes=(0,2,1))				# (N, num_cls, HW)
     cls_gt = mx.sym.broadcast_mul( lhs=cls_gt, rhs=mx.sym.slice(in_box_area, begin=(None,0,None), end=(None,1,None)) )
+    										# cls_gt[!in_box_area] = 0
         
     # ignore label
     nonignore_area = mx.sym.reshape(nonignore_area, shape=(1,-1))
