@@ -8,6 +8,9 @@ def report(block_count, block_size, content_size):
 
 
 def download(prefix, epoch):
+    dir_name = os.path.dirname(prefix)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     base_name = prefix.replace("pretrain_model/", "") + "-%04d.params" % epoch
     save_name = "%s-%04d.params" % (prefix, epoch)
     base_url = os.environ.get("SIMPLEDET_BASE_URL", "https://1dv.alarge.space/")
