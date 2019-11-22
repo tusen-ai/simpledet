@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import mxnext as X
 import mxnet as mx
 
