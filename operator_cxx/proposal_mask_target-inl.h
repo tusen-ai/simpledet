@@ -40,12 +40,14 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
                       const float bg_thresh_lo,
                       const int image_rois,
                       const bool class_agnostic,
+                      const bool output_ratio,
                       Tensor<cpu, 2, DType> &&rois,
                       Tensor<cpu, 1, DType> &&labels,
                       Tensor<cpu, 2, DType> &&bbox_targets,
                       Tensor<cpu, 2, DType> &&bbox_weights,
                       Tensor<cpu, 1, DType> &&match_gt_ious,
-                      Tensor<cpu, 3, DType> &&mask_targets);
+                      Tensor<cpu, 3, DType> &&mask_targets,
+                      Tensor<cpu, 1, DType> &&mask_ratios);
 
 template <typename DType>
 void BBoxOverlap(
@@ -79,7 +81,7 @@ namespace op {
 
 namespace proposal_mask_target_enum {
 enum ProposalMaskTargetInputs {kRois, kGtBboxes, kGtPolys, kValidRanges};
-enum ProposalMaskTargetOutputs {kRoiOutput, kLabel, kBboxTarget, kBboxWeight, kMatch_gt_iou, kMaskTarget};
+enum ProposalMaskTargetOutputs {kRoiOutput, kLabel, kBboxTarget, kBboxWeight, kMatch_gt_iou, kMaskTarget, kMaskRatio};
 }
 
 struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam> {
@@ -95,6 +97,7 @@ struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam>
   bool proposal_without_gt;
   bool class_agnostic;
   bool ohem;
+  bool output_ratio;
   bool output_iou;
   bool filter_scales;
   nnvm::Tuple<float> bbox_mean;
@@ -114,6 +117,7 @@ struct ProposalMaskTargetParam : public dmlc::Parameter<ProposalMaskTargetParam>
     DMLC_DECLARE_FIELD(proposal_without_gt).describe("Do not append ground-truth bounding boxes to output");
     DMLC_DECLARE_FIELD(class_agnostic).set_default(false).describe("class agnostic bbox_target");
     DMLC_DECLARE_FIELD(ohem).set_default(false).describe("Do online hard sample mining");
+    DMLC_DECLARE_FIELD(output_ratio).set_default(false).describe("output mask ratio for mask scoring");
     DMLC_DECLARE_FIELD(output_iou).set_default(false).describe("output match_gt_iou");
     DMLC_DECLARE_FIELD(filter_scales).set_default(false).describe("Not append ground-truth bounding boxes outside valid ranges");
     float tmp[] = {0.f, 0.f, 0.f, 0.f};
@@ -144,13 +148,17 @@ class ProposalMaskTargetOp : public Operator {
     } else {
         CHECK_EQ(in_data.size(), 3);
     }
-    CHECK_EQ(out_data.size(), 6);
+//    CHECK_EQ(out_data.size(), 7);
+    CHECK_GT(out_data.size(), 5);
     CHECK_GT(req.size(), 5);
     CHECK_EQ(req[proposal_mask_target_enum::kRoiOutput], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kLabel], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kBboxTarget], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kBboxWeight], kWriteTo);
     CHECK_EQ(req[proposal_mask_target_enum::kMaskTarget], kWriteTo);
+    if (param_.output_ratio){
+        CHECK_EQ(req[proposal_mask_target_enum::kMaskRatio], kWriteTo);
+    }
 
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const index_t num_image         = param_.batch_images;
@@ -233,6 +241,8 @@ class ProposalMaskTargetOp : public Operator {
     TensorContainer<cpu, 2, DType> cpu_match_gt_ious(Shape2(num_image, image_rois), 0.f);
     TensorContainer<cpu, 4, DType> cpu_mask_targets(Shape4(num_image,  (index_t)(image_rois * param_.fg_fraction),
                                                            param_.mask_size, param_.mask_size), -1.f);
+    TensorContainer<cpu, 2,  DType> cpu_mask_ratios(Shape2(num_image, (index_t)(image_rois * param_.fg_fraction)), 0.f);
+
 
     if (param_.ohem) {
         LOG(FATAL) << "OHEM not Implemented.";
@@ -291,12 +301,14 @@ class ProposalMaskTargetOp : public Operator {
                         param_.bg_thresh_lo,
                         param_.image_rois,
                         param_.class_agnostic,
+                        param_.output_ratio,
                         cpu_output_rois[i],
                         cpu_labels[i],
                         cpu_bbox_targets[i],
                         cpu_bbox_weights[i],
                         cpu_match_gt_ious[i],
-                        cpu_mask_targets[i]);
+                        cpu_mask_targets[i],
+                        cpu_mask_ratios[i]);
         }
     }
 
@@ -318,6 +330,10 @@ class ProposalMaskTargetOp : public Operator {
     Copy(xpu_bbox_weights, cpu_bbox_weights, s);
     Copy(xpu_match_gt_ious, cpu_match_gt_ious, s);
     Copy(xpu_mask_targets, cpu_mask_targets, s);
+    if (param_.output_ratio){
+        Tensor<xpu, 2, DType> xpu_mask_ratios = out_data[proposal_mask_target_enum::kMaskRatio].get<xpu, 2, DType>(s);
+        Copy(xpu_mask_ratios, cpu_mask_ratios, s);
+    }
   }
 
   virtual void Backward(const OpContext &ctx,
@@ -369,15 +385,25 @@ class ProposalMaskTargetProp : public OperatorProperty {
   }
 
   int NumVisibleOutputs() const override {
+    int num_outputs = 5;
     if (param_.output_iou) {
-      return 6;
-    } else {
-      return 5;
+      num_outputs += 1;
     }
+    if (param_.output_ratio){
+      num_outputs += 1;
+    }
+    return num_outputs;
   }
 
   int NumOutputs() const override {
-    return 6;
+    int num_outputs = 5;
+    if (param_.output_iou){
+        num_outputs += 1;
+    }
+    if (param_.output_ratio){
+        num_outputs += 1;
+    }
+    return num_outputs;
   }
 
   std::vector<std::string> ListArguments() const override {
@@ -389,7 +415,12 @@ class ProposalMaskTargetProp : public OperatorProperty {
   }
 
   std::vector<std::string> ListOutputs() const override {
-    return {"roi_output", "label", "bbox_target", "bbox_weight", "match_gt_iou", "mask_target"};
+    if (param_.output_ratio){
+        return {"roi_output", "label", "bbox_target", "bbox_weight", "match_gt_iou", "mask_target", "mask_ratio"};
+    }
+    else{
+        return {"roi_output", "label", "bbox_target", "bbox_weight", "match_gt_iou", "mask_target"};
+    }
   }
 
   bool InferShape(std::vector<TShape> *in_shape,
@@ -418,6 +449,11 @@ class ProposalMaskTargetProp : public OperatorProperty {
     out_shape->push_back(bbox_weight_shape);
     out_shape->push_back(match_gt_iou_shape);
     out_shape->push_back(mask_target_shape);
+
+    if (param_.output_ratio){
+        auto mask_ratio_shape = Shape2(dshape[0], (index_t)(image_rois * param_.fg_fraction));
+        out_shape->push_back(mask_ratio_shape);
+    }
     aux_shape->clear();
 
     return true;
