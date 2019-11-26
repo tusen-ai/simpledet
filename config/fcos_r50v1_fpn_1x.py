@@ -101,7 +101,7 @@ def get_config(is_train):
                   [512, INF],
                  ]
         stride = (8, 16, 32, 64, 128)
-        num_classifier = 81 - 1			# COCO: 80 object + 1 background
+        num_classifier = 81 - 1				# COCO: 80 object + 1 background
         ignore_label = RpnParam.loss_setting.ignore_label
         ignore_offset = RpnParam.loss_setting.ignore_offset
         data_size = [PadParam.short, PadParam.long]
