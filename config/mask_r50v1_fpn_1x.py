@@ -84,8 +84,8 @@ def get_config(is_train):
             bg_thr_lo = 0.0
 
         class bbox_target:
-            num_reg_class = 2
-            class_agnostic = True
+            num_reg_class = 81
+            class_agnostic = False
             weight = (1.0, 1.0, 1.0, 1.0)
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
@@ -99,7 +99,7 @@ def get_config(is_train):
         batch_image = General.batch_image
 
         class regress_target:
-            class_agnostic = True
+            class_agnostic = False
             mean = (0.0, 0.0, 0.0, 0.0)
             std = (0.1, 0.1, 0.2, 0.2)
 
