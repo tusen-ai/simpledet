@@ -11,7 +11,7 @@ from models.msrcnn.builder import MaskFasterRcnn4ConvHead as MaskHead
 from models.maskrcnn.builder import BboxPostProcessor
 from models.maskrcnn.process_output import process_output
 
-from models.msrcnn.builder import IoUConvHead as IoUHead
+from models.msrcnn.builder import MaskIoUConvHead as MaskIoUHead
 
 
 def get_config(is_train):
@@ -188,14 +188,14 @@ def get_config(is_train):
     bbox_head = BboxHead(BboxParam)
     mask_head = MaskHead(BboxParam, MaskParam, MaskRoiParam)
     bbox_post_processer = BboxPostProcessor(TestParam)
-    iou_head = IoUHead(TestParam, BboxParam, MaskParam)
+    maskiou_head = MaskIoUHead(TestParam, BboxParam, MaskParam)
     detector = Detector()
     if is_train:
-        train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, iou_head)
+        train_sym = detector.get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head)
         test_sym = None
     else:
         train_sym = None
-        test_sym = detector.get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, iou_head, bbox_post_processer)
+        test_sym = detector.get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head, bbox_post_processer)
 
 
     class ModelParam:

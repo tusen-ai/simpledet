@@ -7,7 +7,7 @@ import mxnet as mx
 import numpy as np
 
 
-class IoUComputeOperator(mx.operator.CustomOp):
+class MaskIoUComputeOperator(mx.operator.CustomOp):
     def __init__(self):
         super().__init__()
 
@@ -42,8 +42,8 @@ class IoUComputeOperator(mx.operator.CustomOp):
         self.assign(in_grad[1], req[1], 0)
         self.assign(in_grad[2], req[2], 0)
 
-@mx.operator.register('iou_compute')
-class IoUComputeProp(mx.operator.CustomOpProp):
+@mx.operator.register('maskiou_compute')
+class MaskIoUComputeProp(mx.operator.CustomOpProp):
     def __init__(self):
         super().__init__(need_top_grad=False)
 
@@ -64,7 +64,7 @@ class IoUComputeProp(mx.operator.CustomOpProp):
         return ['maskiou_target', 'weight_list']
 
     def create_operator(self, ctx, shapes, dtypes):
-        return IoUComputeOperator()
+        return MaskIoUComputeOperator()
 
     def declare_backward_dependency(self, out_grad, in_data, out_data):
         return []

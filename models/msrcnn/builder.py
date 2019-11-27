@@ -5,7 +5,7 @@ from symbol.builder import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
-from models.msrcnn import iou_compute
+from models.msrcnn import maskiou_compute
 
 from utils.patch_config import patch_config_as_nothrow
 from utils.deprecated import deprecated
@@ -15,7 +15,7 @@ class MaskScoringFasterRcnn(object):
         pass
 
     @staticmethod
-    def get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, iou_head):
+    def get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head):
         gt_bbox = X.var("gt_bbox")
         gt_poly = X.var("gt_poly")
         im_info = X.var("im_info")
@@ -36,11 +36,11 @@ class MaskScoringFasterRcnn(object):
         bbox_loss = bbox_head.get_loss(roi_feat, bbox_cls, bbox_target, bbox_weight)
         mask_loss, mask_pred_logits = mask_head.get_loss(mask_roi_feat, mask_target, mask_ind)
 
-        iou_loss = iou_head.get_loss(mask_roi_feat, mask_pred_logits, mask_target, mask_ind, mask_ratio)
+        iou_loss = maskiou_head.get_loss(mask_roi_feat, mask_pred_logits, mask_target, mask_ind, mask_ratio)
         return X.group(rpn_loss + bbox_loss + mask_loss + iou_loss)
 
     @staticmethod
-    def get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, iou_head, bbox_post_processor):
+    def get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head, bbox_post_processor):
         rec_id, im_id, im_info, proposal, proposal_score = \
             MaskScoringFasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
@@ -54,22 +54,22 @@ class MaskScoringFasterRcnn(object):
 
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, post_bbox_xyxy)
         mask = mask_head.get_prediction(mask_roi_feat)
-        iou_pred = iou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls)
+        mask_score = maskiou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls)
 
-        return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, iou_pred])
+        return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, mask_score])
 
     @staticmethod
     def get_rpn_test_symbol(backbone, neck, rpn_head):
         return FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
-class IoUConvHead():
+class MaskIoUConvHead():
     def __init__(self, pTest, pBbox, pMask):
         self.pBbox = pBbox
         self.pMask = pMask
         self.pTest = pTest
 
     def get_maskiou_prediction(self, mask_pred_logits, conv_feat, post_cls):
-        # align cls index for IoU prediction
+        # align cls index for MaskIoU prediction
         post_cls = mx.sym.reshape(post_cls, (-1, 1)) + 1
         batch_ind = mx.sym.arange(self.pTest.max_det_per_image)
 
@@ -77,8 +77,8 @@ class IoUConvHead():
         mask_pred_logits = mx.sym.gather_nd(mask_pred_logits, mask_inds, axis=1)
 
         mask_pred_logits = self._get_output(mask_pred_logits, conv_feat)
-        iou_pred = mx.sym.reshape(mask_pred_logits, (self.pBbox.batch_image, -1, self.pBbox.num_class))
-        return iou_pred
+        maskiou_pred = mx.sym.reshape(mask_pred_logits, (self.pBbox.batch_image, -1, self.pBbox.num_class), name='maskiou_prediction')
+        return maskiou_pred
 
     def _get_output(self, mask_pred_logits, conv_feat):
         num_class = self.pBbox.num_class
@@ -139,17 +139,18 @@ class IoUConvHead():
         iou_pred_logits = mx.sym.concat(*iou_pred_list, dim=0)
         iou_pred_logits = mx.sym.reshape(iou_pred_logits, (-1, 1))
 
-        iou_target, weight_list = mx.sym.Custom(
+        maskiou_target, weight_list = mx.sym.Custom(
             mask_pred_logits=mask_pred_logits,
             mask_target=mask_target,
             mask_ratio=mask_ratio,
             mask_inds=mask_inds,
-            op_type='iou_compute'
+            op_type='maskiou_compute'
         )
-        iou_target = mx.sym.BlockGrad(iou_target, name='gtIoU_blockGrad')
+        maskiou_target = mx.sym.BlockGrad(maskiou_target, name='gtIoU_blockGrad')
         weight_list = mx.sym.BlockGrad(weight_list, name='weight_blockGrad')
-        iou_head_loss = mx.sym.MakeLoss(0.5 * mx.sym.sum(((iou_target - iou_pred_logits) ** 2) * weight_list) / mx.sym.maximum(mx.sym.sum(weight_list), 1.), name='iou_head_loss')
-        return (iou_head_loss, )
+        maskiou_head_loss = mx.sym.MakeLoss(0.5 * mx.sym.sum(((maskiou_target - iou_pred_logits) ** 2) * weight_list) /
+                                                mx.sym.maximum(mx.sym.sum(weight_list), 1.), name='iou_head_loss')
+        return (maskiou_head_loss, )
 
 class BboxPostProcessor(object):
     def __init__(self, pTest):

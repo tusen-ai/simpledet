@@ -5,7 +5,7 @@ from symbol.detector import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
-from models.msrcnn import iou_compute
+from models.msrcnn import maskiou_compute
 
 from utils.patch_config import patch_config_as_nothrow
 

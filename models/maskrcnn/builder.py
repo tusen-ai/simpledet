@@ -53,7 +53,9 @@ class MaskFasterRcnn(object):
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, post_bbox_xyxy)
         mask = mask_head.get_prediction(mask_roi_feat)
 
-        return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask])
+        # mask score only for placeholder
+        mask_score = mx.sym.zeros((1, ), name='maskiou_prediction')
+        return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, mask_score])
 
     @staticmethod
     def get_rpn_test_symbol(backbone, neck, rpn_head):
