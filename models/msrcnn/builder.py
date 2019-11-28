@@ -54,7 +54,7 @@ class MaskScoringFasterRcnn(object):
 
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, post_bbox_xyxy)
         mask = mask_head.get_prediction(mask_roi_feat)
-        mask_score = maskiou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls)
+        mask_score = maskiou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls, post_cls_score)
 
         return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, mask_score])
 
@@ -68,16 +68,31 @@ class MaskIoUConvHead():
         self.pMask = pMask
         self.pTest = pTest
 
-    def get_maskiou_prediction(self, mask_pred_logits, conv_feat, post_cls):
+    def get_maskiou_prediction(self, mask_pred_logits, conv_feat, post_cls, post_cls_score):
         # align cls index for MaskIoU prediction
         post_cls = mx.sym.reshape(post_cls, (-1, 1)) + 1
-        batch_ind = mx.sym.arange(self.pTest.max_det_per_image)
+        post_cls_score = mx.sym.reshape(post_cls_score, (self.pBbox.batch_image, -1, 1))
 
-        mask_inds = mx.sym.stack(batch_ind, post_cls)
+        det_ind = mx.sym.arange(self.pTest.max_det_per_image)
+        mask_inds = mx.sym.stack(det_ind, post_cls)
+
         mask_pred_logits = mx.sym.gather_nd(mask_pred_logits, mask_inds, axis=1)
-
         mask_pred_logits = self._get_output(mask_pred_logits, conv_feat)
-        maskiou_pred = mx.sym.reshape(mask_pred_logits, (self.pBbox.batch_image, -1, self.pBbox.num_class), name='maskiou_prediction')
+
+        maskiou_pred = mx.sym.reshape(mask_pred_logits, (self.pBbox.batch_image, self.pTest.max_det_per_image, self.pBbox.num_class))
+
+        batch_ind = mx.sym.arange(self.pBbox.batch_image)
+        batch_ind = mx.sym.repeat(batch_ind, self.pTest.max_det_per_image)
+        det_ind =mx.sym.tile(det_ind, self.pBbox.batch_image)
+        post_cls_ind = mx.sym.tile(post_cls, self.pBbox.batch_image)
+        maskiou_ind = mx.sym.stack(batch_ind, det_ind, post_cls_ind)
+
+        maskiou_pred = mx.sym.gather_nd(maskiou_pred, maskiou_ind, axis=2)
+        maskiou_pred = mx.sym.reshape(maskiou_pred, (self.pBbox.batch_image, self.pTest.max_det_per_image, 1))
+
+        # align mask score by multiplying with classification score
+        maskiou_pred = mx.sym.broadcast_mul(maskiou_pred, post_cls_score, name='maskiou_prediction')
+
         return maskiou_pred
 
     def _get_output(self, mask_pred_logits, conv_feat):

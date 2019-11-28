@@ -54,7 +54,7 @@ class MaskFasterRcnn(object):
         mask = mask_head.get_prediction(mask_roi_feat)
 
         # mask score only for placeholder
-        mask_score = mx.sym.zeros((1, ), name='maskiou_prediction')
+        mask_score = mx.sym.broadcast_mul(mx.sym.ones((1, )), -1, name='maskiou_prediction')
         return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, mask_score])
 
     @staticmethod

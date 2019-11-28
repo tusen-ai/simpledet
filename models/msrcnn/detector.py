@@ -15,7 +15,7 @@ class MaskScoringRcnn(object):
         pass
 
     @staticmethod
-    def get_train_symbol(backbone, neck, rpn_head, bbox_roi_extractor, mask_roi_extractor, bbox_head, mask_head, iou_head):
+    def get_train_symbol(backbone, neck, rpn_head, bbox_roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head):
         gt_bbox = X.var("gt_bbox")
         gt_poly = X.var("gt_poly")
         im_info = X.var("im_info")
@@ -35,11 +35,11 @@ class MaskScoringRcnn(object):
         bbox_loss = bbox_head.get_loss(roi_feat, bbox_cls, bbox_target, bbox_weight)
         mask_loss, mask_pred_logits = mask_head.get_loss(mask_roi_feat, mask_target, mask_ind)
 
-        iou_loss = iou_head.get_loss(mask_roi_feat, mask_pred_logits, mask_target, mask_ind, mask_ratio)
+        iou_loss = maskiou_head.get_loss(mask_roi_feat, mask_pred_logits, mask_target, mask_ind, mask_ratio)
         return X.group(rpn_loss + bbox_loss + mask_loss + iou_loss)
 
     @staticmethod
-    def get_test_symbol(backbone, neck, rpn_head, bbox_roi_extractor, mask_roi_extractor, bbox_head, mask_head, bbox_post_processor, iou_head):
+    def get_test_symbol(backbone, neck, rpn_head, bbox_roi_extractor, mask_roi_extractor, bbox_head, mask_head, bbox_post_processor, maskiou_head):
         rec_id, im_id, im_info, proposal, proposal_score = \
             MaskScoringRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
@@ -54,7 +54,7 @@ class MaskScoringRcnn(object):
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, post_bbox_xyxy)
         mask = mask_head.get_prediction(mask_roi_feat)
 
-        iou_pred = iou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls)
+        iou_pred = maskiou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls)
 
         return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, iou_pred])
 

@@ -183,13 +183,11 @@ if __name__ == "__main__":
             mask = mask[valid_inds]
 
             # check if model outputs mask score
-            if mask_score != 0:
-                mask_score = mask_score[valid_inds, cls + 1].reshape(-1, )
-                mask_score = cls_score * mask_score
-                rescoring_mask = True
-            else:
+            if mask_score.shape == () and mask_score == -1:
                 mask_score = np.zeros_like(cls_score)
                 rescoring_mask = False
+            else:
+                rescoring_mask = True
 
             output_record = dict(
                 rec_id=rid,
