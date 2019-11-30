@@ -24,6 +24,7 @@
 - Add SE and train from scratch (2019.08.30)
 - Add a lot of docs (2019.09.03)
 - Add support for INT8 training (2019.10.24)
+- Add support for FCOS(contributed by Zhen Wei) (2019.11)
 
 ### Setup
 #### All-in-one Script
@@ -181,7 +182,7 @@ The flexibility of **simpledet** framework makes it easy to build different dete
 
 
 ### Contributors
-Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Yi Jiang, Naiyan Wang
+Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Zhen Wei
 
 
 ### License and Citation
