@@ -23,7 +23,7 @@
 - Add FitNet based Knowledge Distill (2019.08.27)
 - Add SE and train from scratch (2019.08.30)
 - Add a lot of docs (2019.09.03)
-- Add support for INT8 training (2019.10.24)
+- Add support for INT8 training(contributed by Xiaotao Chen & Jingqiu Zhou) (2019.10.24)
 - Add support for FCOS(contributed by Zhen Wei) (2019.11)
 
 ### Setup
@@ -182,7 +182,7 @@ The flexibility of **simpledet** framework makes it easy to build different dete
 
 
 ### Contributors
-Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Zhen Wei
+Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Xiaotao Chen, Jingqiu Zhou, Zhen Wei
 
 
 ### License and Citation
