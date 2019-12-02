@@ -98,6 +98,7 @@ All AP results are reported on minival2014 of the [COCO dataset](http://cocodata
 |Cascade|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|6.6G|21 img/s|40.3|[model](https://1dv.alarge.space/cascade_r50v1_fpn_1x.zip)|
 |Faster|R50v1-FPN|2MLP|1X|8X 1080Ti|2|no|4.2G(2.6G)|43 img/s|36.5|[model](https://1dv.alarge.space/faster_r50v1_fpn_1x.zip)|
 |Mask|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|5.7G(3.6G)|35 img/s|37.1(33.7)|[model](https://1dv.alarge.space/mask_r50v1_fpn_1x.zip)|
+|Mask Scoring|R50v1-FPN|2MLP+4CONV|1X|8X 1080Ti|2|no|8.1G(3.6G)|23 img/s|37.2(35.0)|[Model]()
 |Retina|R50v1-FPN|4Conv|1X|8X 1080Ti|2|no|4.7G(2.2G)|44 img/s|35.6|[model](https://1dv.alarge.space/retina_r50v1_fpn_1x.zip)|
 |Trident|R50v2-C4|C5-128ROI|1X|8X 1080Ti|2|no|7.0G(5.3G)|20 img/s|37.1|[model](https://1dv.alarge.space/tridentnet_r50v2c4_c5_1x.zip)|
 |Faster|R101v2-C4|C5-256ROI|1X|8X 1080Ti|2|no|6.7G|25 img/s|37.6|[model](https://1dv.alarge.space/faster_r101v2c4_c5_256roi_1x.zip)|
