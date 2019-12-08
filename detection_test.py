@@ -29,7 +29,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
+    os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = os.environ.get("MXNET_CUDNN_AUTOTUNE_DEFAULT", "0")
 
     config, args = parse_args()
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
             print(pprint.pformat([i for i in terminal_out_shape_dict]))
 
             '''
-            there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py 
+            there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py
             when mergebn ahead of attach_quantized_node
             such as `Symbol.ComposeKeyword`
             '''
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 from utils.graph_optimize import attach_quantize_node
                 _, out_shape, _ = sym.get_internals().infer_shape(**worker_data_shape)
                 out_shape_dictoinary = dict(zip(sym.get_internals().list_outputs(), out_shape))
-                sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam, 
+                sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam,
                                         pQuant.ActQuantizeParam, pQuant.quantized_op)
 
             # merge batch normalization to speedup test
