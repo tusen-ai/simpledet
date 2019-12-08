@@ -136,9 +136,9 @@ def train_net(config):
 
     if pModel.process_weight is not None:
         pModel.process_weight(sym, arg_params, aux_params)
-    
+
     '''
-    there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py 
+    there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py
     when mergebn ahead of attach_quantized_node
     such as `Symbol.ComposeKeyword`
     '''
@@ -148,7 +148,7 @@ def train_net(config):
         from utils.graph_optimize import attach_quantize_node
         _, out_shape, _ = sym.get_internals().infer_shape(**worker_data_shape)
         out_shape_dictoinary = dict(zip(sym.get_internals().list_outputs(), out_shape))
-        sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam, 
+        sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam,
                                    pQuant.ActQuantizeParam, pQuant.quantized_op)
     # merge batch normalization to save memory in fix bn training
     from utils.graph_optimize import merge_bn
@@ -209,6 +209,8 @@ def train_net(config):
         logging.info('lr mode: {}'.format(lr_mode))
 
     if pOpt.warmup and pOpt.schedule.begin_epoch == 0:
+        if pOpt.warmup.in_pct:
+            pOpt.warmup.iter //= kv.num_workers
         if rank == 0:
             logging.info(
                 'warmup lr {}, warmup step {}'.format(
