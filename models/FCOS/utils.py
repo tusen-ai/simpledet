@@ -2,9 +2,9 @@ import numpy as np
 import mxnet as mx
 import mxnext as X
 
-
+# Convert classification/centerness prediction maps into proposal bbox
+#   Used in only one FPN scale
 class getProposalSingleStage(mx.operator.CustomOp):
-
     def __init__(self, top_n, stride, pre_nms_thresh):
         super(getProposalSingleStage, self).__init__()
         self.top_n = int(top_n)
@@ -12,14 +12,14 @@ class getProposalSingleStage(mx.operator.CustomOp):
         self.pre_nms_thresh = float(pre_nms_thresh)
 
     def forward(self, is_train, req, in_data, out_data, aux):
-        # filter out low cls prob loc
+        # filter out low prob locations
         cls_logits = in_data[1]
         candidate_mask = mx.nd.broadcast_greater( lhs=cls_logits, rhs=mx.nd.full((1,1,1,1), float(self.pre_nms_thresh)) )
-        # fuse centerness and cls prob
+        # fuse centerness and classification prob
         cls_logits = mx.nd.broadcast_mul(lhs=cls_logits, rhs=in_data[0])
 
         n, c, h, w = in_data[1].shape
-        res_bbox = mx.nd.full([n, self.top_n, 6], -1, ctx=cls_logits.context)	# ch id + 1 (cls), score, tp_x, tp_y, rb_x, rb_y
+        res_bbox = mx.nd.full([n, self.top_n, 6], -1, ctx=cls_logits.context)	# 6 for [ch id + 1 (cls), score, tp_x, tp_y, rb_x, rb_y]
 
         for i in range(n):
 
@@ -27,8 +27,9 @@ class getProposalSingleStage(mx.operator.CustomOp):
             offset_logit = in_data[2][i,:,:,:]
             img_h, img_w, _ = in_data[3][i,:].asnumpy()
 
-            # find topK loc, if low prob loc is less than K then use all loc
-            if mx.nd.sum(candidate_mask[i,:,:,:]) >= self.top_n:	# nonzero loc is more than K
+            # find topK activation locations
+            # if the number of non-empty locations is less than K, then use all locations
+            if mx.nd.sum(candidate_mask[i,:,:,:]) >= self.top_n:		# non-empty loc is more than K
                 cls_score, idx = mx.nd.topk(mx.nd.reshape(cls_logit, shape=(c*h*w)), axis=0, ret_typ='both', k=self.top_n)
                 loc_x = (idx % w).astype(int)
                 loc_y = (idx / w % h).astype(int)
@@ -36,7 +37,7 @@ class getProposalSingleStage(mx.operator.CustomOp):
             else:
                 candidate_np = candidate_mask[i,:,:,:].asnumpy()
                 cls, loc_y, loc_x = np.nonzero(candidate_np)
-                if cls.size == 0:					# for all-zero logit map, skip it
+                if cls.size == 0:						# for all-zero logit map, skip it
                     continue
                 cls_score = cls_logit[cls, loc_y, loc_x]
                 loc_y = mx.nd.array(loc_y, cls_logit.context).astype(int)
@@ -44,16 +45,15 @@ class getProposalSingleStage(mx.operator.CustomOp):
                 cls = mx.nd.array(cls, cls_logit.context).astype(int)
                 cls += 1
 
-            # transform coords to image space
+            # transform coords of topK locations to image coord space
             loc_x_ori = loc_x.astype(np.float32) * self.stride + self.stride / 2
             loc_y_ori = loc_y.astype(np.float32) * self.stride + self.stride / 2
-            # calculate bbox left-top right-bottom coords, and clip to image boundary
+            # calculate bbox left-top and right-bottom coords, and clip to image boundary
             bbox = [mx.nd.clip(loc_x_ori - offset_logit[0,loc_y,loc_x], a_min=0, a_max=img_w),	# [tp_x, tp_y, rb_x, rb_y]
                     mx.nd.clip(loc_y_ori - offset_logit[1,loc_y,loc_x], a_min=0, a_max=img_h),
                     mx.nd.clip(loc_x_ori + offset_logit[2,loc_y,loc_x], a_min=0, a_max=img_w),
                     mx.nd.clip(loc_y_ori + offset_logit[3,loc_y,loc_x], a_min=0, a_max=img_h),
                    ]
-
             bbox = mx.nd.stack(*bbox, axis=1)
             bbox = mx.nd.concat(cls.astype(np.float32).reshape(shape=(cls.shape[0],1)), cls_score.reshape(shape=(cls_score.shape[0],1)), bbox, dim=1)
 
@@ -94,9 +94,9 @@ class GetProposalSingleStageProp(mx.operator.CustomOpProp):
         return getProposalSingleStage(self.top_n, self.stride, self.pre_nms_thresh)
 
 
-
+# Conduct bbox NMS within a batch
+#   Use -1 as ignore flag
 class GetBatchProposal(mx.operator.CustomOp):
-
     def __init__(self):
         super(GetBatchProposal, self).__init__()
 
@@ -115,7 +115,8 @@ class GetBatchProposal(mx.operator.CustomOp):
             # filter out all 0 items
             cls = res_bbox[i,:,0]
             res_bbox = res_bbox.asnumpy()
-            scores[i, np.array(range(res_bbox.shape[1])), res_bbox[i,:,0].astype(int)] = np.sqrt(np.clip(res_bbox[i,:,1], a_min=1e-20, a_max=1))	# sqrt(score)
+            # sqrt(score)
+            scores[i, np.array(range(res_bbox.shape[1])), res_bbox[i,:,0].astype(int)] = np.sqrt(np.clip(res_bbox[i,:,1], a_min=1e-20, a_max=1))
             res_bbox = mx.nd.array(res_bbox, cls.context)
 
         self.assign(out_data[0], req[0], res_bbox[:,:,2:])

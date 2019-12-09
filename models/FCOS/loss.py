@@ -1,6 +1,9 @@
 import mxnet as mx
 import mxnext as X
 
+# Use symbol for internal variables computation for better parallelization
+# Use custom python op to control loss/gradient flow
+
 """ ---Sigmoid Focal Loss---
     def forward(self, is_train, req, in_data, out_data, aux):
         logits = in_data[0]
@@ -46,6 +49,8 @@ import mxnext as X
 
         self.assign(in_grad[0], req[0], grad)"""
 
+
+# the formula is better demonstrated above
 class ComputeSigmoidFocalLoss(mx.operator.CustomOp):
     def __init__(self):
         super(ComputeSigmoidFocalLoss, self).__init__()
@@ -79,12 +84,11 @@ class ComputeSigmoidFocalLossProp(mx.operator.CustomOpProp):
         return ComputeSigmoidFocalLoss()
 
 def make_sigmoid_focal_loss(gamma, alpha, logits, labels, nonignore_mask):
-    # conduct most of calculations using symbol and control gradient flow with custom op
-    p = 1 / (1 + mx.sym.exp(-logits))						# sigmoid
+    p = 1 / (1 + mx.sym.exp(-logits))					# sigmoid
     mask_logits_GE_zero = mx.sym.broadcast_greater_equal(lhs=logits, rhs=mx.sym.zeros((1,1)))
-										# logits>=0
-    minus_logits_mask = -1. * logits * mask_logits_GE_zero			# -1 * logits * [logits>=0]
-    negative_abs_logits = logits - 2*logits*mask_logits_GE_zero			# logtis - 2 * logits * [logits>=0]
+									# logits>=0
+    minus_logits_mask = -1. * logits * mask_logits_GE_zero		# -1 * logits * [logits>=0]
+    negative_abs_logits = logits - 2*logits*mask_logits_GE_zero		# logtis - 2 * logits * [logits>=0]
     log_one_exp_minus_abs = mx.sym.log(1. + mx.sym.exp(negative_abs_logits))
     minus_log = minus_logits_mask - log_one_exp_minus_abs
 
@@ -101,14 +105,13 @@ def make_sigmoid_focal_loss(gamma, alpha, logits, labels, nonignore_mask):
     backward_term2 = one_alpha_p_gamma_one_labels * (minus_log  * (1 - p) * gamma - p)
     grad = mx.sym.broadcast_div( lhs=-1 * (backward_term1 + backward_term2) * nonignore_mask, rhs=norm.reshape((1,1)) )
 
-    loss = X.block_grad(loss)
-    grad = X.block_grad(grad)
+    loss = X.block_grad(loss)						# symbols are only used for computation
+    grad = X.block_grad(grad)						# use custom op to control gradient flow instead
 
     loss = mx.sym.Custom(logits=logits, loss=loss, grad=grad, op_type='compute_focal_loss', name='focal_loss')
     return loss
 
-
-
+# -------------------------------------------------------
 class ComputeBCELoss(mx.operator.CustomOp):
     def __init__(self):
         super(ComputeBCELoss, self).__init__()
@@ -152,8 +155,7 @@ def make_binary_cross_entropy_loss(logits, labels, nonignore_mask):
 
     return mx.sym.Custom(logits=logits, loss=loss, grad=grad, op_type='compute_bce_loss', name='sigmoid_bce_loss')
 
-
-
+# -------------------------------------------------------
 def IoULoss(x_box, y_box, ignore_offset, centerness_label, name='iouloss'):
     centerness_label = mx.sym.reshape(centerness_label, shape=(0,1,-1))
     y_box = X.block_grad(y_box)
@@ -163,6 +165,7 @@ def IoULoss(x_box, y_box, ignore_offset, centerness_label, name='iouloss'):
     target_right = mx.sym.slice_axis(y_box, axis=1, begin=2, end=3)
     target_bottom = mx.sym.slice_axis(y_box, axis=1, begin=3, end=4)
 
+    # filter out out-of-bbox area, loss is only computed inside bboxes
     nonignore_mask = mx.sym.broadcast_logical_and(lhs = mx.sym.broadcast_not_equal(lhs=target_left, rhs=ignore_offset),
                                               rhs = mx.sym.broadcast_greater( lhs=centerness_label, rhs=mx.sym.full((1,1,1), 0) )
                                              )

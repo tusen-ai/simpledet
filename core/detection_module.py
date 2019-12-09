@@ -23,6 +23,7 @@ more `Executor` for data parallelization.
 import time
 import logging
 import warnings
+from collections import namedtuple
 
 import mxnet
 
@@ -35,13 +36,16 @@ from mxnet.base import _as_list
 from mxnet.module.executor_group import DataParallelExecutorGroup
 from mxnet.model import _create_kvstore, _initialize_kvstore, _update_params, _update_params_on_kvstore
 from mxnet.model import load_checkpoint
-from mxnet.model import BatchEndParam
 from mxnet.initializer import Uniform, InitDesc
 from mxnet.io import DataDesc
 from mxnet.ndarray import zeros
 
 from mxnet.module.base_module import BaseModule, _check_input_names, _parse_data_desc
 from mxnet.module.module import Module
+
+
+BatchEndParam = namedtuple('BatchEndParams',
+                           ['epoch', 'nbatch', 'eval_metric', 'lr', 'iter', 'locals'])
 
 
 class DetModule(BaseModule):
@@ -1025,6 +1029,8 @@ class DetModule(BaseModule):
                 if batch_end_callback is not None:
                     batch_end_params = BatchEndParam(epoch=epoch, nbatch=nbatch,
                                                      eval_metric=eval_metric,
+                                                     lr=self._optimizer.lr_scheduler(total_iter),
+                                                     iter=total_iter,
                                                      locals=locals())
                     for callback in _as_list(batch_end_callback):
                         callback(batch_end_params)
