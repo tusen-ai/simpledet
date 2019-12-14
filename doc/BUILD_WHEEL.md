@@ -44,9 +44,11 @@ wget https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2.tar
     ./configure && make install -j4 && cd .. && \
     rm -r cmake-3.15.2 cmake-3.15.2.tar.gz
 
+# change the url to your repo link if you are doing PR
+export SIMPLEDET_URL=https://github.com/tusimple/simpledet
 git clone --recursive --depth=1 https://github.com/apache/incubator-mxnet /work/mxnet && \
     cd /work/mxnet && \
-    git clone https://github.com/Tusimple/simpledet /work/simpledet && \
+    git clone $SIMPLEDET_URL /work/simpledet && \
     cp -r /work/simpledet/operator_cxx/* /work/mxnet/src/operator && \
     git clone https://github.com/RogerChern/cocoapi /work/cocoapi && \
     mkdir -p src/coco_api && \
@@ -59,17 +61,23 @@ git clone --recursive --depth=1 https://github.com/apache/incubator-mxnet /work/
 ```
 cd /work/mxnet
 # remove sm_30
-sed -i 's/KNOWN_CUDA_ARCHS :=\+\n/KNOW_CUDA_ARCHS := 35 50 60 70\n/' Makefile
-tools/staticbuild/build.sh cu90/cu100/cu101 pip
+sed -i 's/KNOWN_CUDA_ARCHS :=.*/KNOWN_CUDA_ARCHS := 35 50 60 70/' Makefile
+# change build config according to the target CUDA version
+tools/staticbuild/build.sh cu100 pip
+# tools/staticbuild/build.sh cu101 pip
 ```
 
 ### Package wheel
 ```
 cd /work/mxnet/tools/pip
 ln -s /work/mxnet mxnet-build
-# change the path according your CUDA version
-LD_LIBRARY_PATH=/work/mxnet/staticdeps/usr/local/cuda-10.1/lib64:/work/mxnet/staticdeps/usr/lib/x86_64-linux-gnu:/work/mxnet/staticdeps/usr/lib/nvidia-418
-mxnet_variant=CU101 python3 setup.py bdist_wheel
+
+# change the path according to the target CUDA version
+LD_LIBRARY_PATH=/work/mxnet/staticdeps/usr/local/cuda-10.0/lib64:/work/mxnet/staticdeps/usr/lib/x86_64-linux-gnu:/work/mxnet/staticdeps/usr/lib/nvidia-410
+# LD_LIBRARY_PATH=/work/mxnet/staticdeps/usr/local/cuda-10.1/lib64:/work/mxnet/staticdeps/usr/lib/x86_64-linux-gnu:/work/mxnet/staticdeps/usr/lib/nvidia-418
+export LD_LIBRARY_PATH
+mxnet_variant=CU100 python3 setup.py bdist_wheel
+# mxnet_variant=CU101 python3 setup.py bdist_wheel
 ```
 
 The built wheel file is in `dist/`
