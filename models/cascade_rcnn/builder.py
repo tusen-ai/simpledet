@@ -22,6 +22,7 @@ class CascadeRcnn(object):
         rpn_feat = neck.get_rpn_feature(rpn_feat)
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
 
+        rpn_head.get_anchor()
         rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
 
         # stage1

@@ -1,3 +1,4 @@
+from symbol.builder import add_anchor_to_arg
 from models.cascade_rcnn.builder import CascadeRcnn as Detector
 from models.FPN.builder import MSRAResNet101V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
@@ -41,12 +42,23 @@ def get_config(is_train):
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
+        nnvm_proposal = True
+        nnvm_rpn_target = False
 
         class anchor_generate:
             scale = (8,)
             ratio = (0.5, 1.0, 2.0)
             stride = (4, 8, 16, 32, 64)
             image_anchor = 256
+            max_side = 1400
+
+        class anchor_assign:
+            allowed_border = 0
+            pos_thr = 0.7
+            neg_thr = 0.3
+            min_pos_thr = 0.0
+            image_anchor = 256
+            pos_fraction = 0.5
 
         class head:
             conv_channel = 256
@@ -228,6 +240,12 @@ def get_config(is_train):
             epoch = 0
             fixed_param = ["conv0", "stage1", "gamma", "beta"]
 
+        def process_weight(sym, arg, aux):
+            for stride in RpnParam.anchor_generate.stride:
+                add_anchor_to_arg(
+                    sym, arg, aux, RpnParam.anchor_generate.max_side,
+                    stride, RpnParam.anchor_generate.scale,
+                    RpnParam.anchor_generate.ratio)
 
     class OptimizeParam:
         class optimizer:
