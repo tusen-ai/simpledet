@@ -49,7 +49,7 @@ conda install cudatoolkit=10.1
 pip install 'matplotlib<3.1' opencv-python pytz
 
 # download and intall pre-built wheel for CUDA 10.1
-pip install https://1dv.alarge.space/mxnet_cu101-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl
+pip install https://1dv.alarge.space/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl
 
 # install pycocotools
 pip install 'git+https://github.com/RogerChern/cocoapi.git#subdirectory=PythonAPI'
