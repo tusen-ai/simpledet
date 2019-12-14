@@ -68,10 +68,9 @@ The quantization configs are in the `ModelParam.QuantizeTrainingParam` class, wh
 
 
 ### How to reproduce the result
-1. Install a custom version of MXNet
-[[CUDA90]](https://1dv.alarge.space/mxnet_cu90-1.6.0b20191018-py2.py3-none-manylinux1_x86_64.whl)
-[[CUDA100]](https://1dv.alarge.space/mxnet_cu100-1.6.0b20191018-py2.py3-none-manylinux1_x86_64.whl)
-[[CUDA101]](https://1dv.alarge.space/mxnet_cu101-1.6.0b20191018-py2.py3-none-manylinux1_x86_64.whl)
+1. Install a newer version of MXNet
+[[CUDA100]](https://1dv.alarge.space/mxnet_cu100-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
+[[CUDA101]](https://1dv.alarge.space/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
 2. To train a fp32 model with the default config.
 3. Finetune the trained fp32 model with quantization training. Our finetuning setting are: `begin_epoch=6` and `end_epoch=12`. All other configs remains the same as fp32 training configs. 
 4. We provide an example [model](https://1dv.alarge.space/faster_r50v1bc4_c5_512roi_1x_int8.zip) for `faster_r50v1c4_c5_512roi_1x`.
