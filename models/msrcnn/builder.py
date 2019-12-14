@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import mxnext as X
 import mxnet as mx
 
@@ -7,16 +5,17 @@ from symbol.builder import FasterRcnn, RpnHead
 from models.FPN.builder import FPNRpnHead
 
 from models.maskrcnn import bbox_post_processing
+from models.msrcnn import maskiou_compute
+
 from utils.patch_config import patch_config_as_nothrow
 from utils.deprecated import deprecated
 
-
-class MaskFasterRcnn(object):
+class MaskScoringFasterRcnn(object):
     def __init__(self):
         pass
 
     @staticmethod
-    def get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head):
+    def get_train_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head):
         gt_bbox = X.var("gt_bbox")
         gt_poly = X.var("gt_poly")
         im_info = X.var("im_info")
@@ -28,19 +27,22 @@ class MaskFasterRcnn(object):
 
         rpn_head.get_anchor()
         rpn_loss = rpn_head.get_loss(rpn_feat, gt_bbox, im_info)
-        proposal, bbox_cls, bbox_target, bbox_weight, mask_proposal, mask_target, mask_ind = \
+        proposal, bbox_cls, bbox_target, bbox_weight, mask_proposal, mask_target, mask_ind, mask_ratio = \
             rpn_head.get_sampled_proposal(rpn_feat, gt_bbox, gt_poly, im_info)
+
         roi_feat = roi_extractor.get_roi_feature(rcnn_feat, proposal)
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, mask_proposal)
 
         bbox_loss = bbox_head.get_loss(roi_feat, bbox_cls, bbox_target, bbox_weight)
-        mask_loss = mask_head.get_loss(mask_roi_feat, mask_target, mask_ind)
-        return X.group(rpn_loss + bbox_loss + mask_loss)
+        mask_loss, mask_pred_logits = mask_head.get_loss(mask_roi_feat, mask_target, mask_ind)
+
+        iou_loss = maskiou_head.get_loss(mask_roi_feat, mask_pred_logits, mask_target, mask_ind, mask_ratio)
+        return X.group(rpn_loss + bbox_loss + mask_loss + iou_loss)
 
     @staticmethod
-    def get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, bbox_post_processor):
+    def get_test_symbol(backbone, neck, rpn_head, roi_extractor, mask_roi_extractor, bbox_head, mask_head, maskiou_head, bbox_post_processor):
         rec_id, im_id, im_info, proposal, proposal_score = \
-            MaskFasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
+            MaskScoringFasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
         rcnn_feat = backbone.get_rcnn_feature()
         rcnn_feat = neck.get_rcnn_feature(rcnn_feat)
@@ -52,15 +54,118 @@ class MaskFasterRcnn(object):
 
         mask_roi_feat = mask_roi_extractor.get_roi_feature(rcnn_feat, post_bbox_xyxy)
         mask = mask_head.get_prediction(mask_roi_feat)
+        mask_score = maskiou_head.get_maskiou_prediction(mask, mask_roi_feat, post_cls, post_cls_score)
 
-        # mask score only for placeholder
-        mask_score = mx.sym.broadcast_mul(mx.sym.ones((1, )), -1, name='maskiou_prediction')
         return X.group([rec_id, im_id, im_info, post_cls_score, post_bbox_xyxy, post_cls, mask, mask_score])
 
     @staticmethod
     def get_rpn_test_symbol(backbone, neck, rpn_head):
         return FasterRcnn.get_rpn_test_symbol(backbone, neck, rpn_head)
 
+class MaskIoUConvHead():
+    def __init__(self, pTest, pBbox, pMask):
+        self.pBbox = pBbox
+        self.pMask = pMask
+        self.pTest = pTest
+
+    def get_maskiou_prediction(self, mask_pred_logits, conv_feat, post_cls, post_cls_score):
+        # align cls index for MaskIoU prediction
+        post_cls = mx.sym.reshape(post_cls, (-1, 1)) + 1
+        post_cls_score = mx.sym.reshape(post_cls_score, (self.pBbox.batch_image, -1, 1))
+
+        det_ind = mx.sym.arange(self.pTest.max_det_per_image)
+        mask_inds = mx.sym.stack(det_ind, post_cls)
+
+        mask_pred_logits = mx.sym.gather_nd(mask_pred_logits, mask_inds, axis=1)
+        mask_pred_logits = self._get_output(mask_pred_logits, conv_feat)
+
+        maskiou_pred = mx.sym.reshape(mask_pred_logits, (self.pBbox.batch_image, self.pTest.max_det_per_image, self.pBbox.num_class))
+
+        batch_ind = mx.sym.arange(self.pBbox.batch_image)
+        batch_ind = mx.sym.repeat(batch_ind, self.pTest.max_det_per_image)
+        det_ind =mx.sym.tile(det_ind, self.pBbox.batch_image)
+        post_cls_ind = mx.sym.tile(post_cls, self.pBbox.batch_image)
+        maskiou_ind = mx.sym.stack(batch_ind, det_ind, post_cls_ind)
+
+        maskiou_pred = mx.sym.gather_nd(maskiou_pred, maskiou_ind, axis=2)
+        maskiou_pred = mx.sym.reshape(maskiou_pred, (self.pBbox.batch_image, self.pTest.max_det_per_image, 1))
+
+        # align mask score by multiplying with classification score
+        maskiou_pred = mx.sym.broadcast_mul(maskiou_pred, post_cls_score, name='maskiou_prediction')
+
+        return maskiou_pred
+
+    def _get_output(self, mask_pred_logits, conv_feat):
+        num_class = self.pBbox.num_class
+
+        msra_init = mx.init.Xavier(rnd_type="gaussian", factor_type="out", magnitude=2)
+        normal_init = mx.init.Normal(0.01)
+        kaiming_uniform = mx.init.Xavier(rnd_type='uniform', factor_type='in', magnitude=3)
+
+        mask_pred_logits = mx.sym.expand_dims(mask_pred_logits, axis=1)
+
+        iou_head_maxpool_1 = X.pool(
+            mask_pred_logits,
+            name='iou_head_maxpool_1',
+            kernel=2,
+            stride=2,
+            pad=0,
+        )
+        iou_head_input = X.concat([conv_feat, iou_head_maxpool_1], axis=1, name='iou_head_input')
+        hi = iou_head_input
+        for ii in range(3):
+            hi = X.conv(
+                hi,
+                filter=256,
+                kernel=3,
+                stride=1,
+                name='iou_head_conv_%d'%ii,
+                no_bias=False,
+                init=msra_init,
+            )
+            hi = X.relu(hi)
+        hi = X.conv(
+            hi,
+            filter=256,
+            kernel=3,
+            stride=2,
+            name='iou_head_conv_3',
+            no_bias=False,
+            init=msra_init
+        )
+        hi = X.relu(hi)
+        hi = X.flatten(data=hi)
+        fc1 = X.relu(X.fc(hi, filter=1024, name='iou_head_FC1', init=kaiming_uniform))
+        fc2 = X.relu(X.fc(fc1, filter=1024, name='iou_head_FC2', init=kaiming_uniform))
+        iou_pred_logits = X.fc(fc2, filter=num_class, name='iou_head_pred', init=normal_init)
+        return iou_pred_logits
+
+    def get_loss(self, conv_feat, mask_pred_logits, mask_target, mask_inds, mask_ratio):
+        iou_pred_logits = self._get_output(mask_pred_logits, conv_feat)
+
+        iou_pred_logits = mx.sym.split(iou_pred_logits, num_outputs=self.pBbox.batch_image, axis=0)
+        mask_inds_split = mx.sym.split(mask_inds, num_outputs=self.pBbox.batch_image, axis=0, squeeze_axis=True)
+        iou_pred_list = []
+        for each_iou_pred, each_mask_inds in zip(iou_pred_logits, mask_inds_split):
+            batch_ind = mx.sym.arange(self.pMask.num_fg_roi)
+            each_mask_inds = mx.sym.stack(batch_ind, each_mask_inds)
+            each_iou_pred = mx.sym.gather_nd(each_iou_pred, each_mask_inds, axis=1)
+            iou_pred_list.append(each_iou_pred)
+        iou_pred_logits = mx.sym.concat(*iou_pred_list, dim=0)
+        iou_pred_logits = mx.sym.reshape(iou_pred_logits, (-1, 1))
+
+        maskiou_target, weight_list = mx.sym.Custom(
+            mask_pred_logits=mask_pred_logits,
+            mask_target=mask_target,
+            mask_ratio=mask_ratio,
+            mask_inds=mask_inds,
+            op_type='maskiou_compute'
+        )
+        maskiou_target = mx.sym.BlockGrad(maskiou_target, name='gtIoU_blockGrad')
+        weight_list = mx.sym.BlockGrad(weight_list, name='weight_blockGrad')
+        maskiou_head_loss = mx.sym.MakeLoss(0.5 * mx.sym.sum(((maskiou_target - iou_pred_logits) ** 2) * weight_list) /
+                                                mx.sym.maximum(mx.sym.sum(weight_list), 1.), name='iou_head_loss')
+        return (maskiou_head_loss, )
 
 class BboxPostProcessor(object):
     def __init__(self, pTest):
@@ -100,7 +205,6 @@ class MaskRpnHead(RpnHead):
         fg_thr = p.subsample_proposal.fg_thr
         bg_thr_hi = p.subsample_proposal.bg_thr_hi
         bg_thr_lo = p.subsample_proposal.bg_thr_lo
-        post_nms_top_n = p.proposal.post_nms_top_n
 
         num_reg_class = p.bbox_target.num_reg_class
         class_agnostic = p.bbox_target.class_agnostic
@@ -112,7 +216,7 @@ class MaskRpnHead(RpnHead):
 
         (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
 
-        (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target) = mx.sym.ProposalMaskTarget(
+        (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target, mask_ratio) = mx.sym.ProposalMaskTarget(
             proposal,
             gt_bbox,
             gt_poly,
@@ -130,6 +234,7 @@ class MaskRpnHead(RpnHead):
             bbox_mean=bbox_target_mean,
             bbox_std=bbox_target_std,
             output_iou=True,
+            output_ratio=True,
             name="subsample_proposal"
         )
 
@@ -150,8 +255,7 @@ class MaskRpnHead(RpnHead):
             begin=0,
             end=num_fg_rois_per_img)
 
-        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label
-
+        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label, mask_ratio
 
 class MaskFPNRpnHead(FPNRpnHead):
     def __init__(self, pRpn, pMask):
@@ -181,7 +285,7 @@ class MaskFPNRpnHead(FPNRpnHead):
 
         (proposal, proposal_score) = self.get_all_proposal(conv_fpn_feat, im_info)
 
-        (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target) = mx.sym.ProposalMaskTarget(
+        (bbox, label, bbox_target, bbox_weight, match_gt_iou, mask_target, mask_ratio) = mx.sym.ProposalMaskTarget(
             rois=proposal,
             gt_boxes=gt_bbox,
             gt_polys=gt_poly,
@@ -199,6 +303,7 @@ class MaskFPNRpnHead(FPNRpnHead):
             bbox_mean=bbox_target_mean,
             bbox_std=bbox_target_std,
             output_iou=True,
+            output_ratio=True,
             name="subsample_proposal"
         )
 
@@ -219,7 +324,7 @@ class MaskFPNRpnHead(FPNRpnHead):
             begin=0,
             end=num_fg_rois_per_img)
 
-        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label
+        return bbox, label, bbox_target, bbox_weight, mask_proposal, mask_target, mask_label, mask_ratio
 
 
 class MaskFasterRcnnHead(object):
@@ -294,6 +399,12 @@ class MaskFasterRcnnHead(object):
             mask_fcn_logit_list.append(mask_fcn_logit)
         mask_fcn_logit = mx.sym.concat(*mask_fcn_logit_list, dim=0)
 
+        # get mask prediction logits
+        mask_pred_logits = mx.symbol.Activation(
+            data=mask_fcn_logit,
+            act_type='sigmoid',
+            name='mask_pred_prob')
+
         mask_fcn_logit = X.reshape(
             mask_fcn_logit,
             shape=(1, -1),
@@ -310,7 +421,7 @@ class MaskFasterRcnnHead(object):
             grad_scale=1.0 * scale_loss_shift,
             name="mask_loss"
         )
-        return (mask_loss,)
+        return (mask_loss,), mask_pred_logits
 
 
 class MaskFasterRcnn4ConvHead(MaskFasterRcnnHead):

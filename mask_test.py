@@ -16,6 +16,10 @@ from utils.patch_config import patch_config_as_nothrow
 import mxnet as mx
 import numpy as np
 
+import json
+import shutil
+import time
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Test Detection')
@@ -53,6 +57,7 @@ if __name__ == "__main__":
 
     from pycocotools.coco import COCO
     from pycocotools.cocoeval import COCOeval
+
     coco = COCO(pTest.coco.annotation)
 
     data_queue = Queue(100)
@@ -61,6 +66,7 @@ if __name__ == "__main__":
     execs = []
     workers = []
     coco_result = []
+    segm_result = []
     split_size = 1000
 
     for index_split in range(int(math.ceil(len(roidbs_all) / split_size))):
@@ -94,6 +100,7 @@ if __name__ == "__main__":
 
             # merge batch normalization to speedup test
             from utils.graph_optimize import merge_bn
+
             sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
             sym.save(pTest.model.prefix + "_test.json")
 
@@ -129,6 +136,8 @@ if __name__ == "__main__":
                     exe.forward(batch, is_train=False)
                     out = [x.asnumpy() for x in exe.get_outputs()]
                     result_queue.put(out)
+
+
             for exe in execs:
                 workers.append(Thread(target=eval_worker, args=(exe, data_queue, result_queue)))
             for w in workers:
@@ -136,28 +145,33 @@ if __name__ == "__main__":
                 w.start()
 
         import time
+
         t1_s = time.time()
+
 
         def data_enqueue(loader, data_queue):
             for batch in loader:
                 data_queue.put(batch)
+
+
         enqueue_worker = Thread(target=data_enqueue, args=(loader, data_queue))
         enqueue_worker.daemon = True
         enqueue_worker.start()
 
-        for _ in range(loader.total_record):
+        for index in range(loader.total_record):
             r = result_queue.get()
 
-            rid, id, info, post_cls_score, post_box, post_cls, mask = r
-            rid, id, info, post_cls_score, post_box, post_cls, mask = rid.squeeze(), id.squeeze(), info.squeeze(), \
-                                                                    post_cls_score.squeeze(), post_box.squeeze(), \
-                                                                    post_cls.squeeze(), mask.squeeze()
+            rid, id, info, post_cls_score, post_box, post_cls, mask, mask_score = r
+            rid, id, info, post_cls_score, post_box, post_cls, mask, mask_score = rid.squeeze(), id.squeeze(), info.squeeze(), \
+                                                                                post_cls_score.squeeze(), post_box.squeeze(), \
+                                                                                post_cls.squeeze(), mask.squeeze(), mask_score.squeeze()
+
             # TODO: POTENTIAL BUG, id or rid overflows float32(int23, 16.7M)
             id = np.asscalar(id)
             rid = np.asscalar(rid)
 
             scale = info[2]  # h_raw, w_raw, scale
-            mask = mask[:, 1:, :, :] # remove bg
+            mask = mask[:, 1:, :, :]  # remove bg
             post_box = post_box / scale  # scale to original image scale
             post_cls = post_cls.astype(np.int32)
 
@@ -168,17 +182,24 @@ if __name__ == "__main__":
             cls = post_cls[valid_inds]
             mask = mask[valid_inds]
 
+            # check if model outputs mask score
+            if mask_score.shape == () and mask_score == -1:
+                mask_score = np.zeros_like(cls_score)
+                rescoring_mask = False
+            else:
+                rescoring_mask = True
+
             output_record = dict(
                 rec_id=rid,
                 im_id=id,
                 im_info=info,
                 bbox_xyxy=bbox_xyxy,
                 cls_score=cls_score,
+                mask_score=mask_score,
                 cls=cls,
                 mask=mask,
                 valid_inds=valid_inds
             )
-
             all_outputs.append(output_record)
 
         t2_s = time.time()
@@ -198,20 +219,22 @@ if __name__ == "__main__":
                 output_dict[im_id] = dict(
                     bbox_xyxy=[rec["bbox_xyxy"]],
                     cls_score=[rec["cls_score"]],
+                    mask_score=[rec["mask_score"]],
                     cls=[rec["cls"]],
                     segm=[rec["segm"]]
                 )
             else:
                 output_dict[im_id]["bbox_xyxy"].append(rec["bbox_xyxy"])
                 output_dict[im_id]["cls_score"].append(rec["cls_score"])
+                output_dict[im_id]["mask_score"].append(rec["mask_score"])
                 output_dict[im_id]["cls"].append(rec["cls"])
                 output_dict[im_id]["segm"].append(rec["segm"])
 
             output_dict[im_id]["bbox_xyxy"] = output_dict[im_id]["bbox_xyxy"][0]
             output_dict[im_id]["cls_score"] = output_dict[im_id]["cls_score"][0]
+            output_dict[im_id]["mask_score"] = output_dict[im_id]["mask_score"][0]
             output_dict[im_id]["cls"] = output_dict[im_id]["cls"][0]
             output_dict[im_id]["segm"] = output_dict[im_id]["segm"][0]
-
 
         t4_s = time.time()
         print("aggregate uses: %.1f" % (t4_s - t3_s))
@@ -219,29 +242,36 @@ if __name__ == "__main__":
         for k in output_dict:
             bbox_xyxy = output_dict[k]["bbox_xyxy"]
             cls_score = output_dict[k]["cls_score"]
+            mask_score = output_dict[k]["mask_score"]
             cls = output_dict[k]["cls"]
             segm = output_dict[k]["segm"]
             final_dets = {}
             final_segms = {}
+            final_mask_scores = {}
 
             for cid in np.unique(cls):
                 ind_of_this_class = np.where(cls == cid)[0]
                 box_of_this_class = bbox_xyxy[ind_of_this_class]
                 score_of_this_class = cls_score[ind_of_this_class]
+                mask_score_of_this_class = mask_score[ind_of_this_class]
                 segm_of_this_class = segm[ind_of_this_class]
-                det_of_this_class = np.concatenate((box_of_this_class, score_of_this_class.reshape(-1, 1)), axis=1).astype(np.float32)
+                det_of_this_class = np.concatenate((box_of_this_class, score_of_this_class.reshape(-1, 1)),
+                                                   axis=1).astype(np.float32)
                 if pTest.multi_branch_nms is not None:
                     if callable(pTest.multi_branch_nms.type):
                         nms = pTest.multi_branch_nms.type(pTest.multi_branch_nms.thr)
                     else:
                         from operator_py.nms import py_nms_index_wrapper
+
                         nms = py_nms_index_wrapper(pTest.multi_branch_nms.thr)
                     keep = nms(det_of_this_class)
                     det_of_this_class = det_of_this_class[keep]
                     segm_of_this_class = segm_of_this_class[keep]
+                    mask_score_of_this_class = mask_score_of_this_class[keep]
                 dataset_cid = coco.getCatIds()[cid]
                 final_dets[dataset_cid] = det_of_this_class
                 final_segms[dataset_cid] = segm_of_this_class
+                final_mask_scores[dataset_cid] = mask_score_of_this_class
 
             del output_dict[k]["bbox_xyxy"]
             del output_dict[k]["cls_score"]
@@ -249,6 +279,7 @@ if __name__ == "__main__":
             del output_dict[k]["segm"]
             output_dict[k]["det_xyxys"] = final_dets
             output_dict[k]["segmentations"] = final_segms
+            output_dict[k]["mask_score"] = final_mask_scores
 
         t5_s = time.time()
         print("post process uses: %.1f" % (t5_s - t4_s))
@@ -261,17 +292,19 @@ if __name__ == "__main__":
                 if det_of_this_class.shape[0] == 0:
                     continue
                 scores = det_of_this_class[:, -1]
+                mask_scores = output_dict[iid]["mask_score"][cid]
                 xs = det_of_this_class[:, 0]
                 ys = det_of_this_class[:, 1]
                 ws = det_of_this_class[:, 2] - xs + 1
                 hs = det_of_this_class[:, 3] - ys + 1
                 result += [
                     {'image_id': int(iid),
-                    'category_id': int(cid),
-                    'bbox': [float(xs[k]), float(ys[k]), float(ws[k]), float(hs[k])],
-                    'score': float(scores[k]),
-                    'segmentation': {"size": seg_of_this_class[k]["size"],
-                                    "counts": seg_of_this_class[k]["counts"].decode("utf8")}}
+                     'category_id': int(cid),
+                     'bbox': [float(xs[k]), float(ys[k]), float(ws[k]), float(hs[k])],
+                     'score': float(scores[k]),
+                     'mask_score': float(mask_scores[k]),
+                     'segmentation': {"size": seg_of_this_class[k]["size"],
+                                      "counts": seg_of_this_class[k]["counts"].decode('utf8')}}
                     for k in range(det_of_this_class.shape[0])
                 ]
             result = sorted(result, key=lambda x: x['score'])[-pTest.max_det_per_image:]
@@ -281,6 +314,7 @@ if __name__ == "__main__":
         print("convert to coco format uses: %.1f" % (t6_s - t5_s))
 
     import json
+
     json.dump(coco_result,
               open("experiments/{}/{}_result.json".format(pGen.name, pDataset.image_set[0]), "w"),
               sort_keys=True, indent=2)
@@ -293,11 +327,25 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
-    ann_type = 'segm'
-    coco_eval = COCOeval(coco, coco_dt)
-    coco_eval.params.useSegm = (ann_type == 'segm')
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
+    if rescoring_mask == False:
+        ann_type = 'segm'
+        coco_dt = coco.loadRes(coco_result)
+        coco_eval = COCOeval(coco, coco_dt)
+        coco_eval.params.useSegm = (ann_type == 'segm')
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+    else:
+        # rescoring mask with mask score
+        for ii in range(len(coco_result)):
+            coco_result[ii]['score'] = coco_result[ii]['mask_score']
+        ann_type = 'segm'
+        coco_dt = coco.loadRes(coco_result)
+        coco_eval = COCOeval(coco, coco_dt)
+        coco_eval.params.useSegm = (ann_type == 'segm')
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+
     t7_s = time.time()
     print("coco eval uses: %.1f" % (t7_s - t6_s))

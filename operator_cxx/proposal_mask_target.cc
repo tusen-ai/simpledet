@@ -16,6 +16,140 @@ using std::end;
 using std::random_shuffle;
 using std::log;
 
+template <typename DType>
+inline double convertPoly2MaskWithRatio(const DType *roi,
+                             const DType *poly,
+                             const int mask_size,
+                             DType *mask){
+      DType w = roi[2] - roi[0];
+      DType h = roi[3] - roi[1];
+
+      w = max((DType)1., w);
+      h = max((DType)1., h);
+      int category = static_cast<int>(poly[0]);
+      int n_seg = static_cast<int>(poly[1]);
+
+      RLE* rles;
+      RLE* rles_origin;
+      RLE* rles_crop;
+
+      rlesInit(&rles, n_seg);
+      rlesInit(&rles_origin, n_seg);
+      rlesInit(&rles_crop, n_seg);
+
+      int roi_x_1 = roi[0], roi_x_2 = roi[2], roi_y_1 = roi[1], roi_y_2 = roi[3];
+
+      int crop_w = roi_x_2 - roi_x_1 + 1;
+      int crop_h = roi_y_2 - roi_y_1 + 1;
+
+      int offset = 2 + n_seg;
+      double origin_x_1=roi[0], origin_x_2=roi[2], origin_y_1=roi[1], origin_y_2=roi[3];
+      for(int i = 0; i < n_seg; i++){
+        int cur_len = poly[i+2];
+        double* xys = new double[cur_len];
+        double* xys_crop = new double[cur_len];
+        for(int j = 0; j < cur_len; j++){
+          if (j % 2 == 0){
+            double poly_index = poly[offset+j+1];
+            origin_y_1 = min(origin_y_1, poly_index);
+            origin_y_2 = max(origin_y_2, poly_index);
+            xys[j] = (poly_index - roi[1]) * mask_size / h;
+            xys_crop[j+1] = poly_index - roi[1];
+          }
+          else{
+            double poly_index = poly[offset+j-1];
+            origin_x_1 = min(origin_x_1, poly_index);
+            origin_x_2 = max(origin_x_2, poly_index);
+            xys[j] = (poly_index - roi[0]) * mask_size / w;
+            xys_crop[j-1] = poly_index - roi[0];
+          }
+        }
+        rleFrPoly(rles + i, xys, cur_len/2, mask_size, mask_size);
+        rleFrPoly(rles_crop + i, xys_crop, cur_len/2, crop_h, crop_w);
+        delete [] xys;
+        delete [] xys_crop;
+        offset += cur_len;
+      }
+
+      int int_x_1 = int(origin_x_1), int_x_2 = int(origin_x_2), int_y_1 = int(origin_y_1), int_y_2 = int(origin_y_2);
+
+      double origin_mask_sum = 0;
+      double crop_mask_sum = 0;
+
+      int full_w = int_x_2 - int_x_1 + 1;
+      int full_h = int_y_2 - int_y_1 + 1;
+
+      offset = 2 + n_seg;
+      for(int i=0; i<n_seg; i++){
+        int cur_len = poly[i+2];
+        double* xys_origin = new double[cur_len];
+        for(int j=0; j<cur_len; j++){
+            if (j % 2 == 0){
+                double poly_index = poly[offset+j+1];
+                xys_origin[j+1] = poly_index - origin_y_1;
+            }
+            else{
+                double poly_index = poly[offset+j-1];
+                xys_origin[j-1] = poly_index - origin_x_1;
+            }
+        }
+        rleFrPoly(rles_origin+i, xys_origin, cur_len/2, full_h, full_w);
+        delete xys_origin;
+        offset += cur_len;
+      }
+
+      // Decode RLE to mask
+      byte* byte_mask = new byte[mask_size*mask_size*n_seg];
+      byte* byte_mask_origin = new byte[(int_y_2-int_y_1+1) * (int_x_2-int_x_1+1) *n_seg];
+      byte* byte_mask_crop = new byte[(roi_x_2-roi_x_1+1) * (roi_y_2-roi_y_1+1) * n_seg];
+
+      rleDecode(rles, byte_mask, n_seg);
+      rleDecode(rles_origin, byte_mask_origin, n_seg);
+      rleDecode(rles_crop, byte_mask_crop, n_seg);
+
+      DType* mask_cat = mask;
+      // Flatten mask
+      for(int j = 0; j < mask_size * mask_size; j++){
+        float cur_byte = 0;
+        for(int i = 0; i< n_seg; i++){
+          int offset = i * mask_size * mask_size + j;
+          if(byte_mask[offset]==1){
+            cur_byte = 1;
+            break;
+          }
+        }
+        mask_cat[j] = cur_byte;
+      }
+
+      for(int i=0; i<full_w * full_h; i++){
+        for(int p = 0; p<n_seg; p++){
+            int offset = p * full_w * full_h + i;
+            if(byte_mask_origin[offset] == 1){
+                origin_mask_sum += 1;
+                break;
+            }
+        }
+      }
+      for(int i=0; i<crop_w*crop_h; i++){
+        for(int p=0; p<n_seg; p++){
+            int offset = p * crop_w * crop_h + i;
+            if(byte_mask_crop[offset] == 1){
+                crop_mask_sum += 1;
+                break;
+            }
+        }
+      }
+      double mask_ratio = crop_mask_sum / (origin_mask_sum + 0.0001);
+      mask_ratio = max(mask_ratio, 1e-10);
+      // Check to make sure we don't have memory leak
+      rlesFree(&rles, n_seg);
+      rlesFree(&rles_origin, n_seg);
+      rlesFree(&rles_crop, n_seg);
+      delete [] byte_mask_origin;
+      delete [] byte_mask;
+      delete [] byte_mask_crop;
+      return mask_ratio;
+}//convertPoly2MaskWithRatio
 
 template <typename DType>
 inline void convertPoly2Mask(const DType *roi,
@@ -50,8 +184,6 @@ inline void convertPoly2Mask(const DType *roi,
             xys[j] = (poly[offset+j+1] - roi[1]) * mask_size / h;
           else
             xys[j] = (poly[offset+j-1] - roi[0]) * mask_size / w;
-
-
         }
         rleFrPoly(rles + i, xys, cur_len/2, mask_size, mask_size);
         delete [] xys;
@@ -99,12 +231,14 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
                       const float bg_thresh_lo,
                       const int image_rois,
                       const bool class_agnostic,
+                      const bool output_ratio,
                       Tensor<cpu, 2, DType> &&rois,
                       Tensor<cpu, 1, DType> &&labels,
                       Tensor<cpu, 2, DType> &&bbox_targets,
                       Tensor<cpu, 2, DType> &&bbox_weights,
                       Tensor<cpu, 1, DType> &&match_gt_ious,
-                      Tensor<cpu, 3, DType> &&mask_targets) {
+                      Tensor<cpu, 3, DType> &&mask_targets,
+                      Tensor<cpu, 1, DType> &&mask_ratios) {
   /*
   overlaps = bbox_overlaps(rois[:, 1:].astype(np.float), gt_boxes[:, :4].astype(np.float))
   gt_assignment = overlaps.argmax(axis=1)
@@ -231,10 +365,17 @@ inline void SampleROIMask(const Tensor<cpu, 2, DType> &all_rois,
   }
 
   ExpandBboxRegressionTargets(bbox_target_data, bbox_targets, bbox_weights, bbox_weight);
-
-  for (index_t i=0; i < fg_rois_this_image; ++i) {
-    convertPoly2Mask(rois[i].dptr_, gt_polys[gt_assignment[kept_indexes[i]]].dptr_, mask_size, mask_targets[i].dptr_);
+  if (output_ratio){
+    for (index_t i=0; i < fg_rois_this_image; ++i) {
+        mask_ratios[i] = convertPoly2MaskWithRatio(rois[i].dptr_, gt_polys[gt_assignment[kept_indexes[i]]].dptr_, mask_size, mask_targets[i].dptr_);
+    }
   }
+  else{
+     for (index_t i=0; i < fg_rois_this_image; ++i) {
+        convertPoly2Mask(rois[i].dptr_, gt_polys[gt_assignment[kept_indexes[i]]].dptr_, mask_size, mask_targets[i].dptr_);
+     }
+  }
+
 }
 
 template <typename DType>
