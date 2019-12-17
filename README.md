@@ -183,7 +183,7 @@ The flexibility of **simpledet** framework makes it easy to build different dete
 
 
 ### Contributors
-Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Xiaotao Chen, Jingqiu Zhou, Zhen Wei, Zehui Chen
+Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Xiaotao Chen, Jingqiu Zhou, Zhen Wei, Zehui Chen, Zhaoxiang Zhang
 
 
 ### License and Citation
@@ -191,10 +191,14 @@ This project is release under the Apache 2.0 license for non-commercial usage. F
 
 If you find our project helpful, please consider cite our tech report.
 ```
-@article{chen2019simpledet,
-  title={SimpleDet: A Simple and Versatile Distributed Framework for Object Detection and Instance Recognition},
-  author={Chen, Yuntao and and Han, Chenxia and Li, Yanghao and Huang, Zehao and Jiang, Yi and Wang, Naiyan and Zhang, Zhaoxiang},
-  journal={Journal of Machine Learning Research(156):1−8, 2019},
-  year={2019}
+@article{JMLR:v20:19-205,
+  author  = {Yuntao Chen and Chenxia Han and Yanghao Li and Zehao Huang and Yi Jiang and Naiyan Wang and Zhaoxiang Zhang},
+  title   = {SimpleDet: A Simple and Versatile Distributed Framework for Object Detection and Instance Recognition},
+  journal = {Journal of Machine Learning Research},
+  year    = {2019},
+  volume  = {20},
+  number  = {156},
+  pages   = {1-8},
+  url     = {http://jmlr.org/papers/v20/19-205.html}
 }
 ```
