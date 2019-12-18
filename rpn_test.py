@@ -83,10 +83,9 @@ if __name__ == "__main__":
                         num_worker=4,
                         num_collector=2,
                         worker_queue_depth=2,
-                        collector_queue_depth=2,
-                        kv=None)
+                        collector_queue_depth=2)
 
-        print("total number of images: {}".format(loader.total_record))
+        print("total number of images: {}".format(loader.total_batch))
 
         data_names = [k[0] for k in loader.provide_data]
 
@@ -94,11 +93,11 @@ if __name__ == "__main__":
             arg_params, aux_params = load_checkpoint(pTest.model.prefix, pTest.model.epoch)
             if pModel.process_weight is not None:
                 pModel.process_weight(sym, arg_params, aux_params)
-             
-            # merge batch normalization 
+
+            # merge batch normalization
             from utils.graph_optimize import merge_bn
             sym, arg_params, aux_params = merge_bn(sym, arg_params, aux_params)
-            
+
             for i in pKv.gpus:
                 ctx = mx.gpu(i)
                 mod = DetModule(sym, data_names=data_names, context=ctx)
@@ -131,7 +130,7 @@ if __name__ == "__main__":
         enqueue_worker.daemon = True
         enqueue_worker.start()
 
-        for _ in range(loader.total_record):
+        for _ in range(loader.total_batch):
             r = result_queue.get()
 
             rid, id, info, box, score = r

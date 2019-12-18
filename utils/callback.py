@@ -4,8 +4,9 @@ import mxnet as mx
 
 
 class Speedometer(object):
-    def __init__(self, batch_size, frequent=50):
+    def __init__(self, batch_size, total_iter, frequent=50):
         self.batch_size = batch_size
+        self.total_iter = total_iter
         self.frequent = frequent
         self.init = False
         self.tic = 0
@@ -23,8 +24,8 @@ class Speedometer(object):
                 speed = self.frequent * self.batch_size / (time.time() - self.tic)
                 if param.eval_metric is not None:
                     name, value = param.eval_metric.get()
-                    s = "Epoch[%d] Batch [%d]\tIter: %d\tLr: %.5f\tSpeed: %.2f samples/sec\tTrain-" % \
-                        (param.epoch, count, param.iter, param.lr, speed)
+                    s = "Epoch[%d] Batch [%d]\tIter: %d/%d\tLr: %.5f\tSpeed: %.2f samples/sec\tTrain-" % \
+                        (param.epoch, count, param.iter, self.total_iter, param.lr, speed)
                     for n, v in zip(name, value):
                         s += "%s=%f,\t" % (n, v)
                     logging.info(s)

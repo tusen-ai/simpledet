@@ -38,7 +38,7 @@ if __name__ == "__main__":
     data_batch = mx.io.DataBatch(data=[data, im_info, im_id, rec_id])
 
     '''
-    there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py 
+    there are some conflicts between `mergebn` and `attach_quantized_node` in graph_optimize.py
     when mergebn ahead of attach_quantized_node
     such as `Symbol.ComposeKeyword`
     '''
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         # raise NotImplementedError
         _, out_shape, _ = sym.get_internals().infer_shape(**worker_data_shape)
         out_shape_dictoinary = dict(zip(sym.get_internals().list_outputs(), out_shape))
-        sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam, 
+        sym = attach_quantize_node(sym, out_shape_dictoinary, pQuant.WeightQuantizeParam,
                                    pQuant.ActQuantizeParam, pQuant.quantized_op)
     sym.save(pTest.model.prefix + "_infer_speed.json")
 
