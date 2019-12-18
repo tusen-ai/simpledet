@@ -590,7 +590,7 @@ class Loader(mx.io.DataIter):
 
     def __init__(self, roidb, transform, data_name, label_name, batch_size=1,
                  shuffle=False, num_worker=None, num_collector=None,
-                 worker_queue_depth=None, collector_queue_depth=None, kv=None, valid_count=-1):
+                 worker_queue_depth=None, collector_queue_depth=None, valid_count=-1):
         """
         This Iter will provide roi data to Fast R-CNN network
         :param roidb: must be preprocessed
@@ -599,11 +599,6 @@ class Loader(mx.io.DataIter):
         :return: Loader
         """
         super().__init__(batch_size=batch_size)
-
-        if kv:
-            (self.rank, self.num_worker) = (kv.rank, kv.num_workers)
-        else:
-            (self.rank, self.num_worker) = (0, 1)
 
         # data processing utilities
         if isinstance(transform, dict):
@@ -653,8 +648,8 @@ class Loader(mx.io.DataIter):
         return self.total_index[:self.valid_count]
 
     @property
-    def total_record(self):
-        return len(self.index) // self.batch_size * self.batch_size
+    def total_batch(self):
+        return len(self.index) // self.batch_size
 
     @property
     def provide_data(self):
@@ -830,8 +825,7 @@ class AnchorLoader(mx.io.DataIter):
                               num_worker=num_worker,
                               num_collector=num_collector,
                               worker_queue_depth=worker_queue_depth,
-                              collector_queue_depth=collector_queue_depth,
-                              kv=kv)
+                              collector_queue_depth=collector_queue_depth)
             loaders.append(h_loader)
         if len(v_roidb_part) >= batch_size:
             v_loader = Loader(roidb=v_roidb_part,
@@ -844,18 +838,17 @@ class AnchorLoader(mx.io.DataIter):
                               num_worker=num_worker,
                               num_collector=num_collector,
                               worker_queue_depth=worker_queue_depth,
-                              collector_queue_depth=collector_queue_depth,
-                              kv=kv)
+                              collector_queue_depth=collector_queue_depth)
             loaders.append(v_loader)
         assert len(loaders) > 0, "at least one loader should be constructed"
         self.__loader = SequentialLoader(loaders)
 
     @property
-    def total_record(self):
-        return sum([it.total_record for it in self.__loader.iters])
+    def total_batch(self):
+        return sum([it.total_batch for it in self.__loader.iters])
 
     def __len__(self):
-        return self.total_record
+        return self.total_batch
 
     def __getattr__(self, attr):
         # delegate unknown keys to underlying iterators

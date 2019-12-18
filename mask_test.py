@@ -86,10 +86,9 @@ if __name__ == "__main__":
                         num_worker=4,
                         num_collector=2,
                         worker_queue_depth=2,
-                        collector_queue_depth=2,
-                        kv=None)
+                        collector_queue_depth=2)
 
-        print("total number of images: {}".format(loader.total_record))
+        print("total number of images: {}".format(loader.total_batch))
 
         data_names = [k[0] for k in loader.provide_data]
 
@@ -158,7 +157,7 @@ if __name__ == "__main__":
         enqueue_worker.daemon = True
         enqueue_worker.start()
 
-        for index in range(loader.total_record):
+        for _ in range(loader.total_batch):
             r = result_queue.get()
 
             rid, id, info, post_cls_score, post_box, post_cls, mask, mask_score = r

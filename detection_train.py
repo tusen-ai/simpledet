@@ -186,7 +186,7 @@ def train_net(config):
     eval_metrics = mx.metric.CompositeEvalMetric(metric_list)
 
     # callback
-    batch_end_callback = [callback.Speedometer(train_data.batch_size, frequent=pGen.log_frequency)]
+    batch_end_callback = [callback.Speedometer(train_data.batch_size, len(train_data) * (end_epoch - begin_epoch), frequent=pGen.log_frequency)]
     batch_end_callback += pModel.batch_end_callbacks or []
     epoch_end_callback = callback.do_checkpoint(model_prefix)
     sym.save(model_prefix + ".json")
@@ -196,7 +196,7 @@ def train_net(config):
     base_lr = pOpt.optimizer.lr * kv.num_workers
     lr_factor = pOpt.schedule.lr_factor or 0.1
 
-    iter_per_epoch = len(train_data) // input_batch_size
+    iter_per_epoch = len(train_data)
     total_iter = iter_per_epoch * (end_epoch - begin_epoch)
     lr_iter = [total_iter + it if it < 0 else it for it in lr_iter]
     lr_iter = [it // kv.num_workers for it in lr_iter]
