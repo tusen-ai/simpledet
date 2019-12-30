@@ -220,7 +220,7 @@ class TridentRpnHead(RpnHead):
 
         cls_logit, bbox_delta = self.get_output(conv_feat)
 
-        # TODO: remove this reshape hell
+        # TODO: remove this reshape hell, use sigmoid instead of softmax
         cls_logit_reshape = X.reshape(
             cls_logit,
             shape=(0, -4, 2, -1, 0, 0),  # (N,C,H,W) -> (N,2,C/2,H,W)
