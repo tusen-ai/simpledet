@@ -14,6 +14,7 @@ python3 detection_test.py --config config/reppoints_moment_r50v1_fpn_1x.py
 
 ### Models
 All AP results are reported on minival2014 of the [COCO dataset](http://cocodataset.org).
+
 |Method|Backbone|Transform|Schedule|AP (paper)|AP (re-impl)|Link|
 |------|--------|---------|--------|----------|------------|----|
 |RepPoints|R50v1-FPN|MinMax|1x|38.2|38.0|[model](https://drive.google.com/open?id=1BNF7cLJDLgOUpSgQ3bcXm2iSHop5G3Rp)|
