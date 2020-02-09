@@ -26,6 +26,7 @@
 - Add support for INT8 training(contributed by Xiaotao Chen & Jingqiu Zhou) (2019.10.24)
 - Add support for FCOS(contributed by Zhen Wei) (2019.11)
 - Add support for Mask Scoring RCNN(contributed by Zehui Chen) (2019.12)
+- Add support for RepPoints(contributed by Bo Ke) (2020.02)
 
 ### Setup
 #### All-in-one Script
@@ -183,7 +184,7 @@ The flexibility of **simpledet** framework makes it easy to build different dete
 
 
 ### Contributors
-Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Xiaotao Chen, Jingqiu Zhou, Zhen Wei, Zehui Chen, Zhaoxiang Zhang
+Yuntao Chen, Chenxia Han, Yanghao Li, Zehao Huang, Naiyan Wang, Xiaotao Chen, Jingqiu Zhou, Zhen Wei, Zehui Chen, Zhaoxiang Zhang, Bo Ke
 
 
 ### License and Citation
