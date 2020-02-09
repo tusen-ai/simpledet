@@ -496,6 +496,9 @@ class RepPointsHead(object):
         cls_score_dict = dict()
         bbox_xyxy_dict = dict()
         for s in stride:
+            # NOTE: pre_nms_top_n_ is hard-coded as -1 because the number of proposals is less
+            # than pre_nms_top_n in these low-resolution feature maps. Also note that one should
+            # select the appropriate params here if using low-resolution images as input.
             pre_nms_top_n_ = pre_nms_top_n if s <= 32 else -1
             points_ = _gen_points(mx.symbol, pts_out_inits["stride%s" % s], s)
             preds_refines_ = _points2bbox(
