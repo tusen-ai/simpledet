@@ -12,7 +12,7 @@ All AP results are reported on minival of the [COCO dataset](http://cocodataset.
 
 |Model|InputSize|Backbone|Train Schedule|GPU|Image/GPU|FP16|Train MEM|Train Speed|Box AP|Link|
 |-----|-----|--------|--------------|---|---------|----|---------|-----------|---------------|----|
-|Faster|400x600|B5-FPN|36 epoch(6X)|8X 1080Ti|8|yes|-|75 img/s|37.2|[model](https://1dv.alarge.space/efficientnet_b5_fpn_bn_scratch_400_6x.zip)|
+|Faster|400x600|B5-FPN|36 epoch(6X)|8X 1080Ti|8|yes|-|75 img/s|37.2|[model](https://1dv.aflat.top/efficientnet_b5_fpn_bn_scratch_400_6x.zip)|
 |Faster|400x600|B5-FPN|54 epoch(9X)|8X 1080Ti|8|yes|-|75 img/s|37.9|-|
 |Faster|400x600|B5-FPN|72 epoch(12X)|8X 1080Ti|8|yes|-|75 img/s|38.3|-|
 

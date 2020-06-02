@@ -57,7 +57,7 @@ pushd data/src
 
 # download and extract clipart.zip
 # courtesy to "Towards Universal Object Detection by Domain Attention"
-wget https://1dv.alarge.space/clipart.zip -O clipart.zip
+wget https://1dv.aflat.top/clipart.zip -O clipart.zip
 unzip clipart.zip
 popd
 
