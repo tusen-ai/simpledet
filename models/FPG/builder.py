@@ -60,14 +60,6 @@ class FPGNeck(Neck):
                 bottom_ind_x = 0; bottom_ind_y = index
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
                     fusion_list.append(self.across_skip(bottom_ind_x, bottom_ind_y, dim_reduced))
-                
-                # tmp = {'data': (2, 3, 800, 1333)}
-                # print("==================")
-                # print("Stage: %d, level: %d" % (stage, level))
-                # for fusion_feat in fusion_list:
-                #     _, output, _ = fusion_feat.infer_shape(**tmp)
-                #     print(output)
-                # print("-----------------")
 
                 fusion_feature = merge_sum(fusion_list, name='sum_P%s_%s' % (level, stage))
                 feature_grid = reluconvbn(fusion_feature, dim_reduced, init, norm, name='P%s_%s'%(level, stage), prefix=prefix)
