@@ -1,10 +1,19 @@
 import mxnet as mx
 import mxnext as X
 from symbol.builder import RoiAlign, Neck
-from models.NASFPN.builder import reluconvbn
 
 def merge_sum(sum_list, name):
     return mx.sym.ElementWiseSum(*sum_list, name=name + '_sum')
+
+def reluconvbn(data, filters, pad, kernel, stride, init, norm, name, prefix):
+    # name = prefix + name
+    data = mx.sym.Activation(data, name=name + '_relu', act_type='relu')
+    weight = mx.sym.var(name=prefix + name + "_weight", init=init)
+    bias = mx.sym.var(name=prefix + name + "_bias")
+    data = mx.sym.Convolution(data, name=name, weight=weight, bias=bias, \
+                num_filter=filters, kernel=(kernel, kernel), pad=(pad, pad), stride=(stride, stride))
+    data = norm(data, name=name+'_bn_neck')
+    return data
 
 class FPGNeck(Neck):
     def __init__(self, pNeck):
@@ -39,100 +48,83 @@ class FPGNeck(Neck):
                 # bottom feature (Same Up)
                 bottom_ind_x = stage; bottom_ind_y = index - 1
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
-                    fusion_list.append(self.same_up(bottom_ind_x, bottom_ind_y, dim_reduced))
+                    fusion_list.append(self.same_up(bottom_ind_x, bottom_ind_y, dim_reduced, init, norm))
                 
                 # bottom left feature (Across Up)
                 bottom_ind_x = stage - 1; bottom_ind_y = index - 1
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
-                    fusion_list.append(self.across_up(bottom_ind_x, bottom_ind_y, dim_reduced))
+                    fusion_list.append(self.across_up(bottom_ind_x, bottom_ind_y, dim_reduced, init, norm))
                 
                 # left feature (Across Same)
                 bottom_ind_x = stage - 1; bottom_ind_y = index
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
-                    fusion_list.append(self.across_same(bottom_ind_x, bottom_ind_y, dim_reduced))
+                    fusion_list.append(self.across_same(bottom_ind_x, bottom_ind_y, dim_reduced, init, norm))
 
                 # upper left feature (Across Down)
                 bottom_ind_x = stage - 1; bottom_ind_y = index + 1
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
-                    fusion_list.append(self.across_down(bottom_ind_x, bottom_ind_y, dim_reduced))
+                    fusion_list.append(self.across_down(bottom_ind_x, bottom_ind_y, dim_reduced, init, norm))
 
                 # stage 0 feature (Across Skip)
                 bottom_ind_x = 0; bottom_ind_y = index
                 if bottom_ind_x >=0 and bottom_ind_y >= 0 and bottom_ind_y < len(level_list):
-                    fusion_list.append(self.across_skip(bottom_ind_x, bottom_ind_y, dim_reduced))
-
-                fusion_feature = merge_sum(fusion_list, name='sum_P%s_%s' % (level, stage))
-                feature_grid = reluconvbn(fusion_feature, dim_reduced, init, norm, name='P%s_%s'%(level, stage), prefix=prefix)
+                    fusion_list.append(self.across_skip(bottom_ind_x, bottom_ind_y, stage, dim_reduced, init, norm))
+                
+                name = "S%s_P%s"%(stage, level)
+                fusion_feature = merge_sum(fusion_list, name='sum_' + name)
+                feature_grid = X.conv(
+                    data=fusion_feature,
+                    filter=dim_reduced,
+                    kernel=3,
+                    pad=1,
+                    stride=1,
+                    no_bias=False,
+                    weight=X.var(name=name + "_weight", init=init),
+                    bias=X.var(name=name + "_bias", init=X.zero_init()),
+                    name=name + '_conv',
+                )
                 self.feature_grids[stage].append(feature_grid)
+        
 
-    def across_down(self, stage_num, level_num, dim_reduced):
+
+    def across_down(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        upsampling_feature = mx.sym.UpSampling(
+        feature = mx.sym.UpSampling(
             feature,
             scale=2,
             sample_type='nearest',
             name='P%s_%s_acrossdown_upsample' % (level_num, stage_num),
             num_args=1,
         )
-        output_feature = X.conv(
-            data=upsampling_feature,
-            kernel=3,
-            pad=1,
-            stride=1,
-            filter=dim_reduced,
-            name='P%s_%s_acrossdown_conv' % (level_num, stage_num),
-        )
+        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=1, init=init, norm=norm,\
+                                name='P%s_acrossdown_conv'%level_num, prefix='S%s_'%stage_num)
         p0_feature = self.feature_grids[0][level_num-1]
-        output_feature = mx.sym.slice_like(output_feature, p0_feature, name='P%s_%s_slicelike'%(stage_num, level_num))
-        return output_feature
+        feature = mx.sym.slice_like(feature, p0_feature, name='P%s_%s_slicelike'%(stage_num, level_num))
+        return feature
     
-    def across_same(self, stage_num, level_num, dim_reduced):
+    def across_same(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        across_same_feature = X.conv(
-            data=feature,
-            kernel=1,
-            pad=0,
-            stride=1,
-            filter=dim_reduced,
-            name='P%s_%s_acrosssame_conv' % (level_num, stage_num),
-        )
-        return across_same_feature
+        feature = reluconvbn(data=feature, filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
+                                name='P%s_acrosssame_conv'%level_num, prefix='S%s_'%stage_num)
+        return feature
 
-    def across_up(self, stage_num, level_num, dim_reduced):
+    def across_up(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        across_up_feature = X.conv(
-            data=feature,
-            kernel=3,
-            stride=2,
-            pad=1,
-            filter=dim_reduced,
-            name='P%s_%s_acrossup_conv' % (level_num, stage_num),
-        )
-        return across_up_feature
+        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
+                                name='P%s_acrossup_conv'%level_num, prefix='S%s_'%stage_num)
+        return feature
 
-    def same_up(self, stage_num, level_num, dim_reduced):
+    def same_up(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        same_up_feature = X.conv(
-            data=feature,
-            kernel=3,
-            stride=2,
-            pad=1,
-            filter=dim_reduced,
-            name='P%s_%s_sameup_conv' % (level_num, stage_num)
-        )
-        return same_up_feature
+        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
+                                name='P%s_sameup_conv'%level_num, prefix='S%s_'%stage_num)
+        return feature
 
-    def across_skip(self, stage_num, level_num, dim_reduced):
+    def across_skip(self, stage_num, level_num, curr_stage_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        across_skip_feature = X.conv(
-            data=feature,
-            kernel=1,
-            pad=0,
-            stride=1,
-            filter=dim_reduced,
-            name='P%s_%s_acrossskip_conv' % (level_num, stage_num),
-        )
-        return across_skip_feature
+        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
+                                name='P%s_acrossskip_conv'%level_num, prefix='S%s_2_%s'%(stage_num, curr_stage_num))
+        return feature
 
     def get_rpn_feature(self, rpn_feat):
         return self.get_fpg_neck(rpn_feat)

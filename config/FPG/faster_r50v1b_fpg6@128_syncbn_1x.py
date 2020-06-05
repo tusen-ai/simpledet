@@ -25,8 +25,7 @@ def get_config(is_train):
 
 
     class NormalizeParam:
-        normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
-
+        normalizer = normalizer_factory(type="fixbn")
 
     class BackboneParam:
         fp16 = General.fp16
@@ -35,9 +34,9 @@ def get_config(is_train):
 
     class NeckParam:
         fp16 = General.fp16
-        normalizer = NormalizeParam.normalizer
+        normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
         dim_reduced = 128
-        num_stage = 6   # NOTE
+        num_stage = 6
         S0_kernel = 1
 
     class RpnParam:
@@ -140,12 +139,13 @@ def get_config(is_train):
         from_scratch = False
         random = True
         memonger = False
-        memonger_until = "stage3_unit3_plus"
+        memonger_until = "stage2_unit3_plus"
 
         class pretrain:
             prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
             epoch = 0
-            fixed_param = ["conv0", "stage1", "gamma", "beta"]
+            fixed_param = ["conv0", "stage1", "bn_gamma", "bn_beta", "bn0",
+                "bn1", "bn2", "bn3", "bn4"]
 
         def process_weight(sym, arg, aux):
             for stride in RpnParam.anchor_generate.stride:
