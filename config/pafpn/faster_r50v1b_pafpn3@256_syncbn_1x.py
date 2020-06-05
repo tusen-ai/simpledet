@@ -26,9 +26,7 @@ def get_config(is_train):
 
 
     class NormalizeParam:
-        # normalizer = normalizer_factory(type="localbn")
         normalizer = normalizer_factory(type="syncbn", ndev=len(KvstoreParam.gpus))
-
 
     class BackboneParam:
         fp16 = General.fp16
