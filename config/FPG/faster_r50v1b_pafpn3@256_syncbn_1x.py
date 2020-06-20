@@ -1,8 +1,7 @@
 from symbol.builder import FasterRcnn as Detector
 from symbol.builder import ResNetV1bFPN as Backbone
 from symbol.builder import add_anchor_to_arg
-# from models.FPN.builder import FPNNeck as Neck
-from models.pafpn.builder import TopDownBottomUpFPNNeckP2P6 as Neck
+from models.FPG.builder import PAFPNNeckP2P6 as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
 from models.FPN.builder import FPNRoiAlign as RoiExtractor
 from models.FPN.builder import FPNBbox2fcHead as BboxHead
