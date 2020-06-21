@@ -1,11 +1,12 @@
 import mxnet as mx
 import mxnext as X
 from symbol.builder import Neck
+from models.NASFPN.builder import NASFPNNeck
 
 def merge_sum(sum_list, name):
     return mx.sym.ElementWiseSum(*sum_list, name=name + '_sum')
 
-def reluconvbn(data, filters, init, norm, name, prefix, pad=3, kernel=1, stride=1):
+def reluconvbn(data, filters, init, norm, name, prefix, pad=1, kernel=3, stride=1):
     # name = prefix + name
     data = mx.sym.Activation(data, name=name + '_relu', act_type='relu')
     weight = mx.sym.var(name=prefix + name + "_weight", init=init)
@@ -34,7 +35,7 @@ class FPGNeck(Neck):
                 bias=X.var(name=p_name + "_bias", init=X.zero_init()),
                 name=p_name
             )
-            p_features.append(p) # NOTE list[p2, p3, p4, p5, p6]
+            p_features.append(p)
         return p_features
 
     def get_fused_P_feature(self, stage, dim_reduced, init, norm):
@@ -171,16 +172,32 @@ class FPGNeckP2P6(FPGNeck):
 
         return self.neck
 
-class PAFPNNeck(FPGNeck):
+class PAFPNNeck(Neck):
     def __init__(self, pNeck):
         super().__init__(pNeck)
         self.neck = None
+    
+    @staticmethod
+    def get_P0_features(c_features, p_names, dim_reduced, init, norm, kernel=1):
+        p_features = {}
+        for c_feature, p_name in zip(c_features, p_names):
+            p = X.conv(
+                data=c_feature,
+                filter=dim_reduced,
+                kernel=kernel,
+                no_bias=False,
+                weight=X.var(name=p_name + "_weight", init=init),
+                bias=X.var(name=p_name + "_bias", init=X.zero_init()),
+                name=p_name
+            )
+            p_features[p_name] = p
+        return p_features
 
     @staticmethod
     def get_fused_P_feature(p_features, stage, dim_reduced, init, norm):
         prefix = "S{}_".format(stage)
         with mx.name.Prefix(prefix):
-            P2_0 = p_features['S{}_P2'.format(stage-1)] # s8
+            P2_0 = p_features['S{}_P2'.format(stage-1)] # s4
             P3_0 = p_features['S{}_P3'.format(stage-1)] # s8
             P4_0 = p_features['S{}_P4'.format(stage-1)] # s16
             P5_0 = p_features['S{}_P5'.format(stage-1)] # s32
@@ -235,22 +252,22 @@ class PAFPNNeck(FPGNeck):
             P2_2 = P2_1
             P2 = P2_2
 
-            P2_2_to_P3 = X.pool(P2_2, name="P2_2_to_P3", kernel=3, stride=2, pad=1)   # NOTE
+            P2_2_to_P3 = X.pool(P2_2, name="P2_2_to_P3", kernel=3, stride=2, pad=1)
             P3_2 = merge_sum([P3_1, P2_2_to_P3], name="sum_P3_1_P2_2")
             P3_2 = reluconvbn(P3_2, dim_reduced, init, norm, name="P3_2", prefix=prefix)
             P3 = P3_2
 
-            P3_2_to_P4 = X.pool(P3_2, name="P3_2_to_P4", kernel=3, stride=2, pad=1)  # NOTE
+            P3_2_to_P4 = X.pool(P3_2, name="P3_2_to_P4", kernel=3, stride=2, pad=1)
             P4_2 = merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
             P4_2 = reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
             P4 = P4_2
 
-            P4_2_to_P5 = X.pool(P4_2, name="P4_2_to_P5", kernel=3, stride=2, pad=1)   # NOTE
+            P4_2_to_P5 = X.pool(P4_2, name="P4_2_to_P5", kernel=3, stride=2, pad=1)
             P5_2 = merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
             P5_2 = reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
             P5 = P5_2
 
-            P5_2_to_P6 = X.pool(P5_2, name="P5_2_to_P6", kernel=3, stride=2, pad=1)  # NOTE
+            P5_2_to_P6 = X.pool(P5_2, name="P5_2_to_P6", kernel=3, stride=2, pad=1)
             P6_2 = merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
             P6_2 = reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
             P6 = P6_2
@@ -269,7 +286,7 @@ class PAFPNNeck(FPGNeck):
     def get_rcnn_feature(self, rcnn_feat):  
         return self.get_pafpn_neck(rcnn_feat)
 
-class PAPFNNeckP2P6(PAFPNNeck):
+class PAFPNNeckP2P6(PAFPNNeck):
     def __init__(self, pNeck):
         super().__init__(pNeck)
 
@@ -285,7 +302,7 @@ class PAPFNNeckP2P6(PAFPNNeck):
         xavier_init = mx.init.Xavier(factor_type="avg", rnd_type="uniform", magnitude=3)
 
         c2, c3, c4, c5 = data
-        c6 = X.pool(data=c5, name='C6', kernel=3, stride=2, pad=1)  # NOTE
+        c6 = X.pool(data=c5, name='C6', kernel=3, stride=2, pad=1)
 
         c_features = [c2, c3, c4, c5, c6]
         # 0 stage
@@ -304,4 +321,129 @@ class PAPFNNeckP2P6(PAFPNNeck):
             stride64=p_features['S{}_P6'.format(num_stage)],
         )
 
+        return self.neck
+
+class PAFPNNeckP3P7(PAFPNNeck):
+    def __init__(self, pNeck):
+        super().__init__(pNeck)
+
+    @staticmethod
+    def get_fused_P_feature(p_features, stage, dim_reduced, init, norm):
+        prefix = "S{}_".format(stage)
+        with mx.name.Prefix(prefix):
+            P3_0 = p_features['S{}_P3'.format(stage-1)] # s8
+            P4_0 = p_features['S{}_P4'.format(stage-1)] # s16
+            P5_0 = p_features['S{}_P5'.format(stage-1)] # s32
+            P6_0 = p_features['S{}_P6'.format(stage-1)] # s64
+            P7_0 = p_features['S{}_P7'.format(stage-1)] # s128
+
+            P7_1 = P7_0
+            P7_1_to_P6 = mx.sym.UpSampling(
+                P7_1,
+                scale=2,
+                sample_type='nearest',
+                name="P7_1_to_P6",
+                num_args=1
+            )
+            P7_1_to_P6 = mx.sym.slice_like(P7_1_to_P6, P6_0)
+            P6_1 = merge_sum([P6_0, P7_1_to_P6], name="sum_P6_0_P7_1")
+            P6_1 = reluconvbn(P6_1, dim_reduced, init, norm, name="P6_1", prefix=prefix)
+
+            P6_1_to_P5 = mx.sym.UpSampling(
+                P6_1,
+                scale=2,
+                sample_type='nearest',
+                name="P6_1_to_P5",
+                num_args=1
+            )
+            P6_1_to_P5 = mx.sym.slice_like(P6_1_to_P5, P5_0)
+            P5_1 = merge_sum([P5_0, P6_1_to_P5], name="sum_P5_0_P6_1")
+            P5_1 = reluconvbn(P5_1, dim_reduced, init, norm, name="P5_1", prefix=prefix)
+
+            P5_1_to_P4 = mx.sym.UpSampling(
+                P5_1,
+                scale=2,
+                sample_type='nearest',
+                name="P5_1_to_P4",
+                num_args=1
+            )
+            P5_1_to_P4 = mx.sym.slice_like(P5_1_to_P4, P4_0)
+            P4_1 = merge_sum([P4_0, P5_1_to_P4], name="sum_P4_0_P5_1")
+            P4_1 = reluconvbn(P4_1, dim_reduced, init, norm, name="P4_1", prefix=prefix)
+
+            P4_1_to_P3 = mx.sym.UpSampling(
+                P4_1,
+                scale=2,
+                sample_type='nearest',
+                name="P4_1_to_P3",
+                num_args=1
+            )
+            P4_1_to_P3 = mx.sym.slice_like(P4_1_to_P3, P3_0)
+            P3_1 = merge_sum([P3_0, P4_1_to_P3], name="sum_P3_0_P4_1")
+            P3_1 = reluconvbn(P3_1, dim_reduced, init, norm, name="P3_1", prefix=prefix)
+
+            P3_2 = P3_1
+            P3 = P3_2
+
+            P3_2_to_P4 = X.pool(P3_2, name="P3_2_to_P4", kernel=3, stride=2, pad=1)
+            P4_2 = merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
+            P4_2 = reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
+            P4 = P4_2
+
+            P4_2_to_P5 = X.pool(P4_2, name="P4_2_to_P5", kernel=3, stride=2, pad=1)
+            P5_2 = merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
+            P5_2 = reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
+            P5 = P5_2
+
+            P5_2_to_P6 = X.pool(P5_2, name="P5_2_to_P6", kernel=3, stride=2, pad=1)
+            P6_2 = merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
+            P6_2 = reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
+            P6 = P6_2
+
+            P6_2_to_P7 = X.pool(P6_2, name="P6_2_to_P7", kernel=3, stride=2, pad=1)
+            P7_2 = merge_sum([P7_1, P6_2_to_P7], name="sum_P7_1_P6_2")
+            P7_2 = reluconvbn(P7_2, dim_reduced, init, norm, name="P7_2", prefix=prefix)
+            P7 = P7_2
+
+            return {
+                'S{}_P3'.format(stage): P3,
+                'S{}_P4'.format(stage): P4,
+                'S{}_P5'.format(stage): P5,
+                'S{}_P6'.format(stage): P6,
+                'S{}_P7'.format(stage): P7,
+                }
+
+    def get_pafpn_neck(self, data):
+        if self.neck is not None:
+            return self.neck
+
+        dim_reduced = self.p.dim_reduced
+        norm = self.p.normalizer
+        num_stage = self.p.num_stage
+        S0_kernel = self.p.S0_kernel
+
+        import mxnet as mx
+        xavier_init = mx.init.Xavier(factor_type="avg", rnd_type="uniform", magnitude=3)
+
+        c2, c3, c4, c5 = data
+        c6 = X.pool(data=c5, name="C6", kernel=2, stride=2, pad=0)
+        c7 = X.pool(data=c5, name="C7", kernel=4, stride=4, pad=0)
+
+        c_features = [c3, c4, c5, c6, c7]
+        # 0 stage
+        p0_names = ['S0_P3', 'S0_P4', 'S0_P5', 'S0_P6', 'S0_P7']
+        p_features = self.get_P0_features(c_features, p0_names, dim_reduced, xavier_init, norm, S0_kernel)
+        
+        # stack stage
+        for i in range(num_stage):
+            p_features = self.get_fused_P_feature(p_features, i + 1, dim_reduced, xavier_init, norm)
+
+        self.neck = dict(
+            stride8=p_features['S{}_P3'.format(num_stage)],
+            stride16=p_features['S{}_P4'.format(num_stage)],
+            stride32=p_features['S{}_P5'.format(num_stage)],
+            stride64=p_features['S{}_P6'.format(num_stage)],
+            stride128=p_features['S{}_P7'.format(num_stage)]
+        )
+        
         return self.neck

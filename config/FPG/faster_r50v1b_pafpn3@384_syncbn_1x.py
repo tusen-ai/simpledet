@@ -35,7 +35,7 @@ def get_config(is_train):
     class NeckParam:
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
-        dim_reduced = 256
+        dim_reduced = 384
         num_stage = 3
         S0_kernel = 1
 
@@ -138,8 +138,8 @@ def get_config(is_train):
 
         from_scratch = False
         random = True
-        memonger = False
-        memonger_until = "stage3_unit21_plus"
+        memonger = True
+        memonger_until = "stage2_unit3_plus"
 
         class pretrain:
             prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth

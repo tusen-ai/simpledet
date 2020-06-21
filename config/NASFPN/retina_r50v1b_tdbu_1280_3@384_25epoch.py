@@ -1,6 +1,6 @@
 from models.retinanet.builder import RetinaNet as Detector
 from models.NASFPN.builder import ResNetV1bFPN as Backbone
-from models.NASFPN.builder import TopDownBottomUpFPNNeck as Neck
+from models.FPG.builder import PAFPNNeckP3P7 as Neck
 from models.NASFPN.builder import RetinaNetHeadWithBN as RpnHead
 from mxnext.complicate import normalizer_factory
 
