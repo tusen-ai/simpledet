@@ -1,20 +1,6 @@
 import mxnet as mx
 import mxnext as X
 from symbol.builder import Neck
-from models.NASFPN.builder import NASFPNNeck
-
-def merge_sum(sum_list, name):
-    return mx.sym.ElementWiseSum(*sum_list, name=name + '_sum')
-
-def reluconvbn(data, filters, init, norm, name, prefix, pad=1, kernel=3, stride=1):
-    # name = prefix + name
-    data = mx.sym.Activation(data, name=name + '_relu', act_type='relu')
-    weight = mx.sym.var(name=prefix + name + "_weight", init=init)
-    bias = mx.sym.var(name=prefix + name + "_bias")
-    data = mx.sym.Convolution(data, name=name, weight=weight, bias=bias, \
-                num_filter=filters, kernel=(kernel, kernel), pad=(pad, pad), stride=(stride, stride))
-    data = norm(data, name=name+'_bn_neck')
-    return data
 
 class FPGNeck(Neck):
     def __init__(self, pNeck):
@@ -72,7 +58,7 @@ class FPGNeck(Neck):
                     fusion_list.append(self.across_skip(bottom_ind_x, bottom_ind_y, stage, dim_reduced, init, norm))
                 
                 name = "S%s_P%s"%(stage, level)
-                fusion_feature = merge_sum(fusion_list, name='sum_' + name)
+                fusion_feature = X.merge_sum(fusion_list, name='sum_' + name)
                 feature_grid = X.conv(
                     data=fusion_feature,
                     filter=dim_reduced,
@@ -97,7 +83,7 @@ class FPGNeck(Neck):
             name='P%s_%s_acrossdown_upsample' % (level_num, stage_num),
             num_args=1,
         )
-        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=1, init=init, norm=norm,\
+        feature = X.reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=1, init=init, norm=norm,\
                                 name='P%s_acrossdown_conv'%level_num, prefix='S%s_'%stage_num)
         p0_feature = self.feature_grids[0][level_num-1]
         feature = mx.sym.slice_like(feature, p0_feature, name='P%s_%s_slicelike'%(stage_num, level_num))
@@ -105,25 +91,25 @@ class FPGNeck(Neck):
     
     def across_same(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        feature = reluconvbn(data=feature, filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
+        feature = X.reluconvbn(data=feature, filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
                                 name='P%s_acrosssame_conv'%level_num, prefix='S%s_'%stage_num)
         return feature
 
     def across_up(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
+        feature = X.reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
                                 name='P%s_acrossup_conv'%level_num, prefix='S%s_'%stage_num)
         return feature
 
     def same_up(self, stage_num, level_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
+        feature = X.reluconvbn(data=feature,filters=dim_reduced, kernel=3, pad=1, stride=2, init=init, norm=norm,\
                                 name='P%s_sameup_conv'%level_num, prefix='S%s_'%stage_num)
         return feature
 
     def across_skip(self, stage_num, level_num, curr_stage_num, dim_reduced, init, norm):
         feature = self.feature_grids[stage_num][level_num]
-        feature = reluconvbn(data=feature,filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
+        feature = X.reluconvbn(data=feature,filters=dim_reduced, kernel=1, pad=0, stride=1, init=init, norm=norm,\
                                 name='P%s_acrossskip_conv'%level_num, prefix='S%s_2_%s'%(stage_num, curr_stage_num))
         return feature
 
@@ -212,8 +198,8 @@ class PAFPNNeck(Neck):
                 num_args=1
             )
             P6_1_to_P5 = mx.sym.slice_like(P6_1_to_P5, P5_0)
-            P5_1 = merge_sum([P5_0, P6_1_to_P5], name="sum_P5_0_P6_1")
-            P5_1 = reluconvbn(P5_1, dim_reduced, init, norm, name="P5_1", prefix=prefix)
+            P5_1 = X.merge_sum([P5_0, P6_1_to_P5], name="sum_P5_0_P6_1")
+            P5_1 = X.reluconvbn(P5_1, dim_reduced, init, norm, name="P5_1", prefix=prefix)
 
             # P4_1 = sum(P4_0, P5_1)
             P5_1_to_P4 = mx.sym.UpSampling(
@@ -224,8 +210,8 @@ class PAFPNNeck(Neck):
                 num_args=1
             )
             P5_1_to_P4 = mx.sym.slice_like(P5_1_to_P4, P4_0)
-            P4_1 = merge_sum([P4_0, P5_1_to_P4], name="sum_P4_0_P5_1")
-            P4_1 = reluconvbn(P4_1, dim_reduced, init, norm, name="P4_1", prefix=prefix)
+            P4_1 = X.merge_sum([P4_0, P5_1_to_P4], name="sum_P4_0_P5_1")
+            P4_1 = X.reluconvbn(P4_1, dim_reduced, init, norm, name="P4_1", prefix=prefix)
 
             P4_1_to_P3 = mx.sym.UpSampling(
                 P4_1,
@@ -235,8 +221,8 @@ class PAFPNNeck(Neck):
                 num_args=1
             )
             P4_1_to_P3 = mx.sym.slice_like(P4_1_to_P3, P3_0)
-            P3_1 = merge_sum([P3_0, P4_1_to_P3], name="sum_P3_0_P4_1")
-            P3_1 = reluconvbn(P3_1, dim_reduced, init, norm, name="P3_1", prefix=prefix)
+            P3_1 = X.merge_sum([P3_0, P4_1_to_P3], name="sum_P3_0_P4_1")
+            P3_1 = X.reluconvbn(P3_1, dim_reduced, init, norm, name="P3_1", prefix=prefix)
 
             P3_1_to_P2 = mx.sym.UpSampling(
                 P3_1,
@@ -246,30 +232,30 @@ class PAFPNNeck(Neck):
                 num_args=1
             )
             P3_1_to_P2 = mx.sym.slice_like(P3_1_to_P2, P2_0)
-            P2_1 = merge_sum([P2_0, P3_1_to_P2], name="sum_P2_0_P3_1")
-            P2_1 = reluconvbn(P2_1, dim_reduced, init, norm, name="P2_1", prefix=prefix)
+            P2_1 = X.merge_sum([P2_0, P3_1_to_P2], name="sum_P2_0_P3_1")
+            P2_1 = X.reluconvbn(P2_1, dim_reduced, init, norm, name="P2_1", prefix=prefix)
 
             P2_2 = P2_1
             P2 = P2_2
 
             P2_2_to_P3 = X.pool(P2_2, name="P2_2_to_P3", kernel=3, stride=2, pad=1)
-            P3_2 = merge_sum([P3_1, P2_2_to_P3], name="sum_P3_1_P2_2")
-            P3_2 = reluconvbn(P3_2, dim_reduced, init, norm, name="P3_2", prefix=prefix)
+            P3_2 = X.merge_sum([P3_1, P2_2_to_P3], name="sum_P3_1_P2_2")
+            P3_2 = X.reluconvbn(P3_2, dim_reduced, init, norm, name="P3_2", prefix=prefix)
             P3 = P3_2
 
             P3_2_to_P4 = X.pool(P3_2, name="P3_2_to_P4", kernel=3, stride=2, pad=1)
-            P4_2 = merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
-            P4_2 = reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
+            P4_2 = X.merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
+            P4_2 = X.reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
             P4 = P4_2
 
             P4_2_to_P5 = X.pool(P4_2, name="P4_2_to_P5", kernel=3, stride=2, pad=1)
-            P5_2 = merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
-            P5_2 = reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
+            P5_2 = X.merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
+            P5_2 = X.reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
             P5 = P5_2
 
             P5_2_to_P6 = X.pool(P5_2, name="P5_2_to_P6", kernel=3, stride=2, pad=1)
-            P6_2 = merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
-            P6_2 = reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
+            P6_2 = X.merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
+            P6_2 = X.reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
             P6 = P6_2
 
             return {
@@ -346,8 +332,8 @@ class PAFPNNeckP3P7(PAFPNNeck):
                 num_args=1
             )
             P7_1_to_P6 = mx.sym.slice_like(P7_1_to_P6, P6_0)
-            P6_1 = merge_sum([P6_0, P7_1_to_P6], name="sum_P6_0_P7_1")
-            P6_1 = reluconvbn(P6_1, dim_reduced, init, norm, name="P6_1", prefix=prefix)
+            P6_1 = X.merge_sum([P6_0, P7_1_to_P6], name="sum_P6_0_P7_1")
+            P6_1 = X.reluconvbn(P6_1, dim_reduced, init, norm, name="P6_1", prefix=prefix)
 
             P6_1_to_P5 = mx.sym.UpSampling(
                 P6_1,
@@ -357,8 +343,8 @@ class PAFPNNeckP3P7(PAFPNNeck):
                 num_args=1
             )
             P6_1_to_P5 = mx.sym.slice_like(P6_1_to_P5, P5_0)
-            P5_1 = merge_sum([P5_0, P6_1_to_P5], name="sum_P5_0_P6_1")
-            P5_1 = reluconvbn(P5_1, dim_reduced, init, norm, name="P5_1", prefix=prefix)
+            P5_1 = X.merge_sum([P5_0, P6_1_to_P5], name="sum_P5_0_P6_1")
+            P5_1 = X.reluconvbn(P5_1, dim_reduced, init, norm, name="P5_1", prefix=prefix)
 
             P5_1_to_P4 = mx.sym.UpSampling(
                 P5_1,
@@ -368,8 +354,8 @@ class PAFPNNeckP3P7(PAFPNNeck):
                 num_args=1
             )
             P5_1_to_P4 = mx.sym.slice_like(P5_1_to_P4, P4_0)
-            P4_1 = merge_sum([P4_0, P5_1_to_P4], name="sum_P4_0_P5_1")
-            P4_1 = reluconvbn(P4_1, dim_reduced, init, norm, name="P4_1", prefix=prefix)
+            P4_1 = X.merge_sum([P4_0, P5_1_to_P4], name="sum_P4_0_P5_1")
+            P4_1 = X.reluconvbn(P4_1, dim_reduced, init, norm, name="P4_1", prefix=prefix)
 
             P4_1_to_P3 = mx.sym.UpSampling(
                 P4_1,
@@ -379,30 +365,30 @@ class PAFPNNeckP3P7(PAFPNNeck):
                 num_args=1
             )
             P4_1_to_P3 = mx.sym.slice_like(P4_1_to_P3, P3_0)
-            P3_1 = merge_sum([P3_0, P4_1_to_P3], name="sum_P3_0_P4_1")
-            P3_1 = reluconvbn(P3_1, dim_reduced, init, norm, name="P3_1", prefix=prefix)
+            P3_1 = X.merge_sum([P3_0, P4_1_to_P3], name="sum_P3_0_P4_1")
+            P3_1 = X.reluconvbn(P3_1, dim_reduced, init, norm, name="P3_1", prefix=prefix)
 
             P3_2 = P3_1
             P3 = P3_2
 
             P3_2_to_P4 = X.pool(P3_2, name="P3_2_to_P4", kernel=3, stride=2, pad=1)
-            P4_2 = merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
-            P4_2 = reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
+            P4_2 = X.merge_sum([P4_1, P3_2_to_P4], name="sum_P4_1_P3_2")
+            P4_2 = X.reluconvbn(P4_2, dim_reduced, init, norm, name="P4_2", prefix=prefix)
             P4 = P4_2
 
             P4_2_to_P5 = X.pool(P4_2, name="P4_2_to_P5", kernel=3, stride=2, pad=1)
-            P5_2 = merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
-            P5_2 = reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
+            P5_2 = X.merge_sum([P5_1, P4_2_to_P5], name="sum_P5_1_P4_2")
+            P5_2 = X.reluconvbn(P5_2, dim_reduced, init, norm, name="P5_2", prefix=prefix)
             P5 = P5_2
 
             P5_2_to_P6 = X.pool(P5_2, name="P5_2_to_P6", kernel=3, stride=2, pad=1)
-            P6_2 = merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
-            P6_2 = reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
+            P6_2 = X.merge_sum([P6_1, P5_2_to_P6], name="sum_P6_1_P5_2")
+            P6_2 = X.reluconvbn(P6_2, dim_reduced, init, norm, name="P6_2", prefix=prefix)
             P6 = P6_2
 
             P6_2_to_P7 = X.pool(P6_2, name="P6_2_to_P7", kernel=3, stride=2, pad=1)
-            P7_2 = merge_sum([P7_1, P6_2_to_P7], name="sum_P7_1_P6_2")
-            P7_2 = reluconvbn(P7_2, dim_reduced, init, norm, name="P7_2", prefix=prefix)
+            P7_2 = X.merge_sum([P7_1, P6_2_to_P7], name="sum_P7_1_P6_2")
+            P7_2 = X.reluconvbn(P7_2, dim_reduced, init, norm, name="P7_2", prefix=prefix)
             P7 = P7_2
 
             return {
