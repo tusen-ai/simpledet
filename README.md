@@ -27,6 +27,8 @@
 - Add support for FCOS(contributed by Zhen Wei) (2019.11)
 - Add support for Mask Scoring RCNN(contributed by Zehui Chen) (2019.12)
 - Add support for RepPoints(contributed by Bo Ke) (2020.02)
+- Add support for FreeAnchor (2020.03)
+- Add support for Feature Pyramid Grids & PAFPN (2020.06)
 
 ### Setup
 #### All-in-one Script
