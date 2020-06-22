@@ -76,12 +76,12 @@ def PConvModule(x, out_channels=256, kernel_size=[3, 3, 3], dilation=[1, 1, 1], 
                 kernel_size=kernel_size[0], stride=1, padding=(kernel_size[0]+(dilation[0]-1)*2)//2,
                 dilation=dilation[0], groups=groups[0], deformable_groups=1, part_deform=part_deform, start_level=start_level,
                 weight=sepc0_weight, bias=sepc0_bias, weight_offset=sepc0_offset_weight, bias_offset=sepc0_offset_bias)
-    sepc_conv1_func=partial(
+    sepc_conv1_func = partial(
                 sepc_conv, name='PConv{}_sepc1_'.format(PConv_idx), out_channels=out_channels,
                 kernel_size=kernel_size[1], stride=1, padding=(kernel_size[1]+(dilation[1]-1)*2)//2,
                 dilation=dilation[1], groups=groups[1], deformable_groups=1, part_deform=part_deform, start_level=start_level,
                 weight=sepc1_weight, bias=sepc1_bias, weight_offset=sepc1_offset_weight, bias_offset=sepc1_offset_bias)
-    sepc_conv2_func=partial(
+    sepc_conv2_func = partial(
                 sepc_conv, name='PConv{}_sepc2_'.format(PConv_idx), out_channels=out_channels,
                 kernel_size=kernel_size[2], stride=2, padding=(kernel_size[2]+(dilation[2]-1)*2)//2,
                 dilation=dilation[2], groups=groups[2], deformable_groups=1, part_deform=part_deform, start_level=start_level,
