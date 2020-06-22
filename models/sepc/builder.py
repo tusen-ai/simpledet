@@ -20,7 +20,7 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
             return self.neck_with_sepc
         fpn_outs = super().get_retinanet_neck(data)
         p3_conv, p4_conv, p5_conv, p6, p7 = fpn_outs['stride8'], fpn_outs['stride16'], fpn_outs['stride32'], fpn_outs['stride64'], fpn_outs['stride128']
-        
+
         # add SEPC module after default FPN
         sepc_inputs = [p3_conv, p4_conv, p5_conv, p6, p7]
         sepc_outs = SEPCFPN(
@@ -28,7 +28,7 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
             out_channels=self.psepc.out_channels,
             pconv_deform=self.psepc.pconv_deform,
             iBN=self.psepc.iBN if self.psepc.iBN is not None else None,
-            Pconv_num=self.psepc.Pconv_num,
+            Pconv_num=self.psepc.pconv_num,
             start_level=self.psepc.start_level or 1,
             norm=self.psepc.normalizer,
             lcconv_deform=self.psepc.lcconv_deform if self.psepc.lcconv_deform is not None else None,

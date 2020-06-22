@@ -35,12 +35,12 @@ def get_config(is_train):
 
     class SEPCParam:
         out_channels=256
-        Pconv_num=4
+        pconv_num=4
         start_level=1
         pconv_deform=False 
         iBN=None
         lcconv_deform=False
-        pad_sizes=[800,1333]
+        pad_sizes=(800,1333)
         stride = (8, 16, 32, 64, 128)
 
     class RpnParam:
