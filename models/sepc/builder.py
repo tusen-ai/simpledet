@@ -11,31 +11,30 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
     def __init__(self, pNeck, pSEPC):
         super().__init__(pNeck)
         self.psepc = patch_config_as_nothrow(pSEPC)
-        self.neck_with_sepc=None
+        self.neck_with_sepc = None
         stride, pad_sizes = pSEPC.stride, pSEPC.pad_sizes
-        self.feat_sizes=[[math.ceil(pad_sizes[0]/stride[i]),math.ceil(pad_sizes[1]/stride[i])] for i in range(len(stride))]
+        self.feat_sizes = [[math.ceil(pad_sizes[0]/stride[i]), math.ceil(pad_sizes[1]/stride[i])] for i in range(len(stride))]
 
     def get_retinanet_neck(self, data):
         if self.neck_with_sepc is not None:
             return self.neck_with_sepc
-
         fpn_outs = super().get_retinanet_neck(data)
-        p3_conv,p4_conv,p5_conv,p6,p7 = fpn_outs['stride8'],fpn_outs['stride16'],fpn_outs['stride32'],fpn_outs['stride64'],fpn_outs['stride128']
-
+        p3_conv, p4_conv, p5_conv, p6, p7 = fpn_outs['stride8'], fpn_outs['stride16'], fpn_outs['stride32'], fpn_outs['stride64'], fpn_outs['stride128']
+        
         # add SEPC module after default FPN
-        sepc_inputs = [p3_conv,p4_conv,p5_conv,p6,p7]
-        sepc_outs = SEPCFPN(sepc_inputs,
-                 out_channels=self.psepc.out_channels,
-                 pconv_deform=self.psepc.pconv_deform,
-                 iBN=self.psepc.iBN if self.psepc.iBN is not None else None, # NOTE
-                 Pconv_num=self.psepc.Pconv_num,
-                 start_level=self.psepc.start_level or 1,
-                 norm=self.psepc.normalizer,
-                 lcconv_deform=self.psepc.lcconv_deform if self.psepc.lcconv_deform is not None else None,
-                 bilinear_upsample=self.psepc.bilinear_upsample if self.psepc.bilinear_upsample is not None else None,
-                 feat_sizes=self.feat_sizes,
-                 )
-
+        sepc_inputs = [p3_conv, p4_conv, p5_conv, p6, p7]
+        sepc_outs = SEPCFPN(
+            sepc_inputs,
+            out_channels=self.psepc.out_channels,
+            pconv_deform=self.psepc.pconv_deform,
+            iBN=self.psepc.iBN if self.psepc.iBN is not None else None,
+            Pconv_num=self.psepc.Pconv_num,
+            start_level=self.psepc.start_level or 1,
+            norm=self.psepc.normalizer,
+            lcconv_deform=self.psepc.lcconv_deform if self.psepc.lcconv_deform is not None else None,
+            bilinear_upsample=self.psepc.bilinear_upsample if self.psepc.bilinear_upsample is not None else None,
+            feat_sizes=self.feat_sizes,
+        )
         self.neck_with_sepc = dict(
             stride128=sepc_outs[4],
             stride64=sepc_outs[3],
@@ -52,14 +51,11 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
 
     def _cls_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class, stride, nb_conv=0):
         p = self.p
-        print('nb_conv: ', nb_conv)
-        if nb_conv<=0:
+        if nb_conv <= 0:
             cls_conv4_relu = conv_feat
             if p.fp16:
                 cls_conv4_relu = X.to_fp32(cls_conv4_relu, name="cls_conv4_fp32")
-
             output_channel = num_base_anchor * (num_class - 1)
-            print('num_base_anchor and num_class(include bg): ', num_base_anchor, num_class)
             output = X.conv(
                 data=cls_conv4_relu,
                 kernel=3,
@@ -74,12 +70,10 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
 
     def _bbox_subnet(self, conv_feat, conv_channel, num_base_anchor, num_class, stride, nb_conv=0):
         p = self.p
-        norm = p.normalizer
-        if nb_conv<=0:
+        if nb_conv <= 0:
             bbox_conv4_relu = conv_feat
             if p.fp16:
                 bbox_conv4_relu = X.to_fp32(bbox_conv4_relu, name="bbox_conv4_fp32")
-
             output_channel = num_base_anchor * 4
             output = X.conv(
                 data=bbox_conv4_relu,
@@ -96,7 +90,6 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
     def get_output(self, conv_feat):
         if self._cls_logit_dict is not None and self._bbox_delta_dict is not None:
             return self._cls_logit_dict, self._bbox_delta_dict
-
         p = self.p
         stride = p.anchor_generate.stride
         if not isinstance(stride, tuple):
@@ -104,7 +97,6 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
         conv_channel = p.head.conv_channel
         num_base_anchor = len(p.anchor_generate.ratio) * len(p.anchor_generate.scale)
         num_class = p.num_class
-
         cls_logit_dict = dict()
         bbox_delta_dict = dict()
         for s in stride:
@@ -118,7 +110,6 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
                 stride=s,
                 nb_conv=self.p.nb_conv if self.p.nb_conv is not None else 4,
             )
-
             bbox_delta = self._bbox_subnet(
                 # conv_feat=conv_feat["stride%s" % s],
                 conv_feat=conv_feat_loc,
@@ -128,11 +119,8 @@ class RetinaNetHeadWithBNWithSEPC(RetinaNetHeadWithBN):
                 stride=s,
                 nb_conv=self.p.nb_conv if not None else 4,
             )
-
             cls_logit_dict["stride%s" % s] = cls_logit
             bbox_delta_dict["stride%s" % s] = bbox_delta
-
         self._cls_logit_dict = cls_logit_dict
         self._bbox_delta_dict = bbox_delta_dict
-
         return self._cls_logit_dict, self._bbox_delta_dict
