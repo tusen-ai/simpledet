@@ -34,16 +34,16 @@ def get_config(is_train):
         normalizer = NormalizeParam.normalizer
 
     class SEPCParam:
-        out_channels=256
-        pconv_num=4
-        start_level=1
-        pconv_deform=True 
-        iBN=True
+        out_channels = 256
+        pconv_num = 4
+        start_level = 1
+        pconv_deform = True 
+        ibn = True
         normalizer = NormalizeParam.normalizer
-        lcconv_deform=True
-        pad_sizes=(800,1333)
+        lcconv_deform = True
+        pad_sizes = (800,1333)
         stride = (8, 16, 32, 64, 128)
-        # bilinear_upsample=True
+        # bilinear_upsample = True
 
     class RpnParam:
         num_class   = 1 + 80

@@ -27,7 +27,7 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
             sepc_inputs,
             out_channels=self.psepc.out_channels,
             pconv_deform=self.psepc.pconv_deform,
-            iBN=self.psepc.iBN if self.psepc.iBN is not None else None,
+            iBN=self.psepc.ibn if self.psepc.ibn is not None else None,
             Pconv_num=self.psepc.pconv_num,
             start_level=self.psepc.start_level or 1,
             norm=self.psepc.normalizer,
