@@ -27,12 +27,12 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
             sepc_inputs,
             out_channels=self.psepc.out_channels,
             pconv_deform=self.psepc.pconv_deform,
-            iBN=self.psepc.ibn if self.psepc.ibn is not None else None,
+            ibn=self.psepc.ibn or False,
             Pconv_num=self.psepc.pconv_num,
             start_level=self.psepc.start_level or 1,
             norm=self.psepc.normalizer,
-            lcconv_deform=self.psepc.lcconv_deform if self.psepc.lcconv_deform is not None else None,
-            bilinear_upsample=self.psepc.bilinear_upsample if self.psepc.bilinear_upsample is not None else None,
+            lcconv_deform=self.psepc.lcconv_deform or False,
+            bilinear_upsample=self.psepc.bilinear_upsample or False,
             feat_sizes=self.feat_sizes,
         )
         self.neck_with_sepc = dict(

@@ -7,13 +7,13 @@ from mxnext.complicate import normalizer_factory
 import numpy as np
 
 
-def SEPCFPN(inputs, out_channels=256, pconv_deform=False, lcconv_deform=None, iBN=None, Pconv_num=4,
+def SEPCFPN(inputs, out_channels=256, pconv_deform=False, lcconv_deform=None, ibn=None, Pconv_num=4,
             start_level=1, norm=None, bilinear_upsample=None, feat_sizes=None):
     assert feat_sizes is not None
     Pconvs_list = []
     for i in range(Pconv_num):
         Pconvs_list.append(partial(
-            PConvModule, out_channels=out_channels, iBN=iBN, part_deform=pconv_deform, 
+            PConvModule, out_channels=out_channels, ibn=ibn, part_deform=pconv_deform, 
             PConv_idx=i, start_level=start_level, norm=norm, bilinear_upsample=bilinear_upsample, feat_sizes=feat_sizes))
     
     if lcconv_deform is not None:
@@ -32,10 +32,10 @@ def SEPCFPN(inputs, out_channels=256, pconv_deform=False, lcconv_deform=None, iB
                 dilation=1, groups=1, deformable_groups=1, part_deform=lcconv_deform, start_level=start_level,
                 weight=cconv_weight, bias=cconv_bias, weight_offset=cconv_offset_weight, bias_offset=cconv_offset_bias)
 
-        if iBN:
+        if ibn:
             assert norm is not None
-            lbn = partial(norm, name='lconv_iBN')
-            cbn = partial(norm, name='cconv_iBN')
+            lbn = partial(norm, name='lconv_ibn')
+            cbn = partial(norm, name='cconv_ibn')
 
     x = inputs
     for pconv in Pconvs_list:
@@ -44,14 +44,14 @@ def SEPCFPN(inputs, out_channels=256, pconv_deform=False, lcconv_deform=None, iB
         return x
     cls_outs = [cconv_func(i=level, x=item) for level, item in enumerate(x)]
     loc_outs = [lconv_func(i=level, x=item) for level, item in enumerate(x)]
-    if iBN:
-        cls_outs = iBN_func(cls_outs, cbn, feat_sizes)
-        loc_outs = iBN_func(loc_outs, lbn, feat_sizes)
+    if ibn:
+        cls_outs = ibn_func(cls_outs, cbn, feat_sizes)
+        loc_outs = ibn_func(loc_outs, lbn, feat_sizes)
     outs = [mx.sym.Concat(*[relu(s), relu(l)], num_args=2, dim=1) for s, l in zip(cls_outs, loc_outs)]
     return outs
     
 
-def PConvModule(x, out_channels=256, kernel_size=[3, 3, 3], dilation=[1, 1, 1], groups=[1, 1, 1], iBN=None,
+def PConvModule(x, out_channels=256, kernel_size=[3, 3, 3], dilation=[1, 1, 1], groups=[1, 1, 1], ibn=None,
                 part_deform=False, PConv_idx=-1, start_level=1, norm=None, bilinear_upsample=None, feat_sizes=None):
     assert PConv_idx > -1 and feat_sizes is not None
     name_pref = 'PConv{}_sepc'.format(PConv_idx)
@@ -67,9 +67,9 @@ def PConvModule(x, out_channels=256, kernel_size=[3, 3, 3], dilation=[1, 1, 1], 
         sepc1_offset_weight, sepc1_offset_bias = X.var(name=name_pref+'1_offset_weight', init=X.zero_init()), X.var(name=name_pref+'1_offset_bias', init=X.zero_init())
         sepc2_offset_weight, sepc2_offset_bias = X.var(name=name_pref+'2_offset_weight', init=X.zero_init()), X.var(name=name_pref+'2_offset_bias', init=X.zero_init())
     norm_func = []
-    if iBN:
+    if ibn:
         assert norm is not None
-        norm_func = partial(norm, name=name_pref+'_iBN')
+        norm_func = partial(norm, name=name_pref+'_ibn')
 
     sepc_conv0_func = partial(
                 sepc_conv, name='PConv{}_sepc0_'.format(PConv_idx), out_channels=out_channels,
@@ -103,13 +103,13 @@ def PConvModule(x, out_channels=256, kernel_size=[3, 3, 3], dilation=[1, 1, 1], 
             tmp_x = mx.sym.slice_like(tmp_x, temp_fea)
             temp_fea = temp_fea + tmp_x
         next_x.append(temp_fea)
-    if iBN:
-        next_x = iBN_func(next_x, norm_func, feat_sizes)
+    if ibn:
+        next_x = ibn_func(next_x, norm_func, feat_sizes)
     next_x = [relu(item, name='PConv{}_level{}_relu'.format(PConv_idx, level)) for level,item in enumerate(next_x)]
     return next_x
 
 
-def iBN_func(fms, bn, feat_sizes):
+def ibn_func(fms, bn, feat_sizes):
     sizes = feat_sizes
     sizes_accu = np.cumsum([e0*e1 for (e0,e1) in sizes]).tolist()
     fm = mx.sym.Concat(*[mx.sym.reshape(p, shape=(0,0,1,-1)) for p in fms], num_args=len(fms), dim=-1)
