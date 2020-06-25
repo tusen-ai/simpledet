@@ -118,6 +118,12 @@ ext_modules = [
         include_dirs=[numpy_include]
     ),
     Extension(
+        "bbox_self",
+        ["bbox_self.pyx"],
+        extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},
+        include_dirs=[numpy_include]
+    ),
+    Extension(
         "cpu_nms",
         ["cpu_nms.pyx"],
         extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},

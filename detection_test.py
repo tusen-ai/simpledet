@@ -223,6 +223,9 @@ if __name__ == "__main__":
 
         if callable(pTest.nms.type):
             nms = pTest.nms.type(pTest.nms.thr)
+        elif pTest.nms.type == 'set_nms':
+            from operator_py.nms import py_set_nms_wrapper
+            nms = py_set_nms_wrapper(pTest.nms.thr)
         else:
             from operator_py.nms import py_nms_wrapper
             nms = py_nms_wrapper(pTest.nms.thr)
@@ -242,6 +245,12 @@ if __name__ == "__main__":
                 box = cls_box[valid_inds]
                 score = score[valid_inds]
                 det = np.concatenate((box, score.reshape(-1, 1)), axis=1).astype(np.float32)
+                # NOTE for set nms only
+                if bbox_xyxy.shape[0] == 2 * pRpn.proposal.post_nms_top_n:
+                    _index = np.arange(pRpn.proposal.post_nms_top_n).reshape(-1, 1)
+                    set_index = np.concatenate([_index, _index], axis=0)
+                    set_index = set_index[valid_inds]
+                    det = np.concatenate([det, set_index], axis=-1)
                 det = nms(det)
                 dataset_cid = coco.getCatIds()[cid]
                 final_dets[dataset_cid] = det
@@ -266,7 +275,7 @@ if __name__ == "__main__":
                 det = output_dict[iid]["det_xyxys"][cid]
                 if det.shape[0] == 0:
                     continue
-                scores = det[:, -1]
+                scores = det[:, 4]
                 xs = det[:, 0]
                 ys = det[:, 1]
                 ws = det[:, 2] - xs + 1
