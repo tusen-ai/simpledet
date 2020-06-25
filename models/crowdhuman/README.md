@@ -26,7 +26,7 @@ python detection_test.py --config config/doublepred_r50v1b_fpn_1x.py
 python detection_test.py --config config/doublepred_r50v1b_fpn_1x_refine.py
 ```
 
-### Results
+### Results on CrowdHuman
 
 | Detector | AP | MR |
 |----------|---------|----|
