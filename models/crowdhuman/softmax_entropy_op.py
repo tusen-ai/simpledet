@@ -1,7 +1,7 @@
 import numpy as np
 import mxnet as mx
 
-class WeightSoftmaxOperator(mx.operator.CustomOp):
+class SoftmaxEntropyOperator(mx.operator.CustomOp):
     def __init__(self):
         super().__init__()
     
@@ -31,8 +31,8 @@ class WeightSoftmaxOperator(mx.operator.CustomOp):
         self.assign(in_grad[1], req[1], mx.nd.zeros_like(label))
         
 
-@mx.operator.register('weight_softmax')
-class WeightSoftmaxProp(mx.operator.CustomOpProp):
+@mx.operator.register('softmax_entropy')
+class SoftmaxEntropyProp(mx.operator.CustomOpProp):
     def __init__(self):
         super().__init__(need_top_grad=True)
 
@@ -46,6 +46,4 @@ class WeightSoftmaxProp(mx.operator.CustomOpProp):
         return [in_shape[0], in_shape[1]], [in_shape[0]]
     
     def create_operator(self, ctx, shapes, dtypes):
-        return WeightSoftmaxOperator()
-
-
+        return SoftmaxEntropyOperator()

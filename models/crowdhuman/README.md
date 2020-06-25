@@ -34,4 +34,4 @@ python detection_test.py --config config/doublepred_r50v1b_fpn_1x_refine.py
 | DoublePred R50v1b | 88.64 | 45.52 |
 | DoublePred R50v1b + Refine | 88.81 | 45.02 |
 
-Note that crowdhuman is different from COCO-like dataset, since it contains **ignore region**. We followed the procedure shared by Zheng Ge([Talk Link](https://www.bilibili.com/video/av455989666/)) by ignoring anchors in RPN and adding BN in FPN. A simple Toolkit to evaluate AP and MR with ignore region can refer to [here](https://github.com/Purkialo/CrowdDet/tree/master/lib/evaluate)
+Note that crowdhuman is different from COCO-like dataset, since it contains **ignore region**. We followed the procedure shared by Zheng Ge([Talk Link](https://www.bilibili.com/video/av455989666/)) by ignoring anchors in RPN and adding BN in FPN. A simple Toolkit to evaluate AP and MR with ignore region can refer to [here](https://github.com/Purkialo/CrowdDet/tree/master/lib/evaluate).

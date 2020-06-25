@@ -43,8 +43,8 @@ class DoublePredRcnn(FasterRcnn):
 
         roi_feat = roi_extractor.get_roi_feature_test(rcnn_feat, proposal)
         cls_score, bbox_xyxy, cls_sec_score, bbox_sec_xyxy = bbox_head.get_prediction(roi_feat, im_info, proposal)
-        cls_score_concat = mx.sym.concat(*[cls_score, cls_sec_score], axis=-1)
-        bbox_xyxy_concat = mx.sym.concat(*[bbox_xyxy, bbox_sec_xyxy], axis=-1)
+        cls_score_concat = mx.sym.concat(*[cls_score, cls_sec_score], axis=1)
+        bbox_xyxy_concat = mx.sym.concat(*[bbox_xyxy, bbox_sec_xyxy], axis=1)
         return X.group([rec_id, im_id, im_info, cls_score_concat, bbox_xyxy_concat])
 
 class DoublePredBboxHead(object):
@@ -179,12 +179,12 @@ class DoublePredBboxHead(object):
         return cls_score, bbox_xyxy, cls_sec_score, bbox_sec_xyxy
 
     def softmax_entropy(self, cls_logit, cls_label, prefix=""):
-        from models.crowdhuman import weight_softmax
+        from models.crowdhuman import softmax_entropy_op
         soft_ce = mx.sym.Custom(
             data=cls_logit,
             label=cls_label,
-            op_type='weight_softmax',
-            name=prefix+'weight_softmax'
+            op_type='softmax_entropy',
+            name=prefix+'softmax_entropy'
         )
         return soft_ce
 
