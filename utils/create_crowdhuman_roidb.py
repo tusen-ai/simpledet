@@ -80,7 +80,7 @@ def decode_annotations(rec_id):
 if __name__ == "__main__":
     dataset_name, dataset_type, num_threads = parse_args()
 
-    dataset_path = '/mnt/truenas/scratch/czh/data/%s/' % dataset_name
+    dataset_path = 'data/%s/' % dataset_name
     ch_file_path = dataset_path + 'annotations/annotation_%s.odgt' % dataset_type
     json_file_path = dataset_path + 'annotations/annotation_%s.json' % dataset_type
 
