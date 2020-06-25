@@ -11,7 +11,7 @@ python detection_train.py --config config/pafpn/faster_r50v1b_pafpn3@384_syncbn_
 # test
 python detection_test.py --config config/FPG/faster_r50v1b_fpg6@128_syncbn_1x.py
 python detection_test.py --config config/pafpn/faster_r50v1b_pafpn3@256_syncbn_1x.py
-python detection_train.py --config config/pafpn/faster_r50v1b_pafpn3@384_syncbn_1x.py
+python detection_test.py --config config/pafpn/faster_r50v1b_pafpn3@384_syncbn_1x.py
 ```
 
 ### Results

@@ -11,7 +11,7 @@ You need newer [mxnet-cu100-20191214](https://1dv.aflat.top/mxnet_cu100-1.6.0b20
 python3 detection_train.py --config config/ms_r50v1_fpn_1x.py
 
 # test
-python3 ms_test.py --config config/ms_r50v1_fpn_1x.py
+python3 make_test.py --config config/ms_r50v1_fpn_1x.py
 ```
 
 ### Performance
