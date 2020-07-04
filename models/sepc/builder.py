@@ -5,7 +5,6 @@ from models.sepc.sepc_neck import SEPCFPN
 from utils.patch_config import patch_config_as_nothrow
 from models.NASFPN.builder import RetinaNetHeadWithBN
 import math
-import warnings
 
 
 class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
