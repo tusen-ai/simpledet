@@ -27,6 +27,7 @@
 - Add support for FCOS(contributed by Zhen Wei) (2019.11)
 - Add support for Mask Scoring RCNN(contributed by Zehui Chen) (2019.12)
 - Add support for RepPoints(contributed by Bo Ke) (2020.02)
+- Add support for [SEPC](https://github.com/TuSimple/simpledet/tree/master/models/sepc)(contributed by Qiaofei Li) (2020.07)
 
 ### Setup
 #### All-in-one Script
