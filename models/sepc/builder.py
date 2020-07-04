@@ -13,6 +13,10 @@ class RetinaNetNeckWithBNWithSEPC(RetinaNetNeckWithBN):
         self.psepc = patch_config_as_nothrow(pSEPC)
         self.neck_with_sepc = None
         stride, pad_sizes = pSEPC.stride, pSEPC.pad_sizes
+        for i in range(len(stride)):
+            assert pad_sizes[0] % stride[i] == 0 and pad_sizes[1] % stride[i] == 0, \
+                'This implementation of ibn used in SEPC requires the (padded) input sizes dividable by the stride.' \
+                'Found input sizes {} which are not all dividable by stride {}'.format(pad_sizes, stride[i])
         self.feat_sizes = [[math.ceil(pad_sizes[0]/stride[i]), math.ceil(pad_sizes[1]/stride[i])] for i in range(len(stride))]
 
     def get_retinanet_neck(self, data):
