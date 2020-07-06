@@ -1,6 +1,6 @@
 from models.retinanet.builder import RetinaNet as Detector
 from models.NASFPN.builder import ResNetV1bFPN as Backbone
-from models.NASFPN.builder import TopDownBottomUpFPNNeck as Neck
+from models.FPG.builder import PAFPNNeckP3P7 as Neck
 from models.NASFPN.builder import RetinaNetHeadWithBN as RpnHead
 from mxnext.complicate import normalizer_factory
 
@@ -9,7 +9,7 @@ def get_config(is_train):
     class General:
         log_frequency = 10
         name = __name__.rsplit("/")[-1].rsplit(".")[-1]
-        batch_image = 3 if is_train else 1
+        batch_image = 8 if is_train else 1
         fp16 = True
 
 
@@ -21,7 +21,7 @@ def get_config(is_train):
 
 
     class NormalizeParam:
-        normalizer = normalizer_factory(type="syncbn", ndev=8, wd_mult=1.0)
+        normalizer = normalizer_factory(type="localbn", wd_mult=0.0)
 
 
     class BackboneParam:
@@ -37,12 +37,12 @@ def get_config(is_train):
         num_stage = 3
         S0_kernel = 1
 
+
     class RpnParam:
         num_class   = 1 + 80
         fp16 = General.fp16
         normalizer = NormalizeParam.normalizer
         batch_image = General.batch_image
-        sync_loss = True
 
         class anchor_generate:
             scale = (4 * 2 ** 0, 4 * 2 ** (1.0 / 3.0), 4 * 2 ** (2.0 / 3.0))
@@ -107,7 +107,7 @@ def get_config(is_train):
         from_scratch = False
         random = True
         memonger = False
-        memonger_until = "stage4_unit3_relu"
+        memonger_until = "stage3_unit21_plus"
 
         class pretrain:
             prefix = "pretrain_model/resnet%s_v1b" % BackboneParam.depth
@@ -160,15 +160,15 @@ def get_config(is_train):
 
 
     class ResizeParam:
-        short = 1280
-        long = 1280
+        short = 640
+        long = 640
         scale_min = 0.8
         scale_max = 1.2
 
 
     class PadParam:
-        short = ResizeParam.short
-        long = ResizeParam.long
+        short = 640
+        long = 640
         max_num_gt = 100
 
 
@@ -178,8 +178,8 @@ def get_config(is_train):
 
         class _generate:
             def __init__(self):
-                self.short = (160, 80, 40, 20, 10)
-                self.long = (160, 80, 40, 20, 10)
+                self.short = (80, 40, 20, 10, 5)
+                self.long = (80, 40, 20, 10, 5)
                 self.stride = (8, 16, 32, 64, 128)
 
             scales = (4 * 2 ** 0, 4 * 2 ** (1.0 / 3.0), 4 * 2 ** (2.0 / 3.0))
@@ -204,27 +204,21 @@ def get_config(is_train):
         ConvertImageFromHwcToChw, Flip2DImageBbox, Pad2DImageBbox, \
         RenameRecord
     from models.NASFPN.input import RandResizeCrop2DImageBbox, ResizeCrop2DImageBbox
-    from models.retinanet.input import PyramidAnchorTarget2D, Norm2DImage, \
-        AverageFgCount
+    from models.retinanet.input import PyramidAnchorTarget2D, Norm2DImage
 
     if is_train:
-        transform = {
-            "sample": [
-                ReadRoiRecord(None),
-                Norm2DImage(NormParam),
-                RandResizeCrop2DImageBbox(ResizeParam),
-                Flip2DImageBbox(),
-                Pad2DImageBbox(PadParam),
-                ConvertImageFromHwcToChw(),
-                PyramidAnchorTarget2D(AnchorTarget2DParam()),
-                RenameRecord(RenameParam.mapping)
-            ],
-            "batch": [
-                AverageFgCount("rpn_fg_count")
-            ]
-        }
+        transform = [
+            ReadRoiRecord(None),
+            Norm2DImage(NormParam),
+            RandResizeCrop2DImageBbox(ResizeParam),
+            Flip2DImageBbox(),
+            Pad2DImageBbox(PadParam),
+            ConvertImageFromHwcToChw(),
+            PyramidAnchorTarget2D(AnchorTarget2DParam()),
+            RenameRecord(RenameParam.mapping)
+        ]
         data_name = ["data"]
-        label_name = ["rpn_cls_label", "rpn_fg_count", "rpn_reg_target", "rpn_reg_weight"]
+        label_name = ["rpn_cls_label", "rpn_reg_target", "rpn_reg_weight"]
     else:
         transform = [
             ReadRoiRecord(None),

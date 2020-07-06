@@ -1,15 +1,15 @@
 ## Setup Locally with Pre-built Wheel
 We provide pre-built wheel for python >= 3.4, Ubuntu >= 14.04 or CentOS >=7. The wheels are staticly linked so no dependency other than CUDA is required.
 
-[Downdload wheel for CUDA-9.0(2019.8.20)](https://1dv.alarge.space/mxnet_cu90-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
+[Downdload wheel for CUDA-9.0(2019.8.20)](https://1dv.aflat.top/mxnet_cu90-1.6.0b20190820-py2.py3-none-manylinux1_x86_64.whl)
 
-[Downdload wheel for CUDA-10.0(2019.12.14)](https://1dv.alarge.space/mxnet_cu100-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
+[Downdload wheel for CUDA-10.0(2019.12.14)](https://1dv.aflat.top/mxnet_cu100-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
 
-[Downdload wheel for CUDA-10.1(2019.12.14)](https://1dv.alarge.space/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
+[Downdload wheel for CUDA-10.1(2019.12.14)](https://1dv.aflat.top/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl)
 
 Install the wheel as
 ```bash
-pip3 install https://1dv.alarge.space/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl --user
+pip3 install https://1dv.aflat.top/mxnet_cu101-1.6.0b20191214-py2.py3-none-manylinux1_x86_64.whl --user
 ```
 
 
@@ -53,7 +53,7 @@ sudo make install
 
 #### Download singularity image for SimpleDet
 ```bash
-wget https://1dv.alarge.space/simpledet.img
+wget https://1dv.aflat.top/simpledet.img
 ```
 
 #### Invoke simpledet shell
