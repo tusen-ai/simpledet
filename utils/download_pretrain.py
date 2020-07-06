@@ -13,7 +13,7 @@ def download(prefix, epoch):
         os.makedirs(dir_name)
     base_name = prefix.replace("pretrain_model/", "") + "-%04d.params" % epoch
     save_name = "%s-%04d.params" % (prefix, epoch)
-    base_url = os.environ.get("SIMPLEDET_BASE_URL", "https://1dv.alarge.space/")
+    base_url = os.environ.get("SIMPLEDET_BASE_URL", "https://1dv.aflat.top/")
     full_url = base_url + base_name
 
     try:

@@ -31,6 +31,7 @@
 - Add support for Feature Pyramid Grids & PAFPN (2020.06)
 - Add support for CrowdHuman Dataset (2020.06)
 - Add support for [Double Pred](https://arxiv.org/abs/2003.09163) (2020.06)
+- Add support for [SEPC](https://github.com/TuSimple/simpledet/tree/master/models/sepc)(contributed by Qiaofei Li) (2020.07)
 
 ### Setup
 #### All-in-one Script
