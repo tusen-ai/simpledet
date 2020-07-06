@@ -29,6 +29,7 @@
 - Add support for RepPoints(contributed by Bo Ke) (2020.02)
 - Add support for FreeAnchor (2020.03)
 - Add support for Feature Pyramid Grids & PAFPN (2020.06)
+- Add support for [SEPC](https://github.com/TuSimple/simpledet/tree/master/models/sepc)(contributed by Qiaofei Li) (2020.07)
 
 ### Setup
 #### All-in-one Script
