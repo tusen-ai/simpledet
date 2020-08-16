@@ -93,12 +93,8 @@ class Resize2DImageBbox(DetectionAugmentation):
                                            interpolation=cv2.INTER_LINEAR)
         # make sure gt boxes do not overflow
         gt_bbox[:, :4] = gt_bbox[:, :4] * scale
-        if image.shape[0] < image.shape[1]:
-            gt_bbox[:, [0, 2]] = np.clip(gt_bbox[:, [0, 2]], 0, p.long)
-            gt_bbox[:, [1, 3]] = np.clip(gt_bbox[:, [1, 3]], 0, p.short)
-        else:
-            gt_bbox[:, [0, 2]] = np.clip(gt_bbox[:, [0, 2]], 0, p.short)
-            gt_bbox[:, [1, 3]] = np.clip(gt_bbox[:, [1, 3]], 0, p.long)
+        gt_bbox[:, [0, 2]] = np.clip(gt_bbox[:, [0, 2]], 0, input_record["image"].shape[1] - 1)
+        gt_bbox[:, [1, 3]] = np.clip(gt_bbox[:, [1, 3]], 0, input_record["image"].shape[0] - 1)
         input_record["gt_bbox"] = gt_bbox
 
         # exactly as opencv
