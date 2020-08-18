@@ -20,7 +20,7 @@
 /*!
  * \file decodebbox-inl.h
  * \brief DecodeBBox Operator
- * \author Ziyang Zhou, Chenxia Han
+ * \author Ziyang Zhou, Chenxia Han, Zehao Huang
 */
 #ifndef MXNET_OPERATOR_CONTRIB_DECODEBBOX_INL_H_
 #define MXNET_OPERATOR_CONTRIB_DECODEBBOX_INL_H_
@@ -44,12 +44,14 @@ namespace op {
 namespace decodebbox {
 enum DecodeBBoxOpInputs {kRois, kBBoxPred, kImInfo};
 enum DecodeBBoxOpOutputs {kOut};
+enum DecodeBBoxType {kXYWH, kXYXY};
 }  // decodebbox
 
 struct DecodeBBoxParam : public dmlc::Parameter<DecodeBBoxParam> {
   nnvm::Tuple<float> bbox_mean;
   nnvm::Tuple<float> bbox_std;
   bool class_agnostic;
+  int bbox_decode_type;
 
   DMLC_DECLARE_PARAMETER(DecodeBBoxParam) {
     float tmp[] = {0.f, 0.f, 0.f, 0.f};
@@ -58,6 +60,11 @@ struct DecodeBBoxParam : public dmlc::Parameter<DecodeBBoxParam> {
     DMLC_DECLARE_FIELD(bbox_std).set_default(nnvm::Tuple<float>(tmp, tmp+4)).describe("Bounding box std");
     DMLC_DECLARE_FIELD(class_agnostic).set_default(true)
     .describe("Whether use class agnostic");
+    DMLC_DECLARE_FIELD(bbox_decode_type)
+    .add_enum("xywh", decodebbox::kXYWH)
+    .add_enum("xyxy", decodebbox::kXYXY)
+    .set_default(decodebbox::kXYWH)
+    .describe("Bbox decode type. xywh means ctr_x, ctr_y, w and h. xyxy means x1, y1, x2, y2.");
   }
 };
 

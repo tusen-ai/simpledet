@@ -31,14 +31,14 @@ namespace utils {
 
 template <typename DType>
 // bbox prediction and clip to the image borders
-inline void BBoxTransformInv(const mshadow::Tensor<cpu, 3>& boxes,
-                             const mshadow::Tensor<cpu, 3>& deltas,
-                             const int nbatch,
-                             const DType* means,
-                             const DType* stds,
-                             const bool class_agnostic,
-                             const mshadow::Tensor<cpu, 2>& im_info,
-                             mshadow::Tensor<cpu, 3> out_pred_boxes) {
+inline void BBoxTransformXYWH(const mshadow::Tensor<cpu, 3>& boxes,
+                              const mshadow::Tensor<cpu, 3>& deltas,
+                              const int nbatch,
+                              const DType* means,
+                              const DType* stds,
+                              const bool class_agnostic,
+                              const mshadow::Tensor<cpu, 2>& im_info,
+                              mshadow::Tensor<cpu, 3> out_pred_boxes) {
   CHECK_GE(boxes.size(2), 4);
   CHECK_GE(out_pred_boxes.size(2), 4);
   int rois_num = boxes.size(1);
@@ -67,6 +67,56 @@ inline void BBoxTransformInv(const mshadow::Tensor<cpu, 3>& boxes,
         float pred_x2 = pred_ctr_x + 0.5f * (pred_w - 1.0f);
         float pred_y2 = pred_ctr_y + 0.5f * (pred_h - 1.0f);
         
+        pred_x1 = std::max(std::min(pred_x1, im_info[n][1] - 1.0f), 0.0f);
+        pred_y1 = std::max(std::min(pred_y1, im_info[n][0] - 1.0f), 0.0f);
+        pred_x2 = std::max(std::min(pred_x2, im_info[n][1] - 1.0f), 0.0f);
+        pred_y2 = std::max(std::min(pred_y2, im_info[n][0] - 1.0f), 0.0f);
+
+        out_pred_boxes[n][index][cls*4+0] = pred_x1;
+        out_pred_boxes[n][index][cls*4+1] = pred_y1;
+        out_pred_boxes[n][index][cls*4+2] = pred_x2;
+        out_pred_boxes[n][index][cls*4+3] = pred_y2;
+      }
+    }
+  }
+
+}
+
+template <typename DType>
+// bbox prediction and clip to the image borders
+inline void BBoxTransformXYXY(const mshadow::Tensor<cpu, 3>& boxes,
+                              const mshadow::Tensor<cpu, 3>& deltas,
+                              const int nbatch,
+                              const DType* means,
+                              const DType* stds,
+                              const bool class_agnostic,
+                              const mshadow::Tensor<cpu, 2>& im_info,
+                              mshadow::Tensor<cpu, 3> out_pred_boxes) {
+  CHECK_GE(boxes.size(2), 4);
+  CHECK_GE(out_pred_boxes.size(2), 4);
+  int rois_num = boxes.size(1);
+  int num_class = class_agnostic ? 1 : (deltas.size(2) / 4);
+  for (int n = 0; n < nbatch; ++n) {
+    for (int index = 0; index < rois_num; ++index) {
+      for (int cls = 0; cls < num_class; ++cls) {
+        float x1 = boxes[n][index][0];
+        float y1 = boxes[n][index][1];
+        float x2 = boxes[n][index][2];
+        float y2 = boxes[n][index][3];
+        float width = x2 - x1 + 1.0f;
+        float height = y2 - y1 + 1.0f;
+
+        int decode_cls = class_agnostic ? 1 : cls;
+        float dx1 = deltas[n][index][decode_cls*4+0] * stds[0] + means[0];
+        float dy1 = deltas[n][index][decode_cls*4+1] * stds[1] + means[1];
+        float dx2 = deltas[n][index][decode_cls*4+2] * stds[2] + means[2];
+        float dy2 = deltas[n][index][decode_cls*4+3] * stds[3] + means[3];
+
+        float pred_x1 = x1 + dx1 * width;
+        float pred_y1 = y1 + dy1 * height;
+        float pred_x2 = x2 + dx2 * width;
+        float pred_y2 = y2 + dy2 * height;
+ 
         pred_x1 = std::max(std::min(pred_x1, im_info[n][1] - 1.0f), 0.0f);
         pred_y1 = std::max(std::min(pred_y1, im_info[n][0] - 1.0f), 0.0f);
         pred_x2 = std::max(std::min(pred_x2, im_info[n][1] - 1.0f), 0.0f);
@@ -141,11 +191,19 @@ class DecodeBBoxOp : public Operator{
     const bool class_agnostic = param_.class_agnostic;
     if (class_agnostic) {
       TensorContainer<cpu, 3> out(Shape3(rois.size(0), rois.size(1), 4), 0.f);
-      utils::BBoxTransformInv(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      if (param_.bbox_decode_type == decodebbox::kXYWH) {
+        utils::BBoxTransformXYWH(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      } else {
+        utils::BBoxTransformXYXY(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      }
       Copy(xpu_out, out, s);
     } else {
       TensorContainer<cpu, 3> out(xpu_bbox_deltas.shape_, 0.f);
-      utils::BBoxTransformInv(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      if (param_.bbox_decode_type == decodebbox::kXYWH) {
+        utils::BBoxTransformXYWH(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      } else {
+        utils::BBoxTransformXYXY(rois, bbox_deltas, nbatch, bbox_mean, bbox_std, class_agnostic, im_info, out);
+      }
       Copy(xpu_out, out, s);
     }
   }
