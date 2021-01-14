@@ -3,7 +3,7 @@
 ![](./doc/image/diagram_v2.png)
 - FP16 training for memory saving and up to **2.5X** acceleration
 - Highly scalable distributed training available **out of box**
-- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, [DCNv1/v2](./models/dcn), **[TridentNet](./models/tridentnet)**, **[NASFPN](./models/NASFPN)** , **[EfficientNet](./models/efficientnet)**, and **[Kownledge Distillation](./models/KD)**
+- Full coverage of state-of-the-art models including FasterRCNN, MaskRCNN, CascadeRCNN, RetinaNet, [DCNv1/v2](./models/dcn), **[TridentNet](./models/tridentnet)**, **[NASFPN](./models/NASFPN)** , **[EfficientNet](./models/efficientnet)**, and **[Knowledge Distillation](./models/KD)**
 - Extensive feature set including **large batch BN**, **loss synchronization**, **automatic BN fusion**, soft NMS, multi-scale train/test
 - Modular design for coding-free exploration of new experiment settings
 - Extensive documentations including [annotated config](./doc/fully_annotated_config.py), [Fintuning Guide](./doc/FINETUNE.md)
