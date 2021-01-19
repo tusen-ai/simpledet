@@ -1,5 +1,5 @@
 # modify from https://github.com/NVIDIA/TensorRT/blob/master/docker/ubuntu.Dockerfile
-ARG CUDA_VERSION=10.2
+ARG CUDA_VERSION=11.1
 ARG CUDNN_VERSION=8
 ARG OS_VERSION=16.04
 ARG NVCR_SUFFIX=
