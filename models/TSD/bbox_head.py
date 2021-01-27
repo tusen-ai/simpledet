@@ -9,15 +9,17 @@ from models.TSD.poolings import FPNRoIAlign_DeltaC, FPNRoIAlign_DeltaR
 from shape_tool import infer_shape
 
 
-def get_iou_mat(rois, gt_boxes, l1, l2):
+def get_iou_mat(rois, gt_boxes, len_rois):
     # compute IoU matrix between a set of boxes and gt_boxes
-    rois = mx.sym.reshape(rois, (l1, 1, 4))
-    gt_boxes = mx.sym.reshape(gt_boxes, (1, l2, 5))
+    rois = mx.sym.reshape(rois, (-1, 1, 4))
+    gt_boxes = mx.sym.reshape(gt_boxes, (1, -1, 5))
+    gt_boxes = mx.sym.slice_axis(gt_boxes, axis=2, begin=0, end=4)
     rois = mx.sym.tile(rois, (1, l2, 1))
-    gt_boxes = mx.sym.tile(gt_boxes, (l1, 1, 1))
+    gt_boxes = mx.sym.tile(gt_boxes, (len_rois, 1, 1))
+    rois = mx.sym.broadcast_like(rois, gt_boxes)
 
     xmin1, ymin1, xmax1, ymax1 = mx.sym.split(rois, axis=2, num_outputs=4, squeeze_axis=True)
-    xmin2, ymin2, xmax2, ymax2, _ = mx.sym.split(gt_boxes, axis=2, num_outputs=5, squeeze_axis=True)
+    xmin2, ymin2, xmax2, ymax2 = mx.sym.split(gt_boxes, axis=2, num_outputs=4, squeeze_axis=True)
 
     x1 = mx.sym.maximum(xmin1, xmin2)
     y1 = mx.sym.maximum(ymin1, ymin2)
@@ -57,17 +59,17 @@ class TSDConvFCBBoxHead(BboxHead):
     def get_output(self, fpn_conv_feats, roi_feat, rois, is_train):
         '''
         Args:
-            fpn_conv_feats: dict of FPN features, each [batch_size, in_channels, fh, fw]
-            roi_feat: [batch_size * image_roi, 256, roi_size, roi_size]
-            rois: [batch_size, image_roi, 4]
+            fpn_conv_feats: dict of FPN features, each [batch_image, in_channels, fh, fw]
+            roi_feat: [batch_image * image_roi, 256, roi_size, roi_size]
+            rois: [batch_image, image_roi, 4]
             is_train: boolean
         Returns:
-            cls_logit: [batch_size * image_roi, num_class]
-            bbox_delta: [batch_size * image_roi, num_class * 4]
-            tsd_cls_logit: [batch_size * image_roi, num_class]
-            tsd_bbox_delta: [batch_size * image_roi, num_class * 4]
-            delta_c: [batch_size * image_roi, 2*roi_size*roi_size, 1, 1]
-            delta_r: [batch_size * image_roi, 2, 1, 1]
+            cls_logit: [batch_image * image_roi, num_class]
+            bbox_delta: [batch_image * image_roi, num_class * 4]
+            tsd_cls_logit: [batch_image * image_roi, num_class]
+            tsd_bbox_delta: [batch_image * image_roi, num_class * 4]
+            delta_c: [batch_image * image_roi, 2*roi_size*roi_size, 1, 1]
+            delta_r: [batch_image * image_roi, 2, 1, 1]
         '''
         xavier_init = mx.init.Xavier(factor_type="in", rnd_type="uniform", magnitude=3)
         # roi_feat: [batch_roi, 256, 7, 7]
@@ -84,10 +86,10 @@ class TSDConvFCBBoxHead(BboxHead):
         delta_r = X.conv(delta_r, filter=2, name="delta_r_fc2", init=X.gauss(0.01)) # [batch_roi, 2, 1, 1]
 
         image_roi = self.p.image_roi if is_train else 1000
-        batch_size = self.p.batch_size
+        batch_image = self.p.batch_image
         
-        TSD_cls_feats = self.delta_c_pool.get_roi_feature(fpn_conv_feats, rois, delta_c, image_rois=image_roi, batch_size=batch_size) # [batch_roi, 256, 7, 7]
-        TSD_loc_feats = self.delta_r_pool.get_roi_feature(fpn_conv_feats, rois, delta_r, image_rois=image_roi, batch_size=batch_size) # [batch_roi, 256, 7, 7]
+        TSD_cls_feats = self.delta_c_pool.get_roi_feature(fpn_conv_feats, rois, delta_c, image_rois=image_roi, batch_image=batch_image) # [batch_roi, 256, 7, 7]
+        TSD_loc_feats = self.delta_r_pool.get_roi_feature(fpn_conv_feats, rois, delta_r, image_rois=image_roi, batch_image=batch_image) # [batch_roi, 256, 7, 7]
         
         TSD_x_cls = self._convs_and_fcs(TSD_cls_feats, self.p.TSD.num_shared_convs, self.p.TSD.num_shared_fcs, name='TSD_pc', conv_init=xavier_init, fc_init=X.gauss(0.01)) # [batch_roi, batch_roi, 1, 1]
         TSD_x_reg = self._convs_and_fcs(TSD_loc_feats, self.p.TSD.num_shared_convs, self.p.TSD.num_shared_fcs, name='TSD_pr', conv_init=xavier_init, fc_init=X.gauss(0.01)) # [batch_roi, batch_roi, 1, 1]
@@ -148,49 +150,49 @@ class TSDConvFCBBoxHead(BboxHead):
     def _get_delta_r_box(self, delta_r, rois, scale=0.1):
         '''
         Args:
-            delta_r: [batch_size * image_roi, 2, 1, 1]
-            rois: [batch_size, image_roi, in_channels]
+            delta_r: [batch_image * image_roi, 2, 1, 1]
+            rois: [batch_image, image_roi, in_channels]
         Returns:
-            rois_r: # [batch_size, image_roi, 4]
+            rois_r: # [batch_image, image_roi, 4]
         '''
-        batch_size = self.p.batch_size
+        batch_image = self.p.batch_image
 
-        delta_r = mx.sym.reshape(delta_r, (batch_size, -1, 2)) # [batch_size, image_roi, 2]
-        dx, dy = mx.sym.split(delta_r, axis=2, num_outputs=2, squeeze_axis=True) # both [batch_size, image_roi]
-        rx1, ry1, rx2, ry2 = mx.sym.split(rois, axis=2, num_outputs=4, squeeze_axis=True) # all [batch_size, image_roi]
+        delta_r = mx.sym.reshape(delta_r, (batch_image, -1, 2)) # [batch_image, image_roi, 2]
+        dx, dy = mx.sym.split(delta_r, axis=2, num_outputs=2, squeeze_axis=True) # both [batch_image, image_roi]
+        rx1, ry1, rx2, ry2 = mx.sym.split(rois, axis=2, num_outputs=4, squeeze_axis=True) # all [batch_image, image_roi]
         w = rx2 - rx1
         h = ry2 - ry1
         rrx1 = rx1 + dx * scale * w
         rry1 = ry1 + dy * scale * h
         rrx2 = rx2 + dx * scale * w
         rry2 = ry2 + dy * scale * h
-        rois_r = mx.sym.stack(rrx1, rry1, rrx2, rry2, axis=2, name='delta_r_roi') # [batch_size, image_roi, 4]
+        rois_r = mx.sym.stack(rrx1, rry1, rrx2, rry2, axis=2, name='delta_r_roi') # [batch_image, image_roi, 4]
         return rois_r
 
     def get_loss(self, rois, roi_feat, fpn_conv_feats, cls_label, bbox_target, bbox_weight, gt_bbox):
         '''
         Args:
-            rois: [batch_size, image_roi, 4]
-            roi_feat: [batch_size * image_roi, 256, roi_size, roi_size]
-            fpn_conv_feats: dict of FPN features, each [batch_size, in_channels, fh, fw]
-            cls_label: [batch_size * image_roi]
-            bbox_target: [batch_size * image_roi, num_class * 4]
-            bbox_weight: [batch_size * image_roi, num_class * 4]
-            gt_bbox: [batch_size, max_gt_num, 4]
+            rois: [batch_image, image_roi, 4]
+            roi_feat: [batch_image * image_roi, 256, roi_size, roi_size]
+            fpn_conv_feats: dict of FPN features, each [batch_image, in_channels, fh, fw]
+            cls_label: [batch_image * image_roi]
+            bbox_target: [batch_image * image_roi, num_class * 4]
+            bbox_weight: [batch_image * image_roi, num_class * 4]
+            gt_bbox: [batch_image, max_gt_num, 4]
         Returns:
-            cls_loss: [batch_size * image_roi, num_class]
-            reg_loss: [batch_size * image_roi, num_class * 4]
-            tsd_cls_loss: [batch_size * image_roi, num_class]
-            tsd_reg_loss: [batch_size * image_roi, num_class * 4]
-            tsd_cls_pc_loss: [batch_size * image_roi]
-            tsd_reg_pc_loss: [batch_size * image_roi]
-            cls_label: [batch_size, image_roi]
+            cls_loss: [batch_image * image_roi, num_class]
+            reg_loss: [batch_image * image_roi, num_class * 4]
+            tsd_cls_loss: [batch_image * image_roi, num_class]
+            tsd_reg_loss: [batch_image * image_roi, num_class * 4]
+            tsd_cls_pc_loss: [batch_image * image_roi]
+            tsd_reg_pc_loss: [batch_image * image_roi]
+            cls_label: [batch_image, image_roi]
         '''
         p = self.p
         assert not p.regress_target.class_agnostic
-        batch_size = p.batch_size
+        batch_image = p.batch_image
         image_roi = p.image_roi
-        batch_roi = batch_size * image_roi
+        batch_roi = batch_image * image_roi
         smooth_l1_scalar = p.regress_target.smooth_l1_scalar or 1.0
         
         cls_logit, bbox_delta, tsd_cls_logit, tsd_bbox_delta, delta_c, delta_r = self.get_output(fpn_conv_feats, roi_feat, rois, is_train=True)
@@ -237,29 +239,33 @@ class TSDConvFCBBoxHead(BboxHead):
             grad_scale=1.0 / batch_roi * scale_loss_shift,
             name='tsd_bbox_reg_loss',
         )  
-        tsd_cls_pc_loss = self.cls_pc_loss(cls_logit, tsd_cls_logit, cls_label, scale_loss_shift)
-        tsd_reg_pc_loss = self.reg_pc_loss(bbox_delta, tsd_bbox_delta, rois, rois_r, gt_bbox, cls_label, scale_loss_shift)
-        
+
+        losses = [cls_loss, reg_loss, tsd_cls_loss, tsd_reg_loss, tsd_cls_pc_loss]
+        if p.TSD.pc_cls:
+            losses.append(self.cls_pc_loss(cls_logit, tsd_cls_logit, cls_label, scale_loss_shift))
+        if p.TSD.pc_reg:
+            losses.append(self.reg_pc_loss(bbox_delta, tsd_bbox_delta, rois, rois_r, gt_bbox, cls_label, scale_loss_shift))
         # append label
         cls_label = X.reshape(
             cls_label,
-            shape=(batch_size, -1),
+            shape=(batch_image, -1),
             name='bbox_label_reshape'
         )
         cls_label = X.block_grad(cls_label, name='bbox_label_blockgrad')
+        losses.append(cls_label)
 
-        return cls_loss, reg_loss, tsd_cls_loss, tsd_reg_loss, tsd_cls_pc_loss, tsd_reg_pc_loss, cls_label
+        return tuple(losses)
 
     def get_prediction(self, rois, roi_feat, fpn_conv_feats, im_info, play=False):
         '''
         Args:
-            rois: [batch_size, image_roi, 4]
-            roi_feat: [batch_size * image_roi, 256, roi_size, roi_size]
-            fpn_conv_feats: dict of FPN features, each [batch_size, in_channels, fh, fw]
+            rois: [batch_image, image_roi, 4]
+            roi_feat: [batch_image * image_roi, 256, roi_size, roi_size]
+            fpn_conv_feats: dict of FPN features, each [batch_image, in_channels, fh, fw]
             im_info: ...
         Returns:
-            cls_score: [batch_size, image_roi, num_class]
-            bbox_xyxy: [batch_size, image_roi, num_class*4]
+            cls_score: [batch_image, image_roi, num_class]
+            bbox_xyxy: [batch_image, image_roi, num_class*4]
         '''
         p = self.p
         assert not p.regress_target.class_agnostic
@@ -299,10 +305,10 @@ class TSDConvFCBBoxHead(BboxHead):
     def get_reg_target(self, rois, gt_bbox):
         '''
         Args:
-            rois: [batch_size, image_roi, 4]
-            gt_bbox: [batch_size, max_gt_num, 4]
+            rois: [batch_image, image_roi, 4]
+            gt_bbox: [batch_image, max_gt_num, 4]
         Returns:
-            reg_target: [batch_size * image_roi, num_class * 4]
+            reg_target: [batch_image * image_roi, num_class * 4]
         '''
         def get_transform(rois, gt_boxes):
             bbox_mean = self.p.regress_target.mean
@@ -333,43 +339,42 @@ class TSDConvFCBBoxHead(BboxHead):
 
             return mx.sym.stack(dx, dy, dw, dh, axis=1, name='delta_r_roi_transform')
 
-        p_rpn = self.p.rpn_params
-        batch_size = self.p.batch_size
+
+        batch_image = self.p.batch_image
         image_roi = self.p.image_roi #image_roi
         num_class = self.p.num_class # num_class
-        max_num_gt = self.p.max_num_gt # 100
 
         reg_target = []
         
-        rois_group = mx.sym.split(rois, axis=0, num_outputs=batch_size, squeeze_axis=True)
-        gt_group = mx.sym.split(gt_bbox, axis=0, num_outputs=batch_size, squeeze_axis=True)
+        rois_group = mx.sym.split(rois, axis=0, num_outputs=batch_image, squeeze_axis=True)
+        gt_group = mx.sym.split(gt_bbox, axis=0, num_outputs=batch_image, squeeze_axis=True)
 
         for i , (rois_i, gt_box_i) in enumerate(zip(rois_group, gt_group)):
-            iou_mat = get_iou_mat(rois_i, gt_box_i, l1=image_roi, l2=max_num_gt) # [image_roi, 100]
+            iou_mat = get_iou_mat(rois_i, gt_box_i, image_roi) # [image_roi, 100]
             idxs = mx.sym.argmax(iou_mat, axis=1) # [image_roi]
             match_gt_boxes = mx.sym.gather_nd(gt_box_i, X.reshape(idxs, [1, -1])) # [image_roi, 4]
             delta_i = get_transform(rois_i, match_gt_boxes) # [image_roi, 4]
             delta_i = mx.sym.reshape(mx.sym.repeat(delta_i, repeats=num_class, axis=0), (image_roi, -1)) #[image_roi, num_class * 4]
             reg_target.append(delta_i) 
         
-        reg_target = X.block_grad(mx.sym.reshape(mx.sym.stack(*reg_target, axis=0), [batch_size*image_roi, -1], name='TSD_reg_target')) # [batch_roi, num_class*4]
+        reg_target = X.block_grad(mx.sym.reshape(mx.sym.stack(*reg_target, axis=0), [batch_image*image_roi, -1], name='TSD_reg_target')) # [batch_roi, num_class*4]
         return reg_target
 
     def cls_pc_loss(self, logits, tsd_logits, gt_label, scale_loss_shift):
         '''
         TSD classification progressive constraint
         Args:
-            logits: [batch_size * image_roi, num_class]
-            tsd_logits: [batch_size * image_roi, num_class]
-            gt_label:  [batch_size * image_roi]
+            logits: [batch_image * image_roi, num_class]
+            tsd_logits: [batch_image * image_roi, num_class]
+            gt_label:  [batch_image * image_roi]
             scale_loss_shift: float
         Returns:
-            loss: [batch_size * image_roi]
+            loss: [batch_image * image_roi]
         '''
         p = self.p
-        batch_size = p.batch_size
+        batch_image = p.batch_image
         image_roi = p.image_roi
-        batch_roi = batch_size * image_roi
+        batch_roi = batch_image * image_roi
         margin = self.p.TSD.pc_cls_margin
 
         cls_prob = mx.sym.SoftmaxActivation(logits, mode='instance')
@@ -382,7 +387,7 @@ class TSDConvFCBBoxHead(BboxHead):
         cls_pc_margin = mx.sym.minimum(1. - cls_score, margin)
         loss = mx.sym.relu(-(tsd_score - cls_score - cls_pc_margin))
 
-        grad_scale = 1. / batch_roi if self.p.TSD.pc_cls else 0.
+        grad_scale = 1. / batch_roi 
         grad_scale *= scale_loss_shift
         loss = X.loss(loss, grad_scale=grad_scale, name='cls_pc_loss')
         return loss
@@ -391,15 +396,15 @@ class TSDConvFCBBoxHead(BboxHead):
         '''
         TSD regression progressive constraint
         Args:
-            bbox_delta: [batch_size * image_roi, num_class*4]
-            tsd_bbox_delta: [batch_size * image_roi, num_class*4]
-            rois: [batch_size, image_roi, 4]
-            rois_r: [batch_size, image_roi, 4]
-            gt_bbox: [batch_size, max_gt_num, 4]
-            gt_label:  [batch_size * image_roi]
+            bbox_delta: [batch_image * image_roi, num_class*4]
+            tsd_bbox_delta: [batch_image * image_roi, num_class*4]
+            rois: [batch_image, image_roi, 4]
+            rois_r: [batch_image, image_roi, 4]
+            gt_bbox: [batch_image, max_gt_num, 4]
+            gt_label:  [batch_image * image_roi]
             scale_loss_shift: float
         Returns:
-            loss: [batch_size * image_roi]
+            loss: [batch_image * image_roi]
         '''
         def _box_decode(rois, deltas, means, stds):
             rois = X.block_grad(rois)
@@ -438,19 +443,18 @@ class TSDConvFCBBoxHead(BboxHead):
                 outputs.append(mx.sym.pick(d, indices, axis=1))
             return mx.sym.stack(*outputs, axis=1)
         
-        batch_size = self.p.batch_size
+        batch_image = self.p.batch_image
         image_roi = self.p.image_roi
-        batch_roi = batch_size * image_roi
+        batch_roi = batch_image * image_roi
         num_class = self.p.num_class
-        max_num_gt = self.p.max_num_gt
         bbox_mean = self.p.regress_target.mean
         bbox_std = self.p.regress_target.std
         margin = self.p.TSD.pc_reg_margin
 
         gt_label = mx.sym.reshape(gt_label, (-1,))
 
-        bbox_delta = mx.sym.reshape(bbox_delta, (batch_size*image_roi, num_class, 4))
-        tsd_bbox_delta = mx.sym.reshape(tsd_bbox_delta, (batch_size*image_roi, num_class, 4))
+        bbox_delta = mx.sym.reshape(bbox_delta, (batch_image*image_roi, num_class, 4))
+        tsd_bbox_delta = mx.sym.reshape(tsd_bbox_delta, (batch_image*image_roi, num_class, 4))
 
         bbox_delta = _gather_3d(bbox_delta, gt_label, n=4)
         tsd_bbox_delta = _gather_3d(tsd_bbox_delta, gt_label, n=4)
@@ -458,25 +462,25 @@ class TSDConvFCBBoxHead(BboxHead):
         boxes = _box_decode(rois, bbox_delta, bbox_mean, bbox_std)
         tsd_bboxes = _box_decode(tsd_rois, tsd_bbox_delta, bbox_mean, bbox_std)
         
-        rois = mx.sym.reshape(rois, [batch_size, -1, 4])
-        tsd_rois = mx.sym.reshape(tsd_rois, [batch_size, -1, 4])
+        rois = mx.sym.reshape(rois, [batch_image, -1, 4])
+        tsd_rois = mx.sym.reshape(tsd_rois, [batch_image, -1, 4])
 
-        boxes = mx.sym.reshape(boxes, [batch_size, -1, 4])
-        tsd_bboxes = mx.sym.reshape(tsd_bboxes, [batch_size, -1, 4])
+        boxes = mx.sym.reshape(boxes, [batch_image, -1, 4])
+        tsd_bboxes = mx.sym.reshape(tsd_bboxes, [batch_image, -1, 4])
 
-        rois_group = mx.sym.split(rois, axis=0, num_outputs=batch_size, squeeze_axis=True)
-        tsd_rois_group = mx.sym.split(tsd_rois, axis=0, num_outputs=batch_size, squeeze_axis=True)
-        boxes_group = mx.sym.split(boxes, axis=0, num_outputs=batch_size, squeeze_axis=True)
-        tsd_bboxes_group = mx.sym.split(tsd_bboxes, axis=0, num_outputs=batch_size, squeeze_axis=True)
-        gt_group = mx.sym.split(gt_bbox, axis=0, num_outputs=batch_size, squeeze_axis=True)
+        rois_group = mx.sym.split(rois, axis=0, num_outputs=batch_image, squeeze_axis=True)
+        tsd_rois_group = mx.sym.split(tsd_rois, axis=0, num_outputs=batch_image, squeeze_axis=True)
+        boxes_group = mx.sym.split(boxes, axis=0, num_outputs=batch_image, squeeze_axis=True)
+        tsd_bboxes_group = mx.sym.split(tsd_bboxes, axis=0, num_outputs=batch_image, squeeze_axis=True)
+        gt_group = mx.sym.split(gt_bbox, axis=0, num_outputs=batch_image, squeeze_axis=True)
 
         ious = []
         tsd_ious = []
         for i, (rois_i, tsd_rois_i, boxes_i, tsd_boxes_i, gt_i) in \
             enumerate(zip(rois_group, tsd_rois_group, boxes_group, tsd_bboxes_group, gt_group)):
 
-            iou_mat = get_iou_mat(rois_i, gt_i, l1=image_roi, l2=max_num_gt)
-            tsd_iou_mat = get_iou_mat(tsd_rois_i, gt_i, l1=image_roi, l2=max_num_gt)
+            iou_mat = get_iou_mat(rois_i, gt_i, image_roi)
+            tsd_iou_mat = get_iou_mat(tsd_rois_i, gt_i, image_roi)
 
             matched_gt = mx.sym.gather_nd(gt_i, X.reshape(mx.sym.argmax(iou_mat, axis=1), [1, -1]))
             tsd_matched_gt = mx.sym.gather_nd(gt_i, X.reshape(mx.sym.argmax(tsd_iou_mat, axis=1), [1, -1]))
@@ -496,7 +500,7 @@ class TSDConvFCBBoxHead(BboxHead):
         reg_pc_margin = mx.sym.minimum(1. - iou, margin)
         loss = mx.sym.relu(-(tsd_iou - iou - reg_pc_margin))
         
-        grad_scale = 1. / batch_roi if self.p.TSD.pc_reg else 0.
+        grad_scale = 1. / batch_roi
         grad_scale *= scale_loss_shift
         loss = X.loss(weight * loss, grad_scale=grad_scale, name='reg_pc_loss')
         return loss

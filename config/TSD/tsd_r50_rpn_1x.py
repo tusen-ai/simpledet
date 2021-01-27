@@ -3,7 +3,7 @@ from models.TSD.faster_rcnn import FasterRcnn_TSD as Detector
 from models.FPN.builder import MSRAResNet50V1FPN as Backbone
 from models.FPN.builder import FPNNeck as Neck
 from models.FPN.builder import FPNRpnHead as RpnHead
-from models.TSD.poolings import FPNRoiAlign as RoiExtractor
+from models.FPN.builder import FPNRoiAlign as RoiExtractor
 from models.TSD.bbox_head import TSDConvFCBBoxHead as BboxHead
 from mxnext.complicate import normalizer_factory
 
@@ -94,16 +94,9 @@ def get_config(is_train):
         normalizer = NormalizeParam.normalizer
         num_class  = 1 + 80
         image_roi  = 512
-        # -----------------------------------------
         # info used by TSD
-        batch_size = General.batch_image
-        roi_size   = 7 
-        in_channels = 256
-        rpn_params = RpnParam
-        max_num_gt = 100
-        # -----------------------------------------
         batch_image = General.batch_image
-
+        roi_size   = 7 
         class regress_target:
             class_agnostic = False
             mean = (0.0, 0.0, 0.0, 0.0)
